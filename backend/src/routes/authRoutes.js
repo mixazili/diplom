@@ -3,6 +3,8 @@ const {
   register,
   verifyEmail,
   login,
+  requestStaffLoginCode,
+  verifyStaffLoginCode,
   refresh,
   me,
   logout,
@@ -15,6 +17,8 @@ const router = Router();
 router.post('/register', register);
 router.post('/verify-email', verifyEmail);
 router.post('/login', login);
+router.post('/staff-login', requestStaffLoginCode);
+router.post('/staff-login/verify', verifyStaffLoginCode);
 router.post('/refresh', refresh);
 router.post('/resend-code', resendCode);
 router.get('/me', authenticate, me);

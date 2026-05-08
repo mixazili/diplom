@@ -2,7 +2,7 @@ const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const asyncHandler = require('../utils/asyncHandler');
 const { validateRegisterPayload, validateVerificationCodePayload } = require('../utils/authValidation');
-const { sendEmailVerificationCode } = require('../services/emailService');
+const { sendEmailVerificationCode, sendStaffLoginCode } = require('../services/emailService');
 const { createTokenPair, verifyRefreshToken, compareRefreshToken } = require('../services/tokenService');
 const {
   createEmailVerificationCode,
@@ -11,14 +11,7 @@ const {
   sanitizeUser
 } = require('../services/authService');
 
-const sendCodeForUser = async (user) => {
-  const code = createEmailVerificationCode();
-  user.emailVerificationCodeHash = await hashValue(code);
-  user.emailVerificationCodeExpiresAt = new Date(Date.now() + 15 * 60 * 1000);
-  await user.save();
-
-  return sendEmailVerificationCode({ email: user.email, code });
-};
+const codeLifetimeMs = 15 * 60 * 1000;
 
 const createEmailResponse = ({ message, user, emailInfo }) => ({
   message,
@@ -27,6 +20,46 @@ const createEmailResponse = ({ message, user, emailInfo }) => ({
   developmentEmailCode: emailInfo.developmentCode || null,
   emailDeliveryError: emailInfo.deliveryError || null
 });
+
+const issueTokens = async (user) => {
+  const tokens = await createTokenPair(user);
+  user.refreshTokenHash = tokens.refreshTokenHash;
+  user.lastSeenAt = new Date();
+  await user.save();
+
+  return {
+    user: sanitizeUser(user),
+    accessToken: tokens.accessToken,
+    refreshToken: tokens.refreshToken
+  };
+};
+
+const setCode = async (user, fields) => {
+  const code = createEmailVerificationCode();
+  user[fields.hash] = await hashValue(code);
+  user[fields.expiresAt] = new Date(Date.now() + codeLifetimeMs);
+  await user.save();
+
+  return code;
+};
+
+const sendCodeForUser = async (user) => {
+  const code = await setCode(user, {
+    hash: 'emailVerificationCodeHash',
+    expiresAt: 'emailVerificationCodeExpiresAt'
+  });
+
+  return sendEmailVerificationCode({ email: user.email, code });
+};
+
+const sendLoginCodeForStaff = async (user) => {
+  const code = await setCode(user, {
+    hash: 'loginCodeHash',
+    expiresAt: 'loginCodeExpiresAt'
+  });
+
+  return sendStaffLoginCode({ email: user.email, code });
+};
 
 const register = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
@@ -105,15 +138,11 @@ const verifyEmail = asyncHandler(async (req, res) => {
   user.emailVerificationCodeHash = null;
   user.emailVerificationCodeExpiresAt = null;
 
-  const tokens = await createTokenPair(user);
-  user.refreshTokenHash = tokens.refreshTokenHash;
-  await user.save();
+  const session = await issueTokens(user);
 
   res.json({
     message: 'Email подтверждён',
-    user: sanitizeUser(user),
-    accessToken: tokens.accessToken,
-    refreshToken: tokens.refreshToken
+    ...session
   });
 });
 
@@ -123,9 +152,14 @@ const login = asyncHandler(async (req, res) => {
 
   const user = await User.findOne({ email: normalizedEmail });
 
-  if (!user || !(await bcrypt.compare(String(password || ''), user.passwordHash))) {
+  if (!user || !user.isActive || !(await bcrypt.compare(String(password || ''), user.passwordHash))) {
     res.status(401);
     return res.json({ message: 'Неверный email или пароль' });
+  }
+
+  if (user.role !== 'user') {
+    res.status(403);
+    return res.json({ message: 'Для админа и модератора используйте вход с кодом подтверждения' });
   }
 
   if (!user.isEmailVerified) {
@@ -133,15 +167,80 @@ const login = asyncHandler(async (req, res) => {
     return res.json({ message: 'Сначала подтвердите email' });
   }
 
-  const tokens = await createTokenPair(user);
-  user.refreshTokenHash = tokens.refreshTokenHash;
-  await user.save();
+  const session = await issueTokens(user);
 
   res.json({
     message: 'Вход выполнен',
-    user: sanitizeUser(user),
-    accessToken: tokens.accessToken,
-    refreshToken: tokens.refreshToken
+    ...session
+  });
+});
+
+const requestStaffLoginCode = asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+
+  const user = await User.findOne({ email: normalizedEmail });
+
+  if (
+    !user ||
+    !user.isActive ||
+    !['admin', 'moderator'].includes(user.role) ||
+    !(await bcrypt.compare(String(password || ''), user.passwordHash))
+  ) {
+    res.status(401);
+    return res.json({ message: 'Неверный email или пароль сотрудника' });
+  }
+
+  const emailInfo = await sendLoginCodeForStaff(user);
+
+  res.json(
+    createEmailResponse({
+      message: emailInfo.deliveryError
+        ? 'Код входа создан. Почтовый сервис разработки недоступен, используйте dev-код ниже.'
+        : 'Код входа отправлен на email',
+      user,
+      emailInfo
+    })
+  );
+});
+
+const verifyStaffLoginCode = asyncHandler(async (req, res) => {
+  const { email, code } = req.body;
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  const errors = validateVerificationCodePayload({ email: normalizedEmail, code });
+
+  if (Object.keys(errors).length > 0) {
+    res.status(400);
+    return res.json({ message: 'Проверьте код входа', errors });
+  }
+
+  const user = await User.findOne({ email: normalizedEmail });
+
+  if (!user || !user.isActive || !['admin', 'moderator'].includes(user.role) || !user.loginCodeHash) {
+    res.status(400);
+    return res.json({ message: 'Код входа не найден' });
+  }
+
+  if (user.loginCodeExpiresAt < new Date()) {
+    res.status(400);
+    return res.json({ message: 'Код входа истёк' });
+  }
+
+  const isValidCode = await compareValue(code, user.loginCodeHash);
+
+  if (!isValidCode) {
+    res.status(400);
+    return res.json({ message: 'Неверный код входа' });
+  }
+
+  user.loginCodeHash = null;
+  user.loginCodeExpiresAt = null;
+
+  const session = await issueTokens(user);
+
+  res.json({
+    message: 'Вход выполнен',
+    ...session
   });
 });
 
@@ -156,20 +255,14 @@ const refresh = asyncHandler(async (req, res) => {
   const payload = verifyRefreshToken(refreshToken);
   const user = await User.findById(payload.sub);
 
-  if (!user || !user.refreshTokenHash || !(await compareRefreshToken(refreshToken, user.refreshTokenHash))) {
+  if (!user || !user.isActive || !user.refreshTokenHash || !(await compareRefreshToken(refreshToken, user.refreshTokenHash))) {
     res.status(401);
     return res.json({ message: 'Refresh token недействителен' });
   }
 
-  const tokens = await createTokenPair(user);
-  user.refreshTokenHash = tokens.refreshTokenHash;
-  await user.save();
+  const session = await issueTokens(user);
 
-  res.json({
-    user: sanitizeUser(user),
-    accessToken: tokens.accessToken,
-    refreshToken: tokens.refreshToken
-  });
+  res.json(session);
 });
 
 const me = asyncHandler(async (req, res) => {
@@ -181,6 +274,7 @@ const logout = asyncHandler(async (req, res) => {
 
   if (user) {
     user.refreshTokenHash = null;
+    user.lastSeenAt = new Date();
     await user.save();
   }
 
@@ -219,6 +313,8 @@ module.exports = {
   register,
   verifyEmail,
   login,
+  requestStaffLoginCode,
+  verifyStaffLoginCode,
   refresh,
   me,
   logout,

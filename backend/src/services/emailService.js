@@ -87,5 +87,6 @@ const sendEmailVerificationCode = async ({ email, code }) => {
 };
 
 module.exports = {
-  sendEmailVerificationCode
+  sendEmailVerificationCode,
+  sendStaffLoginCode: sendEmailVerificationCode
 };

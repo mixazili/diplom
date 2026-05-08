@@ -1,7 +1,16 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { loginUser, logout, registerUser, updateCurrentUser, verifyEmail } from './features/auth/authSlice.js';
+import {
+  loginUser,
+  logout,
+  registerUser,
+  requestStaffLogin,
+  updateCurrentUser,
+  verifyEmail,
+  verifyStaffLogin
+} from './features/auth/authSlice.js';
 import { submitVerification } from './features/verification/verificationSlice.js';
+import { apiRequest, authHeader } from './api/client.js';
 import styles from './App.module.css';
 
 const accountTypeLabels = {
@@ -191,6 +200,16 @@ function AuthPanel() {
     dispatch(loginUser({ email: credentials.email, password: credentials.password }));
   };
 
+  const submitStaffLogin = (event) => {
+    event.preventDefault();
+    dispatch(requestStaffLogin({ email: credentials.email, password: credentials.password }));
+  };
+
+  const submitStaffCode = (event) => {
+    event.preventDefault();
+    dispatch(verifyStaffLogin({ email: auth.staffLoginEmail || credentials.email, code: credentials.code }));
+  };
+
   return (
     <section className={styles.panel}>
       <div className={styles.panel__header}>
@@ -212,6 +231,13 @@ function AuthPanel() {
           onClick={() => setMode('login')}
         >
           Вход
+        </button>
+        <button
+          className={`${styles.tabs__button} ${mode === 'staff' ? styles['tabs__button--active'] : ''}`}
+          type="button"
+          onClick={() => setMode('staff')}
+        >
+          Сотрудники
         </button>
       </div>
 
@@ -321,6 +347,64 @@ function AuthPanel() {
             Войти
           </button>
         </form>
+      )}
+
+      {mode === 'staff' && (
+        <>
+          <form className={styles.form} onSubmit={submitStaffLogin}>
+            <label className={styles.field}>
+              <span className={styles.field__label}>Email сотрудника*</span>
+              <input
+                className={styles.field__control}
+                type="email"
+                value={credentials.email}
+                onChange={(event) => updateCredentials('email', event.target.value)}
+              />
+            </label>
+            <label className={styles.field}>
+              <span className={styles.field__label}>Пароль*</span>
+              <input
+                className={styles.field__control}
+                type="password"
+                value={credentials.password}
+                onChange={(event) => updateCredentials('password', event.target.value)}
+              />
+            </label>
+            <button className={styles.button} type="submit" disabled={isLoading}>
+              Получить код входа
+            </button>
+          </form>
+
+          {(auth.staffLoginEmail || auth.message) && (
+            <form className={styles.form} onSubmit={submitStaffCode}>
+              <div className={styles.notice}>
+                <strong>{auth.message}</strong>
+                {auth.emailPreviewUrl && (
+                  <a href={auth.emailPreviewUrl} target="_blank" rel="noreferrer">
+                    Открыть письмо Ethereal
+                  </a>
+                )}
+                {auth.emailCode && (
+                  <span>
+                    Dev-код входа: <strong>{auth.emailCode}</strong>
+                  </span>
+                )}
+              </div>
+              <label className={styles.field}>
+                <span className={styles.field__label}>Код входа*</span>
+                <input
+                  className={styles.field__control}
+                  value={credentials.code}
+                  onChange={(event) => updateCredentials('code', event.target.value)}
+                  placeholder="6 цифр"
+                />
+              </label>
+              <button className={styles.button} type="submit" disabled={isLoading}>
+                Войти в панель
+              </button>
+            </form>
+          )}
+        </>
       )}
 
       {auth.status === 'failed' && <p className={styles.message__error}>{auth.message}</p>}
@@ -696,6 +780,267 @@ function VerificationForm() {
   );
 }
 
+function StaffCard({ title, meta, status, children, actions }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <article className={styles.staffCard}>
+      <button className={styles.staffCard__head} type="button" onClick={() => setOpen((value) => !value)}>
+        <span>
+          <strong>{title}</strong>
+          <small>{meta}</small>
+        </span>
+        {status && <span className={styles.staffCard__badge}>{status}</span>}
+      </button>
+      {open && (
+        <div className={styles.staffCard__body}>
+          {children}
+          {actions}
+        </div>
+      )}
+    </article>
+  );
+}
+
+function JsonDetails({ data }) {
+  return <pre className={styles.jsonDetails}>{JSON.stringify(data, null, 2)}</pre>;
+}
+
+function useStaffRequest(token) {
+  return async (path, options = {}) =>
+    apiRequest(path, {
+      ...options,
+      headers: {
+        ...authHeader(token),
+        ...(options.headers || {})
+      }
+    });
+}
+
+function ReviewList({ reviews, title }) {
+  return (
+    <section className={styles.staffSection}>
+      <h2 className={styles.sectionTitle}>{title}</h2>
+      <div className={styles.staffList}>
+        {reviews.length === 0 && <p className={styles.panel__text}>Журнал пока пуст.</p>}
+        {reviews.map((review) => (
+          <StaffCard
+            key={review.id}
+            title={`${review.action === 'approved' ? 'Одобрено' : 'Отклонено'}: ${review.user?.email || 'пользователь'}`}
+            meta={`${new Date(review.createdAt).toLocaleString()} · модератор: ${review.moderator?.email || 'не указан'}`}
+            status={review.action}
+          >
+            {review.comment && <p className={styles.staffCard__comment}>{review.comment}</p>}
+            <JsonDetails data={review.verificationRequest} />
+          </StaffCard>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function VerificationQueue({ verifications, onApprove, onReject }) {
+  const [comments, setComments] = useState({});
+
+  const updateComment = (id, value) => {
+    setComments((current) => ({ ...current, [id]: value }));
+  };
+
+  return (
+    <section className={styles.staffSection}>
+      <h2 className={styles.sectionTitle}>Заявки на верификацию</h2>
+      <div className={styles.staffList}>
+        {verifications.length === 0 && <p className={styles.panel__text}>Нет заявок в ожидании.</p>}
+        {verifications.map((verification) => (
+          <StaffCard
+            key={verification.id}
+            title={verification.user?.email || 'Пользователь'}
+            meta={`${verification.accountType} · ${verification.isResident ? 'резидент РБ' : 'нерезидент РБ'} · ${new Date(verification.submittedAt).toLocaleString()}`}
+            status={verification.status}
+            actions={(
+              <div className={styles.staffActions}>
+                <textarea
+                  className={styles.field__control}
+                  value={comments[verification.id] || ''}
+                  onChange={(event) => updateComment(verification.id, event.target.value)}
+                  placeholder="Комментарий для пользователя при отклонении или внутренняя заметка"
+                />
+                <button className={styles.button} type="button" onClick={() => onApprove(verification.id, comments[verification.id] || '')}>
+                  Одобрить
+                </button>
+                <button className={styles.buttonDanger} type="button" onClick={() => onReject(verification.id, comments[verification.id] || '')}>
+                  Отклонить
+                </button>
+              </div>
+            )}
+          >
+            <JsonDetails data={verification} />
+          </StaffCard>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ModeratorPanel() {
+  const dispatch = useDispatch();
+  const { accessToken, user } = useSelector((state) => state.auth);
+  const staffRequest = useStaffRequest(accessToken);
+  const [verifications, setVerifications] = useState([]);
+  const [reviews, setReviews] = useState([]);
+  const [message, setMessage] = useState('');
+
+  const loadPanel = async () => {
+    const [verificationData, reviewData] = await Promise.all([
+      staffRequest('/moderation/verifications'),
+      staffRequest('/moderation/reviews')
+    ]);
+    setVerifications(verificationData.verifications);
+    setReviews(reviewData.reviews);
+  };
+
+  useEffect(() => {
+    loadPanel().catch((error) => setMessage(error.message));
+  }, []);
+
+  const review = async (id, action, comment) => {
+    try {
+      await staffRequest(`/moderation/verifications/${id}/${action}`, {
+        method: 'POST',
+        body: JSON.stringify({ comment })
+      });
+      setMessage(action === 'approve' ? 'Заявка одобрена' : 'Заявка отклонена');
+      await loadPanel();
+    } catch (error) {
+      setMessage(error.message);
+    }
+  };
+
+  return (
+    <div className={styles.cabinet}>
+      <section className={styles.summary}>
+        <div>
+          <p className={styles.summary__label}>Панель модератора</p>
+          <h2 className={styles.summary__title}>{user.email}</h2>
+          <p className={styles.summary__text}>Проверка заявок пользователей и журнал своих решений.</p>
+        </div>
+        <button className={styles.buttonSecondary} type="button" onClick={() => dispatch(logout())}>
+          Выйти
+        </button>
+      </section>
+      {message && <p className={styles.message__success}>{message}</p>}
+      <VerificationQueue
+        verifications={verifications}
+        onApprove={(id, comment) => review(id, 'approve', comment)}
+        onReject={(id, comment) => review(id, 'reject', comment)}
+      />
+      <ReviewList reviews={reviews} title="Мой журнал решений" />
+    </div>
+  );
+}
+
+function AdminPanel() {
+  const dispatch = useDispatch();
+  const { accessToken, user } = useSelector((state) => state.auth);
+  const staffRequest = useStaffRequest(accessToken);
+  const [moderators, setModerators] = useState([]);
+  const [reviews, setReviews] = useState([]);
+  const [moderatorForm, setModeratorForm] = useState({ email: '', password: '' });
+  const [message, setMessage] = useState('');
+
+  const loadPanel = async () => {
+    const [moderatorData, reviewData] = await Promise.all([
+      staffRequest('/admin/moderators'),
+      staffRequest('/admin/reviews')
+    ]);
+    setModerators(moderatorData.moderators);
+    setReviews(reviewData.reviews);
+  };
+
+  useEffect(() => {
+    loadPanel().catch((error) => setMessage(error.message));
+  }, []);
+
+  const createModerator = async (event) => {
+    event.preventDefault();
+    try {
+      await staffRequest('/admin/moderators', {
+        method: 'POST',
+        body: JSON.stringify(moderatorForm)
+      });
+      setModeratorForm({ email: '', password: '' });
+      setMessage('Модератор создан');
+      await loadPanel();
+    } catch (error) {
+      setMessage(error.message);
+    }
+  };
+
+  const deleteModerator = async (id) => {
+    try {
+      await staffRequest(`/admin/moderators/${id}`, { method: 'DELETE' });
+      setMessage('Модератор удалён');
+      await loadPanel();
+    } catch (error) {
+      setMessage(error.message);
+    }
+  };
+
+  return (
+    <div className={styles.cabinet}>
+      <section className={styles.summary}>
+        <div>
+          <p className={styles.summary__label}>Панель администратора</p>
+          <h2 className={styles.summary__title}>{user.email}</h2>
+          <p className={styles.summary__text}>Управление модераторами и общий журнал решений.</p>
+        </div>
+        <button className={styles.buttonSecondary} type="button" onClick={() => dispatch(logout())}>
+          Выйти
+        </button>
+      </section>
+
+      {message && <p className={styles.message__success}>{message}</p>}
+
+      <section className={styles.staffSection}>
+        <h2 className={styles.sectionTitle}>Модераторы</h2>
+        <form className={styles.staffForm} onSubmit={createModerator}>
+          <input
+            className={styles.field__control}
+            type="email"
+            value={moderatorForm.email}
+            onChange={(event) => setModeratorForm((current) => ({ ...current, email: event.target.value }))}
+            placeholder="email модератора"
+          />
+          <input
+            className={styles.field__control}
+            type="password"
+            value={moderatorForm.password}
+            onChange={(event) => setModeratorForm((current) => ({ ...current, password: event.target.value }))}
+            placeholder="пароль от 8 символов"
+          />
+          <button className={styles.button} type="submit">Создать модератора</button>
+        </form>
+        <div className={styles.moderatorGrid}>
+          {moderators.map((moderator) => (
+            <article className={styles.moderatorCard} key={moderator.id}>
+              <strong>{moderator.email}</strong>
+              <span className={moderator.onlineStatus === 'online' ? styles.online : styles.offline}>
+                {moderator.onlineStatus === 'online' ? 'online' : 'offline'}
+              </span>
+              <small>Последняя активность: {moderator.lastSeenAt ? new Date(moderator.lastSeenAt).toLocaleString() : 'нет'}</small>
+              <button className={styles.buttonDanger} type="button" onClick={() => deleteModerator(moderator.id)}>
+                Удалить
+              </button>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <ReviewList reviews={reviews} title="Журнал решений всех модераторов" />
+    </div>
+  );
+}
+
 function Cabinet() {
   const dispatch = useDispatch();
   const user = useSelector((state) => state.auth.user);
@@ -721,11 +1066,20 @@ function Cabinet() {
 
 function App() {
   const user = useSelector((state) => state.auth.user);
+  let content = <AuthPanel />;
+
+  if (user?.role === 'admin') {
+    content = <AdminPanel />;
+  } else if (user?.role === 'moderator') {
+    content = <ModeratorPanel />;
+  } else if (user) {
+    content = <Cabinet />;
+  }
 
   return (
     <main className={styles.app}>
       <div className={styles.app__shell}>
-        {user ? <Cabinet /> : <AuthPanel />}
+        {content}
       </div>
     </main>
   );

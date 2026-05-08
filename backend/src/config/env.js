@@ -33,6 +33,10 @@ const config = {
     smtpPort: Number(process.env.SMTP_PORT) || 587,
     smtpUser: process.env.SMTP_USER,
     smtpPass: process.env.SMTP_PASS
+  },
+  admin: {
+    email: process.env.ADMIN_EMAIL || 'admin@auction.by',
+    password: process.env.ADMIN_PASSWORD || 'Admin12345'
   }
 };
 

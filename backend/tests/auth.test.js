@@ -2,6 +2,10 @@ jest.mock('../src/services/emailService', () => ({
   sendEmailVerificationCode: jest.fn().mockResolvedValue({
     messageId: 'test-message',
     previewUrl: 'https://ethereal.email/message/test'
+  }),
+  sendStaffLoginCode: jest.fn().mockResolvedValue({
+    messageId: 'staff-message',
+    previewUrl: 'https://ethereal.email/message/staff-test'
   })
 }));
 
@@ -76,5 +80,45 @@ describe('auth API', () => {
     expect(response.body.message).toBe('Вход выполнен');
     expect(response.body.accessToken).toBeTruthy();
     expect(response.body.user.verificationStatus).toBe('draft');
+  });
+
+  it('requires login code for staff accounts', async () => {
+    await User.create({
+      email: 'moderator@example.com',
+      passwordHash: await bcrypt.hash('Password123', 10),
+      role: 'moderator',
+      isEmailVerified: true,
+      emailVerifiedAt: new Date(),
+      verificationStatus: 'approved'
+    });
+
+    const normalLogin = await request(app).post('/api/auth/login').send({
+      email: 'moderator@example.com',
+      password: 'Password123'
+    });
+
+    expect(normalLogin.status).toBe(403);
+
+    const codeResponse = await request(app).post('/api/auth/staff-login').send({
+      email: 'moderator@example.com',
+      password: 'Password123'
+    });
+
+    expect(codeResponse.status).toBe(200);
+    expect(codeResponse.body.message).toBe('Код входа отправлен на email');
+
+    const user = await User.findOne({ email: 'moderator@example.com' });
+    user.loginCodeHash = await bcrypt.hash('123456', 10);
+    user.loginCodeExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    await user.save();
+
+    const verifyResponse = await request(app).post('/api/auth/staff-login/verify').send({
+      email: 'moderator@example.com',
+      code: '123456'
+    });
+
+    expect(verifyResponse.status).toBe(200);
+    expect(verifyResponse.body.user.role).toBe('moderator');
+    expect(verifyResponse.body.accessToken).toBeTruthy();
   });
 });
