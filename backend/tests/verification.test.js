@@ -51,7 +51,15 @@ describe('verification API', () => {
         expiresAt: '2030-01-01'
       },
       bankData: {
-        bankDetails: 'BY00TEST00000000000000000000'
+        bankName: 'Беларусбанк',
+        bankUnp: '100000001',
+        bankBic: 'AKBBBY2X',
+        iban: 'BY00TEST00000000000000000000',
+        bankAddress: 'Минск'
+      },
+      agreements: {
+        personalDataConsent: true,
+        accuracyConfirmed: true
       }
     };
 
@@ -93,12 +101,14 @@ describe('verification API', () => {
           personalData: {},
           addressData: {},
           documentData: {},
-          bankData: {}
+          bankData: {},
+          agreements: {}
         })
       );
 
     expect(response.status).toBe(400);
     expect(response.body.errors['personalData.firstName']).toBe('Поле обязательно для заполнения');
     expect(response.body.errors.documentMain).toBe('Загрузите документ');
+    expect(response.body.errors['agreements.personalDataConsent']).toBe('Необходимо подтвердить');
   });
 });

@@ -14,6 +14,12 @@ const requireFields = (payload, fields, errors) => {
   });
 };
 
+const requireBoolean = (payload, field, errors) => {
+  if (getValue(payload, field) !== true) {
+    errors[field] = 'Необходимо подтвердить';
+  }
+};
+
 const hasFile = (files, fieldName) => files.some((file) => file.fieldName === fieldName);
 
 const requireFiles = (files, fields, errors) => {
@@ -24,18 +30,48 @@ const requireFiles = (files, fields, errors) => {
   });
 };
 
-const validateIndividual = (payload, files, errors) => {
-  const baseFields = [
-    'personalData.firstName',
-    'personalData.lastName',
-    'personalData.phone',
-    'documentData.documentType',
-    'documentData.documentNumber',
-    'documentData.issuedAt',
-    'bankData.bankDetails'
+const requireBankFields = (payload, errors) => {
+  const fields = [
+    'bankData.bankName',
+    'bankData.bankUnp',
+    'bankData.bankBic',
+    'bankData.iban',
+    'bankData.bankAddress'
   ];
 
-  requireFields(payload, baseFields, errors);
+  if (!payload.isResident) {
+    fields.push('bankData.transitBankName', 'bankData.transitBankBic', 'bankData.transitIban');
+  }
+
+  requireFields(payload, fields, errors);
+};
+
+const requireResidentAddress = (payload, errors, { legalEntity = false } = {}) => {
+  const fields = [
+    'addressData.locality',
+    'addressData.postalCode',
+    'addressData.street'
+  ];
+
+  if (legalEntity) {
+    fields.push('addressData.region');
+  } else {
+    fields.push('addressData.region', 'addressData.district', 'addressData.house');
+  }
+
+  requireFields(payload, fields, errors);
+
+  if (legalEntity && !payload.addressData.sameAsLegalAddress) {
+    requireFields(payload, ['addressData.postalAddress'], errors);
+  }
+
+  if (!legalEntity && !payload.addressData.sameAsRegistration) {
+    requireFields(payload, ['addressData.residentialAddress'], errors);
+  }
+};
+
+const requireIdentity = (payload, errors) => {
+  requireFields(payload, ['documentData.documentType', 'documentData.documentNumber', 'documentData.issuedAt'], errors);
 
   if (!allowedDocumentTypes.includes(getValue(payload, 'documentData.documentType'))) {
     errors['documentData.documentType'] = 'Выберите корректный вид документа';
@@ -46,67 +82,57 @@ const validateIndividual = (payload, files, errors) => {
   }
 
   if (payload.isResident) {
-    requireFields(
-      payload,
-      [
-        'personalData.middleName',
-        'addressData.region',
-        'addressData.district',
-        'addressData.locality',
-        'addressData.postalCode',
-        'addressData.street',
-        'addressData.house',
-        'documentData.expiresAt'
-      ],
-      errors
-    );
+    requireFields(payload, ['documentData.expiresAt'], errors);
+  } else {
+    requireFields(payload, ['documentData.personalNumber'], errors);
+  }
+};
 
-    if (!payload.addressData.sameAsRegistration) {
-      requireFields(payload, ['addressData.residentialAddress'], errors);
-    }
+const requireIdentityFiles = (payload, files, errors) => {
+  if (payload.isResident) {
+    requireFiles(files, ['documentRegistration', 'documentMain'], errors);
+    return;
+  }
 
-    requireFiles(files, ['documentMain', 'documentRegistration'], errors);
+  requireFiles(files, ['documentMain', 'documentPersonalNumberPage'], errors);
+};
+
+const validateIndividual = (payload, files, errors) => {
+  requireFields(payload, ['personalData.firstName', 'personalData.lastName', 'personalData.phone'], errors);
+
+  if (payload.isResident) {
+    requireFields(payload, ['personalData.middleName'], errors);
+    requireResidentAddress(payload, errors);
   } else {
     requireFields(payload, ['addressData.residentialAddress'], errors);
-    requireFiles(files, ['documentMain', 'documentAdditional'], errors);
   }
+
+  requireIdentity(payload, errors);
+  requireIdentityFiles(payload, files, errors);
+  requireBankFields(payload, errors);
 };
 
 const validateEntrepreneur = (payload, files, errors) => {
   requireFields(
     payload,
     [
-      'personalData.firstName',
-      'personalData.lastName',
-      'personalData.phone',
+      'personalData.fullName',
       'organizationData.unp',
-      'bankData.bankDetails'
+      'organizationData.registrationDate',
+      'organizationData.contactPhone'
     ],
     errors
   );
 
   if (payload.isResident) {
-    requireFields(
-      payload,
-      [
-        'personalData.middleName',
-        'addressData.region',
-        'addressData.district',
-        'addressData.locality',
-        'addressData.postalCode',
-        'addressData.street',
-        'addressData.house'
-      ],
-      errors
-    );
-
-    if (!payload.addressData.sameAsRegistration) {
-      requireFields(payload, ['addressData.residentialAddress'], errors);
-    }
+    requireResidentAddress(payload, errors);
   } else {
     requireFields(payload, ['addressData.residentialAddress'], errors);
   }
 
+  requireIdentity(payload, errors);
+  requireIdentityFiles(payload, files, errors);
+  requireBankFields(payload, errors);
   requireFiles(files, ['registrationCertificate'], errors);
 };
 
@@ -117,35 +143,29 @@ const validateLegalEntity = (payload, files, errors) => {
       'organizationData.shortName',
       'organizationData.fullName',
       'organizationData.unp',
+      'organizationData.registrationDate',
+      'organizationData.contactPhone',
       'organizationData.directorFullName',
+      'organizationData.directorPosition',
       'organizationData.directorBasis',
-      'bankData.bankDetails'
+      'organizationData.directorPhone'
     ],
     errors
   );
 
   if (payload.isResident) {
-    requireFields(
-      payload,
-      [
-        'addressData.region',
-        'addressData.district',
-        'addressData.locality',
-        'addressData.postalCode',
-        'addressData.street',
-        'addressData.phone'
-      ],
-      errors
-    );
-
-    if (!payload.addressData.sameAsLegalAddress) {
-      requireFields(payload, ['addressData.postalAddress'], errors);
-    }
+    requireResidentAddress(payload, errors, { legalEntity: true });
   } else {
     requireFields(payload, ['addressData.registrationAddress', 'addressData.phone'], errors);
   }
 
-  requireFiles(files, ['registrationCertificate'], errors);
+  requireBankFields(payload, errors);
+  requireFiles(files, ['registrationCertificate', 'stateRegistrationCertificate', 'directorAppointmentOrder'], errors);
+};
+
+const validateAgreements = (payload, errors) => {
+  requireBoolean(payload, 'agreements.personalDataConsent', errors);
+  requireBoolean(payload, 'agreements.accuracyConfirmed', errors);
 };
 
 const validateVerificationPayload = (payload, files) => {
@@ -170,6 +190,8 @@ const validateVerificationPayload = (payload, files) => {
   if (payload.accountType === 'legal_entity') {
     validateLegalEntity(payload, files, errors);
   }
+
+  validateAgreements(payload, errors);
 
   return errors;
 };

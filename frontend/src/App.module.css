@@ -228,6 +228,40 @@ textarea.field__control {
   letter-spacing: 0;
 }
 
+.agreements {
+  display: grid;
+  gap: 16px;
+  margin-top: 18px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  padding: 22px;
+}
+
+.agreements__lead {
+  margin: 0;
+  color: var(--color-heading);
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+.agreements__item {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  gap: 12px;
+  align-items: start;
+  color: var(--color-muted);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.agreements__item input {
+  width: 18px;
+  height: 18px;
+  margin-top: 3px;
+  accent-color: var(--color-success);
+}
+
 @media (max-width: 720px) {
   .app__shell {
     padding: 18px 12px 36px;

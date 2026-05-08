@@ -23,6 +23,7 @@ const emptyVerificationForm = {
     firstName: '',
     lastName: '',
     middleName: '',
+    fullName: '',
     phone: '',
     additionalPhone: ''
   },
@@ -40,25 +41,45 @@ const emptyVerificationForm = {
     residentialAddress: '',
     postalAddress: '',
     registrationAddress: '',
+    legalAddress: '',
     phone: '',
     additionalPhone: ''
   },
   documentData: {
     documentType: 'passport',
     documentNumber: '',
+    personalNumber: '',
     issuedBy: '',
     issuedAt: '',
     expiresAt: ''
   },
   bankData: {
-    bankDetails: ''
+    bankName: '',
+    bankUnp: '',
+    bankBic: '',
+    iban: '',
+    bankAddress: '',
+    transitBankName: '',
+    transitBankBic: '',
+    transitIban: ''
   },
   organizationData: {
     shortName: '',
     fullName: '',
     unp: '',
+    registrationDate: '',
+    contactPhone: '',
     directorFullName: '',
-    directorBasis: ''
+    directorPosition: '',
+    directorBasis: '',
+    directorPhone: '',
+    powerOfAttorney: '',
+    chiefAccountantFullName: '',
+    chiefAccountantPhone: ''
+  },
+  agreements: {
+    personalDataConsent: false,
+    accuracyConfirmed: false
   }
 };
 
@@ -95,6 +116,26 @@ function Field({
   );
 }
 
+function SelectField({ label, section, name, form, onChange, errors, options, required = false }) {
+  const errorKey = `${section}.${name}`;
+
+  return (
+    <label className={styles.field}>
+      <span className={styles.field__label}>{label}{required ? '*' : ''}</span>
+      <select
+        className={`${styles.field__control} ${errors[errorKey] ? styles['field__control--error'] : ''}`}
+        value={form[section][name]}
+        onChange={(event) => onChange(section, name, event.target.value)}
+      >
+        {Object.entries(options).map(([value, labelText]) => (
+          <option value={value} key={value}>{labelText}</option>
+        ))}
+      </select>
+      {errors[errorKey] && <span className={styles.field__error}>{errors[errorKey]}</span>}
+    </label>
+  );
+}
+
 function FileField({ label, name, files, onFileChange, errors, required = false }) {
   return (
     <label className={styles.field}>
@@ -105,9 +146,7 @@ function FileField({ label, name, files, onFileChange, errors, required = false 
         accept=".jpg,.jpeg,.png,.pdf"
         onChange={(event) => onFileChange(name, event.target.files)}
       />
-      <span className={styles.field__hint}>
-        {files[name]?.[0]?.name || 'jpg, jpeg, png или pdf'}
-      </span>
+      <span className={styles.field__hint}>{files[name]?.[0]?.name || 'jpg, jpeg, png или pdf'}</span>
       {errors[name] && <span className={styles.field__error}>{errors[name]}</span>}
     </label>
   );
@@ -281,6 +320,241 @@ function AuthPanel() {
   );
 }
 
+function PersonFields({ form, changeNested, errors, isEntrepreneur }) {
+  if (isEntrepreneur) {
+    return (
+      <div className={styles.formGrid}>
+        <Field label="ФИО" section="personalData" name="fullName" form={form} onChange={changeNested} errors={errors} required />
+        <Field label="Контактный телефон" section="personalData" name="phone" form={form} onChange={changeNested} errors={errors} required />
+        <Field label="Дополнительный телефон" section="personalData" name="additionalPhone" form={form} onChange={changeNested} errors={errors} />
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.formGrid}>
+      <Field label="Имя" section="personalData" name="firstName" form={form} onChange={changeNested} errors={errors} required />
+      <Field label="Фамилия" section="personalData" name="lastName" form={form} onChange={changeNested} errors={errors} required />
+      <Field label="Отчество" section="personalData" name="middleName" form={form} onChange={changeNested} errors={errors} required={form.isResident} />
+      <Field label="Мобильный телефон" section="personalData" name="phone" form={form} onChange={changeNested} errors={errors} required />
+      <Field label="Дополнительный телефон" section="personalData" name="additionalPhone" form={form} onChange={changeNested} errors={errors} />
+    </div>
+  );
+}
+
+function AddressBlock({ form, changeNested, errors, isLegalEntity }) {
+  if (!form.isResident) {
+    return (
+      <div className={styles.formGrid}>
+        <Field
+          label={isLegalEntity ? 'Адрес регистрации' : 'Адрес проживания'}
+          section="addressData"
+          name={isLegalEntity ? 'registrationAddress' : 'residentialAddress'}
+          form={form}
+          onChange={changeNested}
+          errors={errors}
+          required
+          as="textarea"
+        />
+        {isLegalEntity && (
+          <>
+            <Field label="Контактный телефон" section="addressData" name="phone" form={form} onChange={changeNested} errors={errors} required />
+            <Field label="Дополнительный телефон" section="addressData" name="additionalPhone" form={form} onChange={changeNested} errors={errors} />
+          </>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className={styles.formGrid}>
+        <Field label="Область" section="addressData" name="region" form={form} onChange={changeNested} errors={errors} required={isLegalEntity} />
+        <Field label="Район" section="addressData" name="district" form={form} onChange={changeNested} errors={errors} required={!isLegalEntity} />
+        <Field label="Населённый пункт" section="addressData" name="locality" form={form} onChange={changeNested} errors={errors} required />
+        <Field label="Почтовый индекс" section="addressData" name="postalCode" form={form} onChange={changeNested} errors={errors} required />
+        <Field label="Улица / адрес" section="addressData" name="street" form={form} onChange={changeNested} errors={errors} required />
+        <Field label="Номер дома" section="addressData" name="house" form={form} onChange={changeNested} errors={errors} required={!isLegalEntity} />
+        <Field label="Корпус" section="addressData" name="building" form={form} onChange={changeNested} errors={errors} />
+        <Field label="Квартира" section="addressData" name="apartment" form={form} onChange={changeNested} errors={errors} />
+      </div>
+      <label className={styles.checkboxLine}>
+        <input
+          type="checkbox"
+          checked={isLegalEntity ? form.addressData.sameAsLegalAddress : form.addressData.sameAsRegistration}
+          onChange={(event) =>
+            changeNested(
+              'addressData',
+              isLegalEntity ? 'sameAsLegalAddress' : 'sameAsRegistration',
+              event.target.checked
+            )
+          }
+        />
+        {isLegalEntity
+          ? 'Почтовый адрес совпадает с юридическим адресом'
+          : 'Адрес проживания совпадает с адресом регистрации'}
+      </label>
+      {isLegalEntity && !form.addressData.sameAsLegalAddress && (
+        <Field label="Почтовый адрес" section="addressData" name="postalAddress" form={form} onChange={changeNested} errors={errors} required as="textarea" />
+      )}
+      {!isLegalEntity && !form.addressData.sameAsRegistration && (
+        <Field label="Адрес проживания" section="addressData" name="residentialAddress" form={form} onChange={changeNested} errors={errors} required as="textarea" />
+      )}
+    </>
+  );
+}
+
+function IdentityBlock({ form, changeNested, errors }) {
+  return (
+    <>
+      <h2 className={styles.sectionTitle}>Документ, удостоверяющий личность</h2>
+      <div className={styles.formGrid}>
+        <SelectField label="Вид документа" section="documentData" name="documentType" form={form} onChange={changeNested} errors={errors} options={documentTypeLabels} required />
+        <Field label="Серия и номер документа" section="documentData" name="documentNumber" form={form} onChange={changeNested} errors={errors} required />
+        {!form.isResident && (
+          <Field label="Личный номер" section="documentData" name="personalNumber" form={form} onChange={changeNested} errors={errors} required />
+        )}
+        {form.documentData.documentType !== 'id_card' && (
+          <Field label="Кем выдан" section="documentData" name="issuedBy" form={form} onChange={changeNested} errors={errors} required />
+        )}
+        <Field label="Когда выдан" section="documentData" name="issuedAt" type="date" form={form} onChange={changeNested} errors={errors} required />
+        {form.isResident && (
+          <Field label="Срок действия" section="documentData" name="expiresAt" type="date" form={form} onChange={changeNested} errors={errors} required />
+        )}
+      </div>
+    </>
+  );
+}
+
+function BankFields({ form, changeNested, errors }) {
+  return (
+    <div className={styles.formGrid}>
+      <Field label="Название банка" section="bankData" name="bankName" form={form} onChange={changeNested} errors={errors} required />
+      <Field label="УНП банка" section="bankData" name="bankUnp" form={form} onChange={changeNested} errors={errors} required />
+      <Field label="Код банка (BIC)" section="bankData" name="bankBic" form={form} onChange={changeNested} errors={errors} required />
+      <Field label="Номер карт-счёта банка IBAN" section="bankData" name="iban" form={form} onChange={changeNested} errors={errors} required />
+      <Field label="Адрес банка" section="bankData" name="bankAddress" form={form} onChange={changeNested} errors={errors} required />
+      {!form.isResident && (
+        <>
+          <Field label="Название транзитного банка" section="bankData" name="transitBankName" form={form} onChange={changeNested} errors={errors} required />
+          <Field label="Код транзитного банка (BIC)" section="bankData" name="transitBankBic" form={form} onChange={changeNested} errors={errors} required />
+          <Field label="Номер транзитного счёта" section="bankData" name="transitIban" form={form} onChange={changeNested} errors={errors} required />
+        </>
+      )}
+    </div>
+  );
+}
+
+function PersonFiles({ form, files, changeFile, errors }) {
+  if (form.isResident) {
+    return (
+      <div className={styles.formGrid}>
+        <FileField label="Прописка: временная регистрация или 25 страница паспорта" name="documentRegistration" files={files} onFileChange={changeFile} errors={errors} required />
+        <FileField label="Лицевая сторона ID-карты или страницы 32-33 паспорта на одном фото" name="documentMain" files={files} onFileChange={changeFile} errors={errors} required />
+        <FileField label="Обратная сторона ID-карты или 31 страница паспорта" name="documentBack" files={files} onFileChange={changeFile} errors={errors} />
+        <FileField label="Дополнительный документ" name="documentExtra" files={files} onFileChange={changeFile} errors={errors} />
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.formGrid}>
+      <FileField label="Страницы 32-33 паспорта на одном фото / лицевая сторона ID-карты" name="documentMain" files={files} onFileChange={changeFile} errors={errors} required />
+      <FileField label="Копия страницы документа с личным номером" name="documentPersonalNumberPage" files={files} onFileChange={changeFile} errors={errors} required />
+      <FileField label="Дополнительный документ 1" name="documentExtra" files={files} onFileChange={changeFile} errors={errors} />
+      <FileField label="Дополнительный документ 2" name="documentExtraSecond" files={files} onFileChange={changeFile} errors={errors} />
+    </div>
+  );
+}
+
+function OrganizationFields({ form, changeNested, errors, isLegalEntity }) {
+  return (
+    <>
+      <h2 className={styles.sectionTitle}>Основные сведения</h2>
+      <div className={styles.formGrid}>
+        {isLegalEntity ? (
+          <>
+            <Field label="Полное наименование организации" section="organizationData" name="fullName" form={form} onChange={changeNested} errors={errors} required />
+            <Field label="Краткое наименование организации" section="organizationData" name="shortName" form={form} onChange={changeNested} errors={errors} required />
+          </>
+        ) : (
+          <Field label="ФИО" section="personalData" name="fullName" form={form} onChange={changeNested} errors={errors} required />
+        )}
+        <Field label="УНП" section="organizationData" name="unp" form={form} onChange={changeNested} errors={errors} required />
+        <Field label="Дата регистрации в ЕГР" section="organizationData" name="registrationDate" type="date" form={form} onChange={changeNested} errors={errors} required />
+        <Field label="Контактный телефон" section="organizationData" name="contactPhone" form={form} onChange={changeNested} errors={errors} required />
+      </div>
+    </>
+  );
+}
+
+function LegalManagementFields({ form, changeNested, errors }) {
+  return (
+    <>
+      <h2 className={styles.sectionTitle}>Руководитель</h2>
+      <div className={styles.formGrid}>
+        <Field label="ФИО руководителя" section="organizationData" name="directorFullName" form={form} onChange={changeNested} errors={errors} required />
+        <Field label="Должность руководителя" section="organizationData" name="directorPosition" form={form} onChange={changeNested} errors={errors} required />
+        <Field label="На основании чего действует руководитель" section="organizationData" name="directorBasis" form={form} onChange={changeNested} errors={errors} required />
+        <Field label="Телефон руководителя" section="organizationData" name="directorPhone" form={form} onChange={changeNested} errors={errors} required />
+        <Field label="Номер и дата доверенности" section="organizationData" name="powerOfAttorney" form={form} onChange={changeNested} errors={errors} />
+      </div>
+      <h2 className={styles.sectionTitle}>Главный бухгалтер</h2>
+      <div className={styles.formGrid}>
+        <Field label="ФИО главного бухгалтера" section="organizationData" name="chiefAccountantFullName" form={form} onChange={changeNested} errors={errors} />
+        <Field label="Телефон главного бухгалтера" section="organizationData" name="chiefAccountantPhone" form={form} onChange={changeNested} errors={errors} />
+      </div>
+    </>
+  );
+}
+
+function OrganizationFiles({ isLegalEntity, files, changeFile, errors }) {
+  return (
+    <div className={styles.formGrid}>
+      <FileField label={isLegalEntity ? 'Копия устава в полном объёме (pdf, zip)' : 'Свидетельство о регистрации'} name="registrationCertificate" files={files} onFileChange={changeFile} errors={errors} required />
+      {isLegalEntity && (
+        <>
+          <FileField label="Свидетельство о регистрации" name="stateRegistrationCertificate" files={files} onFileChange={changeFile} errors={errors} required />
+          <FileField label="Документ о назначении руководителя" name="directorAppointmentOrder" files={files} onFileChange={changeFile} errors={errors} required />
+        </>
+      )}
+    </div>
+  );
+}
+
+function AgreementsBlock({ form, changeNested, errors }) {
+  return (
+    <section className={styles.agreements}>
+      <p className={styles.agreements__lead}>
+        <strong>Уважаемый пользователь!</strong> В соответствии с Законом Республики Беларусь «О защите персональных
+        данных» для продолжения работы на интернет-сайте Auction.by просим ознакомиться с Пользовательским соглашением
+        и выразить согласие на обработку информации о пользователе, в том числе персональных данных.
+      </p>
+      <label className={styles.agreements__item}>
+        <input
+          type="checkbox"
+          checked={form.agreements.personalDataConsent}
+          onChange={(event) => changeNested('agreements', 'personalDataConsent', event.target.checked)}
+        />
+        <span>
+          Ознакомлен с Пользовательским соглашением и согласен с обработкой информации о пользователе, в том числе
+          персональных данных, а также их передачей, в том числе трансграничной, в соответствии с ним
+        </span>
+      </label>
+      {errors['agreements.personalDataConsent'] && <span className={styles.field__error}>{errors['agreements.personalDataConsent']}</span>}
+      <label className={styles.agreements__item}>
+        <input
+          type="checkbox"
+          checked={form.agreements.accuracyConfirmed}
+          onChange={(event) => changeNested('agreements', 'accuracyConfirmed', event.target.checked)}
+        />
+        <span>Я подтверждаю, что введённые мной личные данные верны и проверены мной</span>
+      </label>
+      {errors['agreements.accuracyConfirmed'] && <span className={styles.field__error}>{errors['agreements.accuracyConfirmed']}</span>}
+    </section>
+  );
+}
+
 function VerificationForm() {
   const dispatch = useDispatch();
   const { accessToken, user } = useSelector((state) => state.auth);
@@ -337,9 +611,7 @@ function VerificationForm() {
       <div className={styles.panel__header}>
         <p className={styles.panel__eyebrow}>Личный кабинет</p>
         <h1 className={styles.panel__title}>Верификация</h1>
-        <p className={styles.panel__text}>
-          {user.email} · статус: {user.verificationStatus}
-        </p>
+        <p className={styles.panel__text}>{user.email} · статус: {user.verificationStatus}</p>
       </div>
 
       <form className={styles.verification} onSubmit={submitForm}>
@@ -367,160 +639,30 @@ function VerificationForm() {
 
         <h2 className={styles.sectionTitle}>{title}</h2>
 
-        {(isIndividual || isEntrepreneur) && (
-          <div className={styles.formGrid}>
-            <Field label="Имя" section="personalData" name="firstName" form={form} onChange={changeNested} errors={errors} required />
-            <Field label="Фамилия" section="personalData" name="lastName" form={form} onChange={changeNested} errors={errors} required />
-            <Field label="Отчество" section="personalData" name="middleName" form={form} onChange={changeNested} errors={errors} required={form.isResident} />
-            <Field label="Мобильный телефон" section="personalData" name="phone" form={form} onChange={changeNested} errors={errors} required />
-            <Field label="Дополнительный телефон" section="personalData" name="additionalPhone" form={form} onChange={changeNested} errors={errors} />
-          </div>
-        )}
+        {isIndividual && <PersonFields form={form} changeNested={changeNested} errors={errors} />}
+        {isEntrepreneur && <OrganizationFields form={form} changeNested={changeNested} errors={errors} isLegalEntity={false} />}
+        {isLegalEntity && <OrganizationFields form={form} changeNested={changeNested} errors={errors} isLegalEntity />}
 
-        {isLegalEntity && (
-          <div className={styles.formGrid}>
-            <Field label="Краткое наименование" section="organizationData" name="shortName" form={form} onChange={changeNested} errors={errors} required />
-            <Field label="Полное наименование" section="organizationData" name="fullName" form={form} onChange={changeNested} errors={errors} required as="textarea" />
-          </div>
-        )}
+        {(isIndividual || isEntrepreneur) && <IdentityBlock form={form} changeNested={changeNested} errors={errors} />}
 
-        <h2 className={styles.sectionTitle}>{isLegalEntity ? 'Адрес регистрации' : 'Адрес'}</h2>
+        <h2 className={styles.sectionTitle}>{isLegalEntity ? 'Юридический адрес' : 'Адрес'}</h2>
+        <AddressBlock form={form} changeNested={changeNested} errors={errors} isLegalEntity={isLegalEntity} />
 
-        {form.isResident ? (
-          <div className={styles.formGrid}>
-            <Field label="Область" section="addressData" name="region" form={form} onChange={changeNested} errors={errors} required />
-            <Field label="Район" section="addressData" name="district" form={form} onChange={changeNested} errors={errors} required />
-            <Field label="Населённый пункт" section="addressData" name="locality" form={form} onChange={changeNested} errors={errors} required />
-            <Field label="Индекс" section="addressData" name="postalCode" form={form} onChange={changeNested} errors={errors} required />
-            <Field label="Улица" section="addressData" name="street" form={form} onChange={changeNested} errors={errors} required />
-            <Field label="Номер дома" section="addressData" name="house" form={form} onChange={changeNested} errors={errors} required={isIndividual || isEntrepreneur} />
-            <Field label="Корпус" section="addressData" name="building" form={form} onChange={changeNested} errors={errors} />
-            <Field label="Квартира" section="addressData" name="apartment" form={form} onChange={changeNested} errors={errors} />
-            {isLegalEntity && (
-              <>
-                <Field label="Контактный телефон" section="addressData" name="phone" form={form} onChange={changeNested} errors={errors} required />
-                <Field label="Дополнительный телефон" section="addressData" name="additionalPhone" form={form} onChange={changeNested} errors={errors} />
-              </>
-            )}
-          </div>
-        ) : (
-          <div className={styles.formGrid}>
-            {isLegalEntity ? (
-              <>
-                <Field label="Адрес регистрации" section="addressData" name="registrationAddress" form={form} onChange={changeNested} errors={errors} required as="textarea" />
-                <Field label="Контактный телефон" section="addressData" name="phone" form={form} onChange={changeNested} errors={errors} required />
-                <Field label="Дополнительный телефон" section="addressData" name="additionalPhone" form={form} onChange={changeNested} errors={errors} />
-              </>
-            ) : (
-              <Field label="Адрес проживания" section="addressData" name="residentialAddress" form={form} onChange={changeNested} errors={errors} required as="textarea" />
-            )}
-          </div>
-        )}
-
-        {form.isResident && !isLegalEntity && (
-          <label className={styles.checkboxLine}>
-            <input
-              type="checkbox"
-              checked={form.addressData.sameAsRegistration}
-              onChange={(event) => changeNested('addressData', 'sameAsRegistration', event.target.checked)}
-            />
-            Адрес проживания совпадает с адресом регистрации
-          </label>
-        )}
-        {form.isResident && isLegalEntity && (
-          <label className={styles.checkboxLine}>
-            <input
-              type="checkbox"
-              checked={form.addressData.sameAsLegalAddress}
-              onChange={(event) => changeNested('addressData', 'sameAsLegalAddress', event.target.checked)}
-            />
-            Адрес для почтовых отправлений совпадает с юридическим адресом
-          </label>
-        )}
-        {form.isResident && !isLegalEntity && !form.addressData.sameAsRegistration && (
-          <Field label="Адрес проживания" section="addressData" name="residentialAddress" form={form} onChange={changeNested} errors={errors} required as="textarea" />
-        )}
-        {form.isResident && isLegalEntity && !form.addressData.sameAsLegalAddress && (
-          <Field label="Адрес для почтовых отправлений" section="addressData" name="postalAddress" form={form} onChange={changeNested} errors={errors} required as="textarea" />
-        )}
-
-        {isIndividual && (
-          <>
-            <h2 className={styles.sectionTitle}>Документ, удостоверяющий личность</h2>
-            <div className={styles.formGrid}>
-              <label className={styles.field}>
-                <span className={styles.field__label}>Вид документа*</span>
-                <select
-                  className={`${styles.field__control} ${errors['documentData.documentType'] ? styles['field__control--error'] : ''}`}
-                  value={form.documentData.documentType}
-                  onChange={(event) => changeNested('documentData', 'documentType', event.target.value)}
-                >
-                  {Object.entries(documentTypeLabels).map(([value, label]) => (
-                    <option value={value} key={value}>{label}</option>
-                  ))}
-                </select>
-                {errors['documentData.documentType'] && <span className={styles.field__error}>{errors['documentData.documentType']}</span>}
-              </label>
-              <Field label="Номер документа" section="documentData" name="documentNumber" form={form} onChange={changeNested} errors={errors} required />
-              {form.documentData.documentType !== 'id_card' && (
-                <Field label="Кем выдан" section="documentData" name="issuedBy" form={form} onChange={changeNested} errors={errors} required />
-              )}
-              <Field label="Когда выдан" section="documentData" name="issuedAt" type="date" form={form} onChange={changeNested} errors={errors} required />
-              {form.isResident && (
-                <Field label="Срок действия" section="documentData" name="expiresAt" type="date" form={form} onChange={changeNested} errors={errors} required />
-              )}
-            </div>
-          </>
-        )}
-
-        {(isLegalEntity || isEntrepreneur) && (
-          <>
-            <h2 className={styles.sectionTitle}>Регистрационные данные</h2>
-            <div className={styles.formGrid}>
-              <Field label={form.isResident ? 'УНП' : 'УНП / ИНН'} section="organizationData" name="unp" form={form} onChange={changeNested} errors={errors} required />
-              <Field label={isLegalEntity ? 'Банковские реквизиты организации' : 'Банковские реквизиты'} section="bankData" name="bankDetails" form={form} onChange={changeNested} errors={errors} required as="textarea" />
-              {isLegalEntity && (
-                <>
-                  <Field label="Должность и Ф.И.О. руководителя" section="organizationData" name="directorFullName" form={form} onChange={changeNested} errors={errors} required />
-                  <Field label="На основании чего действует руководитель" section="organizationData" name="directorBasis" form={form} onChange={changeNested} errors={errors} required />
-                </>
-              )}
-            </div>
-          </>
-        )}
-
-        {isIndividual && (
-          <>
-            <h2 className={styles.sectionTitle}>Банковские реквизиты</h2>
-            <Field label="Реквизиты для возврата задатка" section="bankData" name="bankDetails" form={form} onChange={changeNested} errors={errors} required as="textarea" />
-          </>
-        )}
+        {isLegalEntity && <LegalManagementFields form={form} changeNested={changeNested} errors={errors} />}
 
         <h2 className={styles.sectionTitle}>Копии документов</h2>
-        <div className={styles.formGrid}>
-          {isIndividual && (
-            <>
-              <FileField label="Копия документа" name="documentMain" files={files} onFileChange={changeFile} errors={errors} required />
-              <FileField
-                label={form.isResident ? 'Копия регистрации' : 'Дополнительная копия документа'}
-                name={form.isResident ? 'documentRegistration' : 'documentAdditional'}
-                files={files}
-                onFileChange={changeFile}
-                errors={errors}
-                required
-              />
-              <FileField label="Дополнительный документ" name="documentExtra" files={files} onFileChange={changeFile} errors={errors} />
-            </>
-          )}
-          {(isLegalEntity || isEntrepreneur) && (
-            <FileField label="Копия свидетельства о регистрации" name="registrationCertificate" files={files} onFileChange={changeFile} errors={errors} required />
-          )}
-        </div>
+        {(isIndividual || isEntrepreneur) && <PersonFiles form={form} files={files} changeFile={changeFile} errors={errors} />}
+        {isEntrepreneur && (
+          <div className={styles.formGrid}>
+            <FileField label="Свидетельство о регистрации ИП" name="registrationCertificate" files={files} onFileChange={changeFile} errors={errors} required />
+          </div>
+        )}
+        {isLegalEntity && <OrganizationFiles isLegalEntity files={files} changeFile={changeFile} errors={errors} />}
 
-        <label className={styles.checkboxLine}>
-          <input type="checkbox" required />
-          Гарантирую достоверность указанных данных
-        </label>
+        <h2 className={styles.sectionTitle}>Банковские реквизиты для возврата задатка</h2>
+        <BankFields form={form} changeNested={changeNested} errors={errors} />
+
+        <AgreementsBlock form={form} changeNested={changeNested} errors={errors} />
 
         {(verification.message || clientError) && (
           <p className={verification.status === 'failed' || clientError ? styles.message__error : styles.message__success}>
@@ -529,7 +671,7 @@ function VerificationForm() {
         )}
 
         <button className={styles.button} type="submit" disabled={verification.status === 'loading'}>
-          Отправить на верификацию
+          Отправить заявку на проверку
         </button>
       </form>
     </section>
