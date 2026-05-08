@@ -160,5 +160,5 @@
 
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` are optional for now; if they are empty, Nodemailer creates an Ethereal test mailbox.
 - Uploaded verification documents are ignored by git through `backend/uploads/`.
-- The frontend uses Vite proxy for `/api` requests to `http://127.0.0.1:5055`.
+- The frontend uses root `vite.config.js`: fixed port `http://127.0.0.1:5173`, `strictPort: true`, and proxy for `/api` requests to `http://127.0.0.1:5055`.
 - No shop/cart/checkout logic was added.

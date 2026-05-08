@@ -8,9 +8,9 @@
     "start": "node backend/src/server.js",
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "nodemon backend/src/server.js",
-    "dev:frontend": "vite --host 127.0.0.1 --port 5173 frontend",
+    "dev:frontend": "vite",
     "build": "npm run build:frontend",
-    "build:frontend": "vite build frontend",
+    "build:frontend": "vite build",
     "test": "jest --runInBand",
     "test:watch": "jest --watch"
   },
