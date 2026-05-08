@@ -338,6 +338,90 @@ textarea.field__control {
   white-space: pre-wrap;
 }
 
+.detailGrid {
+  display: grid;
+  gap: 14px;
+}
+
+.detailSection {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-background);
+  padding: 14px;
+}
+
+.detailSection__title {
+  margin: 0;
+  color: var(--color-heading);
+  font-size: 18px;
+  line-height: 1.3;
+  letter-spacing: 0;
+}
+
+.detailList {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.detailItem {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.detailItem dt {
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.detailItem dd {
+  overflow-wrap: anywhere;
+  margin: 0;
+  color: var(--color-heading);
+  font-weight: 700;
+}
+
+.documentGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.documentCard {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  padding: 12px;
+}
+
+.documentCard span {
+  overflow-wrap: anywhere;
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+.documentPreview {
+  width: 100%;
+  max-height: 260px;
+  object-fit: contain;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-background);
+}
+
+.documentLink {
+  color: var(--color-accent);
+  font-weight: 700;
+  text-decoration: none;
+}
+
 .staffActions {
   display: grid;
   grid-template-columns: 1fr auto auto;

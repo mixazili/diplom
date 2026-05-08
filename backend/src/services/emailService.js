@@ -3,10 +3,24 @@ const config = require('../config/env');
 
 let transporterPromise = null;
 
+const withTimeout = (promise, ms, message) =>
+  Promise.race([
+    promise,
+    new Promise((resolve, reject) => {
+      setTimeout(() => reject(new Error(message)), ms);
+    })
+  ]);
+
 const createTransporter = async () => {
   if (config.env === 'test') {
     return nodemailer.createTransport({ jsonTransport: true });
   }
+
+  const timeoutOptions = {
+    connectionTimeout: 3000,
+    greetingTimeout: 3000,
+    socketTimeout: 5000
+  };
 
   if (config.mail.smtpHost && config.mail.smtpUser && config.mail.smtpPass) {
     return nodemailer.createTransport({
@@ -16,11 +30,16 @@ const createTransporter = async () => {
       auth: {
         user: config.mail.smtpUser,
         pass: config.mail.smtpPass
-      }
+      },
+      ...timeoutOptions
     });
   }
 
-  const testAccount = await nodemailer.createTestAccount();
+  const testAccount = await withTimeout(
+    nodemailer.createTestAccount(),
+    3000,
+    'Ethereal account creation timeout'
+  );
 
   return nodemailer.createTransport({
     host: 'smtp.ethereal.email',
@@ -29,7 +48,8 @@ const createTransporter = async () => {
     auth: {
       user: testAccount.user,
       pass: testAccount.pass
-    }
+    },
+    ...timeoutOptions
   });
 };
 

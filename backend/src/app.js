@@ -1,4 +1,5 @@
 const express = require('express');
+const path = require('path');
 const cors = require('cors');
 const config = require('./config/env');
 const apiRoutes = require('./routes');
@@ -8,6 +9,7 @@ const app = express();
 
 app.use(cors({ origin: config.clientUrl, credentials: true }));
 app.use(express.json());
+app.use('/uploads', express.static(path.join(process.cwd(), 'backend', 'uploads')));
 
 app.use('/api', apiRoutes);
 

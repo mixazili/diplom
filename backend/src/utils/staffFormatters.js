@@ -28,7 +28,14 @@ const formatVerification = (verification) => ({
   documentData: verification.documentData,
   bankData: verification.bankData,
   organizationData: verification.organizationData,
-  documents: verification.documents,
+  documents: verification.documents.map((document) => ({
+    fieldName: document.fieldName,
+    originalName: document.originalName,
+    mimeType: document.mimeType,
+    size: document.size,
+    path: document.path,
+    url: `/uploads/verification/${document.path.split(/[\\/]/).pop()}`
+  })),
   submittedAt: verification.submittedAt,
   moderationComment: verification.moderationComment,
   reviewedBy: verification.reviewedBy ? sanitizeUser(verification.reviewedBy) : null,
