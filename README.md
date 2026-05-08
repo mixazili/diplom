@@ -73,3 +73,92 @@
 - Real MongoDB credentials are stored only in local `.env`, which is ignored by git.
 - `vite` is pinned to `6.4.2`: `vite@8` failed on Windows with a native `rolldown` binding error, while older Vite 5 had an esbuild audit finding.
 - The project remains an auction platform foundation only: no shop, cart, fixed purchase, or checkout logic was added.
+
+## Этап 2. Регистрация, вход и пользовательская верификация
+
+### What was implemented
+
+Реализован пользовательский auth-flow и отправка заявки на верификацию:
+
+- Регистрация пользователя через email и пароль без выбора типа аккаунта на этом шаге.
+- Подтверждение email шестизначным кодом, отправляемым через Nodemailer.
+- Для разработки используется Ethereal, ссылка на письмо возвращается в dev-ответе и логируется backend.
+- Вход только после подтверждения email.
+- JWT access + refresh tokens, хранение hash refresh token у пользователя.
+- Роли заложены как `admin`, `moderator`, `user`; `guest` остаётся неавторизованным пользователем.
+- Пользователь после регистрации имеет почти гостевой статус до прохождения верификации.
+- В личном кабинете добавлена форма верификации для:
+  - физического лица, резидента РБ;
+  - физического лица, нерезидента РБ;
+  - юридического лица, резидента РБ;
+  - юридического лица, нерезидента РБ;
+  - индивидуального предпринимателя, резидента РБ;
+  - индивидуального предпринимателя, нерезидента РБ.
+- Для физического лица добавлен выбор документа: паспорт, ID-карта, вид на жительство.
+- Для ID-карты скрывается поле "Кем выдан".
+- Для нерезидентов скрывается поле "Срок действия".
+- Документы отправляются как реальные файлы через `multipart/form-data` и сохраняются в `backend/uploads/verification`.
+- После отправки заявки пользователь получает `verificationStatus: pending`.
+- Модераторская и админская проверка не реализовывались, это следующий этап.
+
+### Changed files
+
+- `.gitignore`
+- `.env.example`
+- `package.json`
+- `package-lock.json`
+- `backend/src/config/env.js`
+- `backend/src/controllers/authController.js`
+- `backend/src/controllers/verificationController.js`
+- `backend/src/middleware/authMiddleware.js`
+- `backend/src/middleware/uploadMiddleware.js`
+- `backend/src/models/User.js`
+- `backend/src/models/VerificationRequest.js`
+- `backend/src/routes/authRoutes.js`
+- `backend/src/routes/index.js`
+- `backend/src/routes/verificationRoutes.js`
+- `backend/src/services/authService.js`
+- `backend/src/services/emailService.js`
+- `backend/src/services/tokenService.js`
+- `backend/src/utils/asyncHandler.js`
+- `backend/src/utils/authValidation.js`
+- `backend/src/utils/verificationValidation.js`
+- `backend/tests/auth.test.js`
+- `backend/tests/setup.js`
+- `backend/tests/verification.test.js`
+- `frontend/vite.config.js`
+- `frontend/src/api/client.js`
+- `frontend/src/App.jsx`
+- `frontend/src/App.module.css`
+- `frontend/src/features/app/appSlice.js`
+- `frontend/src/features/auth/authSlice.js`
+- `frontend/src/features/verification/verificationSlice.js`
+- `frontend/src/store/index.js`
+- `frontend/src/styles/global.css`
+
+### Tests
+
+- `npm test` - passed, 4 test suites, 7 tests.
+- `npm run build` - passed, frontend production build completed.
+- `npm audit --audit-level=moderate` - passed, 0 vulnerabilities.
+- API boot check passed: `GET /api/health` returns `status: "ok"` and connected MongoDB Atlas development database.
+
+### How to check all logic manually
+
+1. Run `npm install`.
+2. Run `npm run dev`.
+3. Open `http://127.0.0.1:5173`.
+4. Register with email and password.
+5. Open the Ethereal preview link from the API response/backend console and copy the confirmation code.
+6. Enter the code in the frontend form.
+7. Log in if needed.
+8. In the cabinet choose account type and resident/non-resident status.
+9. Fill required fields, upload jpg/jpeg/png/pdf documents and submit the verification form.
+10. Check that the user status becomes `pending`.
+
+### Notes
+
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` are optional for now; if they are empty, Nodemailer creates an Ethereal test mailbox.
+- Uploaded verification documents are ignored by git through `backend/uploads/`.
+- The frontend uses Vite proxy for `/api` requests to `http://127.0.0.1:5055`.
+- No shop/cart/checkout logic was added.

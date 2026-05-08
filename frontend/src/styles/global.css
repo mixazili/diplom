@@ -1,11 +1,17 @@
 :root {
-  --color-background: #f4f1ea;
+  --color-background: #f6f7f9;
   --color-surface: #ffffff;
   --color-heading: #111827;
   --color-text: #1f2937;
   --color-muted: #5b6472;
   --color-border: #d7dce3;
-  --color-accent: #0f766e;
+  --color-accent: #b91c1c;
+  --color-accent-soft: rgba(185, 28, 28, 0.18);
+  --color-accent-muted: #fff5f5;
+  --color-danger: #dc2626;
+  --color-success: #0f766e;
+  --color-on-accent: #ffffff;
+  --color-shadow: rgba(17, 24, 39, 0.08);
 }
 
 * {
@@ -22,6 +28,10 @@ body {
     "Segoe UI",
     sans-serif;
   background: var(--color-background);
+}
+
+a {
+  color: inherit;
 }
 
 button,

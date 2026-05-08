@@ -22,10 +22,17 @@ const config = {
   clientUrl: process.env.CLIENT_URL || 'http://127.0.0.1:5173',
   mongoUri: getMongoUri(),
   jwt: {
-    accessSecret: process.env.JWT_ACCESS_SECRET,
-    refreshSecret: process.env.JWT_REFRESH_SECRET,
+    accessSecret: process.env.JWT_ACCESS_SECRET || 'development_access_secret',
+    refreshSecret: process.env.JWT_REFRESH_SECRET || 'development_refresh_secret',
     accessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '15m',
     refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d'
+  },
+  mail: {
+    from: process.env.MAIL_FROM || 'Auction.by <no-reply@auction.by>',
+    smtpHost: process.env.SMTP_HOST,
+    smtpPort: Number(process.env.SMTP_PORT) || 587,
+    smtpUser: process.env.SMTP_USER,
+    smtpPass: process.env.SMTP_PASS
   }
 };
 
