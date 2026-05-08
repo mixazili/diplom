@@ -1,5 +1,6 @@
 const allowedAccountTypes = ['individual', 'legal_entity', 'entrepreneur'];
 const allowedDocumentTypes = ['passport', 'id_card', 'residence_permit'];
+const allowedDirectorBasisTypes = ['charter', 'other', 'regulation', 'power_of_attorney', 'law'];
 
 const getValue = (payload, path) => {
   const value = path.split('.').reduce((result, key) => result && result[key], payload);
@@ -123,6 +124,10 @@ const validateEntrepreneur = (payload, files, errors) => {
     ],
     errors
   );
+
+  if (!allowedDirectorBasisTypes.includes(getValue(payload, 'organizationData.directorBasis'))) {
+    errors['organizationData.directorBasis'] = 'Выберите тип документа о назначении';
+  }
 
   if (payload.isResident) {
     requireResidentAddress(payload, errors);

@@ -16,6 +16,14 @@ const documentTypeLabels = {
   residence_permit: 'Вид на жительство'
 };
 
+const directorBasisLabels = {
+  charter: 'Устава',
+  other: 'Иного документа',
+  regulation: 'Положения',
+  power_of_attorney: 'Доверенности',
+  law: 'Закона'
+};
+
 const emptyVerificationForm = {
   accountType: 'individual',
   isResident: true,
@@ -71,7 +79,7 @@ const emptyVerificationForm = {
     contactPhone: '',
     directorFullName: '',
     directorPosition: '',
-    directorBasis: '',
+    directorBasis: 'charter',
     directorPhone: '',
     powerOfAttorney: '',
     chiefAccountantFullName: '',
@@ -495,7 +503,16 @@ function LegalManagementFields({ form, changeNested, errors }) {
       <div className={styles.formGrid}>
         <Field label="ФИО руководителя" section="organizationData" name="directorFullName" form={form} onChange={changeNested} errors={errors} required />
         <Field label="Должность руководителя" section="organizationData" name="directorPosition" form={form} onChange={changeNested} errors={errors} required />
-        <Field label="На основании чего действует руководитель" section="organizationData" name="directorBasis" form={form} onChange={changeNested} errors={errors} required />
+        <SelectField
+          label="Тип документа о назначении"
+          section="organizationData"
+          name="directorBasis"
+          form={form}
+          onChange={changeNested}
+          errors={errors}
+          options={directorBasisLabels}
+          required
+        />
         <Field label="Телефон руководителя" section="organizationData" name="directorPhone" form={form} onChange={changeNested} errors={errors} required />
         <Field label="Номер и дата доверенности" section="organizationData" name="powerOfAttorney" form={form} onChange={changeNested} errors={errors} />
       </div>
@@ -516,6 +533,7 @@ function OrganizationFiles({ isLegalEntity, files, changeFile, errors }) {
         <>
           <FileField label="Свидетельство о регистрации" name="stateRegistrationCertificate" files={files} onFileChange={changeFile} errors={errors} required />
           <FileField label="Документ о назначении руководителя" name="directorAppointmentOrder" files={files} onFileChange={changeFile} errors={errors} required />
+          <FileField label="Резервный документ о назначении руководителя" name="directorAppointmentReserve" files={files} onFileChange={changeFile} errors={errors} />
         </>
       )}
     </div>
