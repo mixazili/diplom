@@ -1,0 +1,64 @@
+.app {
+  min-height: 100vh;
+  background: var(--color-background);
+  color: var(--color-text);
+}
+
+.app__shell {
+  display: grid;
+  align-items: center;
+  min-height: 100vh;
+  padding: 48px 24px;
+}
+
+.app__content {
+  width: min(760px, 100%);
+  margin: 0 auto;
+}
+
+.app__eyebrow {
+  margin: 0 0 12px;
+  color: var(--color-accent);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.app__title {
+  margin: 0;
+  color: var(--color-heading);
+  font-size: clamp(36px, 7vw, 72px);
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+.app__text {
+  max-width: 640px;
+  margin: 24px 0 0;
+  color: var(--color-muted);
+  font-size: 20px;
+  line-height: 1.6;
+}
+
+.app__status {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  margin-top: 32px;
+  padding: 14px 18px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+}
+
+.app__statusLabel {
+  color: var(--color-muted);
+  font-size: 14px;
+}
+
+.app__statusValue {
+  color: var(--color-heading);
+  font-size: 14px;
+}

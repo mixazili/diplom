@@ -1,0 +1,45 @@
+{
+  "name": "auction-by",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Auction.by diploma project: online auction platform.",
+  "main": "backend/src/server.js",
+  "scripts": {
+    "start": "node backend/src/server.js",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "nodemon backend/src/server.js",
+    "dev:frontend": "vite --host 127.0.0.1 --port 5173 frontend",
+    "build": "npm run build:frontend",
+    "build:frontend": "vite build frontend",
+    "test": "jest --runInBand",
+    "test:watch": "jest --watch"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": [
+      "<rootDir>/backend/tests/**/*.test.js"
+    ],
+    "collectCoverageFrom": [
+      "backend/src/**/*.js",
+      "!backend/src/server.js"
+    ]
+  },
+  "dependencies": {
+    "@reduxjs/toolkit": "^2.11.2",
+    "bcryptjs": "^3.0.3",
+    "concurrently": "^9.2.1",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "jest": "^30.4.1",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.6.1",
+    "nodemon": "^3.1.14",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "react-redux": "^9.2.0",
+    "redux": "^5.0.1",
+    "supertest": "^7.2.2",
+    "vite": "^6.4.2"
+  }
+}
