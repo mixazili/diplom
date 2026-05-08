@@ -1,4 +1,14 @@
-const API_BASE_URL = '/api';
+const getApiBaseUrl = () => {
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+
+  if (import.meta.env.DEV && window.location.port !== '5173') {
+    return 'http://127.0.0.1:5055/api';
+  }
+
+  return '/api';
+};
 
 const parseResponse = async (response) => {
   const data = await response.json().catch(() => ({}));
@@ -19,7 +29,7 @@ export const apiRequest = async (path, options = {}) => {
     ...(options.headers || {})
   };
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(`${getApiBaseUrl()}${path}`, {
     ...options,
     headers
   });
