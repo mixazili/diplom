@@ -166,3 +166,78 @@
 - Uploaded verification documents are ignored by git through `backend/uploads/`.
 - The frontend uses root `vite.config.js`: fixed port `http://127.0.0.1:5173`, `strictPort: true`, and proxy for `/api` requests to `http://127.0.0.1:5055`.
 - No shop/cart/checkout logic was added.
+
+## Этап 3. Админ-панель, модераторская панель и проверка верификации
+
+### What was implemented
+
+Реализована базовая административная и модераторская часть:
+
+- При запуске backend автоматически создаётся единственный admin из env-настроек `ADMIN_EMAIL` и `ADMIN_PASSWORD`.
+- Для admin/moderator вход выполняется через email + password, затем обязательный код на email.
+- Обычный `/auth/login` запрещён для admin/moderator, чтобы сотрудники всегда входили через код.
+- Admin может создавать новых модераторов.
+- Admin может удалять модераторов через деактивацию аккаунта, чтобы история решений не ломалась.
+- Admin видит список активных модераторов и их `online/offline` статус по `lastSeenAt`.
+- Moderator видит очередь pending-заявок на верификацию.
+- Moderator может одобрить или отклонить заявку; при отклонении причина обязательна.
+- При решении заявки обновляется `VerificationRequest.status` и `User.verificationStatus`.
+- Добавлен журнал `VerificationReview`.
+- Moderator видит журнал только своих принятых и отклонённых заявок.
+- Admin видит общий журнал решений всех модераторов с подписью модератора.
+- В frontend добавлены отдельные панели для admin и moderator.
+- У admin/moderator в личном кабинете больше не показывается пользовательская форма верификации.
+
+### Changed files
+
+- `.env.example`
+- `README.md`
+- `backend/src/config/database.js`
+- `backend/src/config/env.js`
+- `backend/src/controllers/adminController.js`
+- `backend/src/controllers/authController.js`
+- `backend/src/controllers/moderationController.js`
+- `backend/src/middleware/authMiddleware.js`
+- `backend/src/models/User.js`
+- `backend/src/models/VerificationReview.js`
+- `backend/src/routes/adminRoutes.js`
+- `backend/src/routes/authRoutes.js`
+- `backend/src/routes/index.js`
+- `backend/src/routes/moderationRoutes.js`
+- `backend/src/server.js`
+- `backend/src/services/adminSeedService.js`
+- `backend/src/services/authService.js`
+- `backend/src/services/emailService.js`
+- `backend/src/utils/staffFormatters.js`
+- `backend/tests/adminModeration.test.js`
+- `backend/tests/auth.test.js`
+- `backend/tests/setup.js`
+- `frontend/src/App.jsx`
+- `frontend/src/App.module.css`
+- `frontend/src/features/auth/authSlice.js`
+
+### Tests
+
+- `npm test` - passed, 5 test suites, 12 tests.
+- `npm run build` - passed, frontend production build completed.
+- `npm audit --audit-level=moderate` - passed, 0 vulnerabilities.
+- API boot check passed: `GET /api/health` returns `status: "ok"` after database connection and admin seeding.
+
+### How to check all logic manually
+
+1. Set `ADMIN_EMAIL` and `ADMIN_PASSWORD` in `.env` if defaults are not needed.
+2. Run `npm run dev`.
+3. Open `http://127.0.0.1:5173`.
+4. Use the `Сотрудники` tab to request an admin login code.
+5. Log in as admin and create a moderator.
+6. Log out and log in as moderator through the `Сотрудники` tab.
+7. Review a pending verification request and approve or reject it.
+8. Check moderator journal in the moderator panel.
+9. Log back in as admin and check the common journal plus moderator online/offline statuses.
+
+### Notes
+
+- Default development admin: `admin@auction.by` / `Admin12345`, unless overridden in `.env`.
+- Moderator deletion is implemented as account deactivation to preserve review history.
+- Online/offline status is computed from recent authenticated activity.
+- No auction lot moderation, admin merging, shop/cart/checkout logic was added.

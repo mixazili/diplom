@@ -12,7 +12,9 @@ const sanitizeUser = (user) => ({
   accountType: user.accountType,
   isResident: user.isResident,
   isEmailVerified: user.isEmailVerified,
-  verificationStatus: user.verificationStatus
+  verificationStatus: user.verificationStatus,
+  isActive: user.isActive,
+  lastSeenAt: user.lastSeenAt
 });
 
 module.exports = {

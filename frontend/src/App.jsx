@@ -1,28 +1,23 @@
 import React, { useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { loginUser, logout, registerUser, updateCurrentUser, verifyEmail } from './features/auth/authSlice.js';
+import {
+  loginUser,
+  logout,
+  registerUser,
+  requestStaffLogin,
+  updateCurrentUser,
+  verifyEmail,
+  verifyStaffLogin
+} from './features/auth/authSlice.js';
 import { submitVerification } from './features/verification/verificationSlice.js';
+import AdminPanel from './components/staff/AdminPanel.jsx';
+import ModeratorPanel from './components/staff/ModeratorPanel.jsx';
+import {
+  accountTypeLabels,
+  directorBasisLabels,
+  documentTypeLabels
+} from './constants/verificationLabels.js';
 import styles from './App.module.css';
-
-const accountTypeLabels = {
-  individual: 'Физическое лицо',
-  legal_entity: 'Юридическое лицо',
-  entrepreneur: 'Индивидуальный предприниматель'
-};
-
-const documentTypeLabels = {
-  passport: 'Паспорт',
-  id_card: 'ID-карта',
-  residence_permit: 'Вид на жительство'
-};
-
-const directorBasisLabels = {
-  charter: 'Устав',
-  other: 'Иной документ',
-  regulation: 'Положение',
-  power_of_attorney: 'Доверенность',
-  law: 'Закон'
-};
 
 const emptyVerificationForm = {
   accountType: 'individual',
@@ -191,6 +186,16 @@ function AuthPanel() {
     dispatch(loginUser({ email: credentials.email, password: credentials.password }));
   };
 
+  const submitStaffLogin = (event) => {
+    event.preventDefault();
+    dispatch(requestStaffLogin({ email: credentials.email, password: credentials.password }));
+  };
+
+  const submitStaffCode = (event) => {
+    event.preventDefault();
+    dispatch(verifyStaffLogin({ email: auth.staffLoginEmail || credentials.email, code: credentials.code }));
+  };
+
   return (
     <section className={styles.panel}>
       <div className={styles.panel__header}>
@@ -212,6 +217,13 @@ function AuthPanel() {
           onClick={() => setMode('login')}
         >
           Вход
+        </button>
+        <button
+          className={`${styles.tabs__button} ${mode === 'staff' ? styles['tabs__button--active'] : ''}`}
+          type="button"
+          onClick={() => setMode('staff')}
+        >
+          Сотрудники
         </button>
       </div>
 
@@ -321,6 +333,64 @@ function AuthPanel() {
             Войти
           </button>
         </form>
+      )}
+
+      {mode === 'staff' && (
+        <>
+          <form className={styles.form} onSubmit={submitStaffLogin}>
+            <label className={styles.field}>
+              <span className={styles.field__label}>Email сотрудника*</span>
+              <input
+                className={styles.field__control}
+                type="email"
+                value={credentials.email}
+                onChange={(event) => updateCredentials('email', event.target.value)}
+              />
+            </label>
+            <label className={styles.field}>
+              <span className={styles.field__label}>Пароль*</span>
+              <input
+                className={styles.field__control}
+                type="password"
+                value={credentials.password}
+                onChange={(event) => updateCredentials('password', event.target.value)}
+              />
+            </label>
+            <button className={styles.button} type="submit" disabled={isLoading}>
+              Получить код входа
+            </button>
+          </form>
+
+          {(auth.staffLoginEmail || auth.message) && (
+            <form className={styles.form} onSubmit={submitStaffCode}>
+              <div className={styles.notice}>
+                <strong>{auth.message}</strong>
+                {auth.emailPreviewUrl && (
+                  <a href={auth.emailPreviewUrl} target="_blank" rel="noreferrer">
+                    Открыть письмо Ethereal
+                  </a>
+                )}
+                {auth.emailCode && (
+                  <span>
+                    Dev-код входа: <strong>{auth.emailCode}</strong>
+                  </span>
+                )}
+              </div>
+              <label className={styles.field}>
+                <span className={styles.field__label}>Код входа*</span>
+                <input
+                  className={styles.field__control}
+                  value={credentials.code}
+                  onChange={(event) => updateCredentials('code', event.target.value)}
+                  placeholder="6 цифр"
+                />
+              </label>
+              <button className={styles.button} type="submit" disabled={isLoading}>
+                Войти в панель
+              </button>
+            </form>
+          )}
+        </>
       )}
 
       {auth.status === 'failed' && <p className={styles.message__error}>{auth.message}</p>}
@@ -721,11 +791,20 @@ function Cabinet() {
 
 function App() {
   const user = useSelector((state) => state.auth.user);
+  let content = <AuthPanel />;
+
+  if (user?.role === 'admin') {
+    content = <AdminPanel />;
+  } else if (user?.role === 'moderator') {
+    content = <ModeratorPanel />;
+  } else if (user) {
+    content = <Cabinet />;
+  }
 
   return (
     <main className={styles.app}>
       <div className={styles.app__shell}>
-        {user ? <Cabinet /> : <AuthPanel />}
+        {content}
       </div>
     </main>
   );

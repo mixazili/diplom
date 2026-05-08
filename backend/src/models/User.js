@@ -51,6 +51,27 @@ const userSchema = new mongoose.Schema(
     refreshTokenHash: {
       type: String,
       default: null
+    },
+    loginCodeHash: {
+      type: String,
+      default: null
+    },
+    loginCodeExpiresAt: {
+      type: Date,
+      default: null
+    },
+    isActive: {
+      type: Boolean,
+      default: true
+    },
+    lastSeenAt: {
+      type: Date,
+      default: null
+    },
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
     }
   },
   { timestamps: true }

@@ -24,13 +24,21 @@ const connectDatabase = async () => {
     return mongoose.connection;
   }
 
-  await mongoose.connect(config.mongoUri);
+  if (mongoose.connection.readyState === 2) {
+    await mongoose.connection.asPromise();
+    return mongoose.connection;
+  }
+
+  await mongoose.connect(config.mongoUri, {
+    serverSelectionTimeoutMS: 15000,
+    maxPoolSize: config.env === 'test' ? 1 : 10
+  });
   return mongoose.connection;
 };
 
 const disconnectDatabase = async () => {
   if (mongoose.connection.readyState !== 0) {
-    await mongoose.disconnect();
+    await mongoose.connection.close(true);
   }
 };
 
