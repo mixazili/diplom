@@ -1,7 +1,7 @@
 import { createSlice } from '@reduxjs/toolkit';
 
 const initialState = {
-  projectStage: 'Архитектура и базовая структура проекта'
+  projectStage: 'Регистрация, вход и верификация'
 };
 
 const appSlice = createSlice({

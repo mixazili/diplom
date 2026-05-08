@@ -8,14 +8,17 @@
     "start": "node backend/src/server.js",
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "nodemon backend/src/server.js",
-    "dev:frontend": "vite --host 127.0.0.1 --port 5173 frontend",
+    "dev:frontend": "vite",
     "build": "npm run build:frontend",
-    "build:frontend": "vite build frontend",
+    "build:frontend": "vite build",
     "test": "jest --runInBand",
     "test:watch": "jest --watch"
   },
   "jest": {
     "testEnvironment": "node",
+    "setupFilesAfterEnv": [
+      "<rootDir>/backend/tests/setup.js"
+    ],
     "testMatch": [
       "<rootDir>/backend/tests/**/*.test.js"
     ],
@@ -26,6 +29,7 @@
   },
   "dependencies": {
     "@reduxjs/toolkit": "^2.11.2",
+    "@vitejs/plugin-react": "^5.1.1",
     "bcryptjs": "^3.0.3",
     "concurrently": "^9.2.1",
     "cors": "^2.8.6",
@@ -34,6 +38,8 @@
     "jest": "^30.4.1",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.6.1",
+    "multer": "^2.1.1",
+    "nodemailer": "^8.0.7",
     "nodemon": "^3.1.14",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",

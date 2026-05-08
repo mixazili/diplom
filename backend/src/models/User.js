@@ -21,7 +21,27 @@ const userSchema = new mongoose.Schema(
     accountType: {
       type: String,
       enum: ['individual', 'legal_entity', 'entrepreneur'],
-      required: true
+      default: null
+    },
+    isResident: {
+      type: Boolean,
+      default: null
+    },
+    isEmailVerified: {
+      type: Boolean,
+      default: false
+    },
+    emailVerifiedAt: {
+      type: Date,
+      default: null
+    },
+    emailVerificationCodeHash: {
+      type: String,
+      default: null
+    },
+    emailVerificationCodeExpiresAt: {
+      type: Date,
+      default: null
     },
     verificationStatus: {
       type: String,
