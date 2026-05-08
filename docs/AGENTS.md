@@ -15,7 +15,7 @@ Use only:
 - Frontend: React + Redux, без TypeScript
 - Styles: module css, use BEM, all colors - css-variables
 - Backend: Node.js + Express
-- Database: MongoDB Atlas
+- Database: MongoDB Atlas, mongoose driver
 - API: REST API
 - Auth: JWT access + refresh tokens
 - Tests backend: Jest + Supertest

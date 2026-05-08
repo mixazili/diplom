@@ -13,7 +13,7 @@
 Frontend: React + Redux, без TypeScript
 Styles: модульные стили, единый приятный глазу стиль и цветовое оформление, БЭМ(Блок, Элемент, Модификатор), все цвета - css-переменные
 Backend: Node.js + Express
-Database: MongoDB Atlas
+Database: MongoDB Atlas, mongoose driver
 API: REST API
 Auth: JWT access + refresh tokens
 Тесты backend: Jest + Supertest
