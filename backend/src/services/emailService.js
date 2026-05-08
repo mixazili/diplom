@@ -41,27 +41,49 @@ const getTransporter = async () => {
   return transporterPromise;
 };
 
-const sendEmailVerificationCode = async ({ email, code }) => {
-  const transporter = await getTransporter();
-
-  const info = await transporter.sendMail({
-    from: config.mail.from,
-    to: email,
-    subject: 'Код подтверждения Auction.by',
-    text: `Ваш код подтверждения: ${code}. Код действует 15 минут.`,
-    html: `<p>Ваш код подтверждения Auction.by:</p><h2>${code}</h2><p>Код действует 15 минут.</p>`
-  });
-
-  const previewUrl = nodemailer.getTestMessageUrl(info);
-
-  if (previewUrl) {
-    console.log(`Ethereal email preview: ${previewUrl}`);
-  }
+const createFallbackResult = ({ code, error }) => {
+  console.warn(`Email delivery failed, using development code fallback: ${error.message}`);
 
   return {
-    messageId: info.messageId,
-    previewUrl
+    messageId: null,
+    previewUrl: null,
+    developmentCode: code,
+    deliveryError: error.message
   };
+};
+
+const sendEmailVerificationCode = async ({ email, code }) => {
+  try {
+    const transporter = await getTransporter();
+
+    const info = await transporter.sendMail({
+      from: config.mail.from,
+      to: email,
+      subject: 'Код подтверждения Auction.by',
+      text: `Ваш код подтверждения: ${code}. Код действует 15 минут.`,
+      html: `<p>Ваш код подтверждения Auction.by:</p><h2>${code}</h2><p>Код действует 15 минут.</p>`
+    });
+
+    const previewUrl = nodemailer.getTestMessageUrl(info);
+
+    if (previewUrl) {
+      console.log(`Ethereal email preview: ${previewUrl}`);
+    }
+
+    return {
+      messageId: info.messageId,
+      previewUrl,
+      developmentCode: null,
+      deliveryError: null
+    };
+  } catch (error) {
+    if (config.env !== 'production') {
+      transporterPromise = null;
+      return createFallbackResult({ code, error });
+    }
+
+    throw error;
+  }
 };
 
 module.exports = {

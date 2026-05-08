@@ -20,6 +20,14 @@ const sendCodeForUser = async (user) => {
   return sendEmailVerificationCode({ email: user.email, code });
 };
 
+const createEmailResponse = ({ message, user, emailInfo }) => ({
+  message,
+  email: user.email,
+  developmentEmailPreviewUrl: emailInfo.previewUrl || null,
+  developmentEmailCode: emailInfo.developmentCode || null,
+  emailDeliveryError: emailInfo.deliveryError || null
+});
+
 const register = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
   const normalizedEmail = String(email || '').trim().toLowerCase();
@@ -52,11 +60,15 @@ const register = asyncHandler(async (req, res) => {
 
   const emailInfo = await sendCodeForUser(user);
 
-  res.status(existingUser ? 200 : 201).json({
-    message: 'Код подтверждения отправлен на email',
-    email: user.email,
-    developmentEmailPreviewUrl: emailInfo.previewUrl || null
-  });
+  res.status(existingUser ? 200 : 201).json(
+    createEmailResponse({
+      message: emailInfo.deliveryError
+        ? 'Код создан. Почтовый сервис разработки недоступен, используйте dev-код ниже.'
+        : 'Код подтверждения отправлен на email',
+      user,
+      emailInfo
+    })
+  );
 });
 
 const verifyEmail = asyncHandler(async (req, res) => {
@@ -192,10 +204,15 @@ const resendCode = asyncHandler(async (req, res) => {
 
   const emailInfo = await sendCodeForUser(user);
 
-  res.json({
-    message: 'Новый код отправлен на email',
-    developmentEmailPreviewUrl: emailInfo.previewUrl || null
-  });
+  res.json(
+    createEmailResponse({
+      message: emailInfo.deliveryError
+        ? 'Новый код создан. Почтовый сервис разработки недоступен, используйте dev-код ниже.'
+        : 'Новый код отправлен на email',
+      user,
+      emailInfo
+    })
+  );
 });
 
 module.exports = {

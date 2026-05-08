@@ -60,6 +60,8 @@ const authSlice = createSlice({
     refreshToken: storedSession.refreshToken || null,
     registrationEmail: '',
     emailPreviewUrl: null,
+    emailCode: null,
+    emailDeliveryError: null,
     status: 'idle',
     message: '',
     errors: {}
@@ -95,6 +97,8 @@ const authSlice = createSlice({
         state.status = 'succeeded';
         state.registrationEmail = action.payload.email;
         state.emailPreviewUrl = action.payload.developmentEmailPreviewUrl;
+        state.emailCode = action.payload.developmentEmailCode;
+        state.emailDeliveryError = action.payload.emailDeliveryError;
         state.message = action.payload.message;
       })
       .addCase(registerUser.rejected, (state, action) => {

@@ -223,6 +223,14 @@ function AuthPanel() {
                     Открыть письмо Ethereal
                   </a>
                 )}
+                {auth.emailCode && (
+                  <span>
+                    Dev-код подтверждения: <strong>{auth.emailCode}</strong>
+                  </span>
+                )}
+                {auth.emailDeliveryError && (
+                  <span>Почтовый сервис разработки ответил ошибкой: {auth.emailDeliveryError}</span>
+                )}
               </div>
               <label className={styles.field}>
                 <span className={styles.field__label}>Код из письма*</span>
