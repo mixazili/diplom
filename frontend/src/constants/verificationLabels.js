@@ -19,6 +19,7 @@ export const directorBasisLabels = {
 };
 
 export const verificationStatusLabels = {
+  draft: 'Черновик',
   pending: 'Ожидает проверки',
   approved: 'Одобрена',
   rejected: 'Отклонена'

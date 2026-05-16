@@ -241,3 +241,44 @@
 - Moderator deletion is implemented as account deactivation to preserve review history.
 - Online/offline status is computed from recent authenticated activity.
 - No auction lot moderation, admin merging, shop/cart/checkout logic was added.
+
+## Fix. User verification status in cabinet
+
+### What was implemented
+
+- User cabinet now loads the latest verification request through `/api/verification/me`.
+- If verification is rejected, the user sees the moderator rejection reason in the cabinet.
+- If verification is pending or approved, the verification form is hidden to avoid duplicate submissions.
+- Backend now blocks duplicate verification submissions for users with `pending` or `approved` status.
+- Frontend cabinet status logic was moved into `frontend/src/components/user/UserCabinet.jsx`.
+- Nodemailer email subject/body text was restored to readable Russian while keeping the Ethereal/dev-code fallback.
+- `.gitignore` was checked: `.env` and `.env.*` are ignored, while `!.env.example` is intentionally kept so the safe template stays in git.
+
+### Changed files
+
+- `README.md`
+- `backend/src/controllers/verificationController.js`
+- `backend/src/services/emailService.js`
+- `backend/tests/verification.test.js`
+- `frontend/src/App.jsx`
+- `frontend/src/App.module.css`
+- `frontend/src/components/user/UserCabinet.jsx`
+- `frontend/src/features/verification/verificationSlice.js`
+
+### Tests
+
+- `npm test`
+- `npm run build`
+- `npm audit --audit-level=moderate`
+
+### How to check all logic manually
+
+1. Log in as a user with rejected verification.
+2. Open the cabinet and check that the rejection reason is visible above the form.
+3. Resubmit verification after fixing data.
+4. Approve the user as moderator.
+5. Log in as that user again and check that the verification form is no longer shown.
+
+### Notes
+
+- Real SMTP settings are still optional in `.env`; with empty `SMTP_*`, development uses Ethereal and falls back to `developmentEmailCode` if Ethereal is unavailable.

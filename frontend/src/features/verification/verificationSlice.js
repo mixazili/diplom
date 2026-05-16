@@ -1,6 +1,19 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import { apiRequest, authHeader } from '../../api/client.js';
 
+export const fetchMyVerification = createAsyncThunk(
+  'verification/fetchMyVerification',
+  async ({ token }, { rejectWithValue }) => {
+    try {
+      return await apiRequest('/verification/me', {
+        headers: authHeader(token)
+      });
+    } catch (error) {
+      return rejectWithValue({ message: error.message, errors: error.errors });
+    }
+  }
+);
+
 export const submitVerification = createAsyncThunk(
   'verification/submitVerification',
   async ({ payload, files, token }, { rejectWithValue }) => {
@@ -36,6 +49,18 @@ const verificationSlice = createSlice({
   reducers: {},
   extraReducers: (builder) => {
     builder
+      .addCase(fetchMyVerification.pending, (state) => {
+        state.status = state.status === 'idle' ? 'loading' : state.status;
+      })
+      .addCase(fetchMyVerification.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.request = action.payload.verification;
+      })
+      .addCase(fetchMyVerification.rejected, (state, action) => {
+        state.status = 'failed';
+        state.message = action.payload?.message || 'Не удалось загрузить заявку на верификацию';
+        state.errors = action.payload?.errors || {};
+      })
       .addCase(submitVerification.pending, (state) => {
         state.status = 'loading';
         state.message = '';

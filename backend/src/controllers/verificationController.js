@@ -45,6 +45,20 @@ const getMyVerification = asyncHandler(async (req, res) => {
 });
 
 const submitVerification = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id);
+
+  if (user.verificationStatus === 'approved') {
+    removeUploadedFiles(req.files);
+    res.status(409);
+    return res.json({ message: 'Верификация уже одобрена. Повторная заявка не требуется.' });
+  }
+
+  if (user.verificationStatus === 'pending') {
+    removeUploadedFiles(req.files);
+    res.status(409);
+    return res.json({ message: 'Заявка на верификацию уже ожидает проверки.' });
+  }
+
   const payload = parsePayload(req.body.payload);
 
   if (!payload) {
@@ -75,7 +89,6 @@ const submitVerification = asyncHandler(async (req, res) => {
     documents: uploadedFiles
   });
 
-  const user = await User.findById(req.user._id);
   user.accountType = payload.accountType;
   user.isResident = payload.isResident;
   user.verificationStatus = 'pending';
