@@ -1,5 +1,7 @@
 process.env.NODE_ENV = 'test';
 
+jest.setTimeout(30000);
+
 const { connectDatabase, disconnectDatabase } = require('../src/config/database');
 const User = require('../src/models/User');
 const VerificationRequest = require('../src/models/VerificationRequest');

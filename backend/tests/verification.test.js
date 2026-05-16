@@ -111,4 +111,48 @@ describe('verification API', () => {
     expect(response.body.errors.documentMain).toBe('Загрузите документ');
     expect(response.body.errors['agreements.personalDataConsent']).toBe('Необходимо подтвердить');
   });
+
+  it('returns latest verification with moderation rejection reason', async () => {
+    const user = await User.create({
+      email: 'rejected-user@example.com',
+      passwordHash: await bcrypt.hash('Password123', 10),
+      isEmailVerified: true,
+      verificationStatus: 'rejected'
+    });
+    const token = createAccessToken(user);
+
+    await VerificationRequest.create({
+      user: user._id,
+      accountType: 'individual',
+      isResident: true,
+      status: 'rejected',
+      moderationComment: 'Не хватает копии документа',
+      personalData: { firstName: 'Ivan' }
+    });
+
+    const response = await request(app)
+      .get('/api/verification/me')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.verification.status).toBe('rejected');
+    expect(response.body.verification.moderationComment).toBe('Не хватает копии документа');
+  });
+
+  it('does not allow already approved users to submit verification again', async () => {
+    const user = await User.create({
+      email: 'approved-user@example.com',
+      passwordHash: await bcrypt.hash('Password123', 10),
+      isEmailVerified: true,
+      verificationStatus: 'approved'
+    });
+    const token = createAccessToken(user);
+
+    const response = await request(app)
+      .post('/api/verification')
+      .set('Authorization', `Bearer ${token}`)
+      .field('payload', JSON.stringify({}));
+
+    expect(response.status).toBe(409);
+  });
 });

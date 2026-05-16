@@ -2,7 +2,6 @@ import React, { useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   loginUser,
-  logout,
   registerUser,
   requestStaffLogin,
   updateCurrentUser,
@@ -12,6 +11,7 @@ import {
 import { submitVerification } from './features/verification/verificationSlice.js';
 import AdminPanel from './components/staff/AdminPanel.jsx';
 import ModeratorPanel from './components/staff/ModeratorPanel.jsx';
+import UserCabinet from './components/user/UserCabinet.jsx';
 import {
   accountTypeLabels,
   directorBasisLabels,
@@ -766,29 +766,6 @@ function VerificationForm() {
   );
 }
 
-function Cabinet() {
-  const dispatch = useDispatch();
-  const user = useSelector((state) => state.auth.user);
-
-  return (
-    <div className={styles.cabinet}>
-      <section className={styles.summary}>
-        <div>
-          <p className={styles.summary__label}>Аккаунт</p>
-          <h2 className={styles.summary__title}>{user.email}</h2>
-          <p className={styles.summary__text}>
-            Роль: {user.role} · Email подтверждён · Верификация: {user.verificationStatus}
-          </p>
-        </div>
-        <button className={styles.buttonSecondary} type="button" onClick={() => dispatch(logout())}>
-          Выйти
-        </button>
-      </section>
-      <VerificationForm />
-    </div>
-  );
-}
-
 function App() {
   const user = useSelector((state) => state.auth.user);
   let content = <AuthPanel />;
@@ -798,7 +775,11 @@ function App() {
   } else if (user?.role === 'moderator') {
     content = <ModeratorPanel />;
   } else if (user) {
-    content = <Cabinet />;
+    content = (
+      <UserCabinet>
+        <VerificationForm />
+      </UserCabinet>
+    );
   }
 
   return (
