@@ -282,3 +282,63 @@
 ### Notes
 
 - Real SMTP settings are still optional in `.env`; with empty `SMTP_*`, development uses Ethereal and falls back to `developmentEmailCode` if Ethereal is unavailable.
+
+## Этап 4. Создание заявки на аукционный лот
+
+### What was implemented
+
+- Добавлена backend-модель аукционного лота со статусом `pending` для проверки модератором.
+- Верифицированные пользователи могут отправлять заявку на создание лота через `POST /api/auctions`.
+- Пользователь может смотреть свои заявки через `GET /api/auctions/my`.
+- Добавлена загрузка до 50 фотографий лота с выбором главной фотографии.
+- Добавлена серверная валидация:
+  - создавать лоты могут только обычные пользователи со статусом `approved`;
+  - начальная цена, НДС, задаток 1-50%, минимальный шаг торгов 1-10%;
+  - даты приема заявок, даты торгов, минимальная длительность торгов 5 часов;
+  - сроки оплаты и заключения договора 5-90 дней;
+  - обязательные данные предмета торгов, места нахождения и контакта для осмотра.
+- В личный кабинет добавлены вкладки `Верификация`, `Мои лоты`, `Создать лот`.
+- Форма создания лота вынесена в отдельные frontend-компоненты и не расширяет `App.jsx`.
+- Для категорий добавлены шаблоны характеристик, которые пользователь может редактировать, удалять и дополнять.
+- В форме показаны read-only блоки продавца, оператора торгов и обязанностей/ответственности покупателя.
+
+### Changed files
+
+- `README.md`
+- `backend/src/constants/auctionConstants.js`
+- `backend/src/controllers/auctionController.js`
+- `backend/src/middleware/uploadMiddleware.js`
+- `backend/src/models/Auction.js`
+- `backend/src/routes/auctionRoutes.js`
+- `backend/src/routes/index.js`
+- `backend/src/utils/auctionValidation.js`
+- `backend/tests/auction.test.js`
+- `backend/tests/setup.js`
+- `frontend/src/App.module.css`
+- `frontend/src/components/user/UserCabinet.jsx`
+- `frontend/src/components/user/auction/AuctionCreateForm.jsx`
+- `frontend/src/components/user/auction/MyAuctions.jsx`
+- `frontend/src/constants/auctionConstants.js`
+- `frontend/src/features/auction/auctionSlice.js`
+- `frontend/src/store/index.js`
+
+### Tests
+
+- `npm test` - passed, 6 test suites, 17 tests.
+- `npm run build` - passed, frontend production build completed.
+- `npm audit --audit-level=moderate` - passed, 0 vulnerabilities.
+
+### How to check all logic manually
+
+1. Run `npm run dev`.
+2. Log in as a user with approved verification.
+3. Open the cabinet and go to `Создать лот`.
+4. Fill price, dates, item info, characteristics, contacts, upload at least one photo and choose the main photo.
+5. Click `Подать заявку на создание лота`.
+6. Open `Мои лоты` and check that the lot appears with status `Ожидает проверки`.
+7. Try the same flow as a non-verified user and check that creation is blocked.
+
+### Notes
+
+- This stage only creates pending lot applications. Moderator approval and public catalog viewing will be implemented in the next auction-module stages.
+- No shop/cart/checkout logic was added.
