@@ -163,13 +163,16 @@ function VerificationDetails({ verification }) {
     isResident: verification.isResident ? 'Резидент РБ' : 'Нерезидент РБ'
   };
   const showOrganization = verification.accountType === 'legal_entity';
+  const showIdentityDocument = verification.accountType !== 'legal_entity';
 
   return (
     <div className={styles.detailGrid}>
       <DetailSection title="Пользователь" data={userData} />
       <DetailSection title="Основные сведения" data={verification.personalData} />
       {showOrganization && <DetailSection title="Организация" data={verification.organizationData} />}
-      <DetailSection title="Документ, удостоверяющий личность" data={verification.documentData} />
+      {showIdentityDocument && (
+        <DetailSection title="Документ, удостоверяющий личность" data={verification.documentData} />
+      )}
       <DetailSection title="Адрес" data={verification.addressData} />
       <DetailSection title="Банковские реквизиты" data={verification.bankData} />
 

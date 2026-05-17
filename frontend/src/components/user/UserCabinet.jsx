@@ -8,10 +8,10 @@ import AuctionCreateForm from './auction/AuctionCreateForm.jsx';
 import MyAuctions from './auction/MyAuctions.jsx';
 
 const statusText = {
-  draft: 'Заполните форму и отправьте заявку на проверку.',
+  draft: 'Верификация не пройдена. Заполните форму и отправьте заявку на проверку.',
   pending: 'Заявка отправлена и ожидает проверки модератором.',
-  approved: 'Верификация одобрена. Можно создавать лоты и подавать их на проверку.',
-  rejected: 'Заявка отклонена. Исправьте данные с учетом причины и отправьте форму повторно.'
+  approved: 'Верификация пройдена. Можно создавать лоты и подавать их на проверку.',
+  rejected: 'Верификация не пройдена. Заявка отклонена, исправьте данные с учетом причины и отправьте форму повторно.'
 };
 
 function UserCabinet({ children }) {
@@ -28,7 +28,9 @@ function UserCabinet({ children }) {
 
   const effectiveStatus = request?.status || user.verificationStatus || 'draft';
   const rejectionReason = request?.status === 'rejected' ? request.moderationComment : '';
-  const shouldShowVerificationForm = !['approved', 'pending'].includes(effectiveStatus);
+  const isApproved = effectiveStatus === 'approved';
+  const isPending = effectiveStatus === 'pending';
+  const shouldShowVerificationForm = !isApproved && !isPending;
   const canCreateLot = effectiveStatus === 'approved';
   const statusLabel = useMemo(
     () => verificationStatusLabels[effectiveStatus] || effectiveStatus,
@@ -41,16 +43,9 @@ function UserCabinet({ children }) {
 
   const renderProfile = () => (
     <div className={styles.cabinetContent}>
-      <section className={styles.summary}>
-        <div>
-          <p className={styles.summary__label}>Профиль</p>
-          <h2 className={styles.summary__title}>{user.email}</h2>
-          <p className={styles.summary__text}>Статус верификации: {statusLabel}</p>
-        </div>
-      </section>
-
       <section className={styles.statusPanel}>
         <span className={styles.statusPanel__badge}>{statusLabel}</span>
+        <p className={styles.summary__text}>Email: {user.email}</p>
         <p className={styles.statusPanel__text}>{statusText[effectiveStatus] || statusText.draft}</p>
         {rejectionReason && (
           <div className={styles.statusPanel__reason}>
@@ -62,15 +57,11 @@ function UserCabinet({ children }) {
 
       {shouldShowVerificationForm ? (
         children
-      ) : (
+      ) : isPending ? (
         <section className={styles.panel}>
-          <p className={styles.panel__text}>
-            {effectiveStatus === 'approved'
-              ? 'Верификация уже одобрена. Повторно заполнять форму не нужно.'
-              : 'Заявка на верификацию уже ожидает проверки.'}
-          </p>
+          <p className={styles.panel__text}>Заявка на верификацию уже ожидает проверки.</p>
         </section>
-      )}
+      ) : null}
     </div>
   );
 
