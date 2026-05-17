@@ -23,6 +23,9 @@ const isRetryableConnectionError = (error) =>
   ['ECONNRESET', 'ETIMEOUT', 'ENOTFOUND', 'EAI_AGAIN'].includes(error.code) ||
   ['ECONNRESET', 'ETIMEOUT', 'ENOTFOUND', 'EAI_AGAIN'].includes(error.cause?.code) ||
   error.name === 'MongoNetworkError' ||
+  error.name === 'MongooseServerSelectionError' ||
+  error.reason?.type === 'ReplicaSetNoPrimary' ||
+  error.cause?.type === 'ReplicaSetNoPrimary' ||
   error.code === 'ETIMEOUT';
 
 const connectDatabase = async () => {
@@ -39,7 +42,7 @@ const connectDatabase = async () => {
     return mongoose.connection;
   }
 
-  const attempts = config.env === 'test' ? 1 : 5;
+  const attempts = config.env === 'test' ? 1 : 8;
   let lastError = null;
 
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
