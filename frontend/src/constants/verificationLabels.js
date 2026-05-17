@@ -11,11 +11,11 @@ export const documentTypeLabels = {
 };
 
 export const directorBasisLabels = {
-  charter: 'Устава',
-  other: 'Иного документа',
-  regulation: 'Положения',
-  power_of_attorney: 'Доверенности',
-  law: 'Закона'
+  charter: 'Устав',
+  other: 'Иной документ',
+  regulation: 'Положение',
+  power_of_attorney: 'Доверенность',
+  law: 'Закон'
 };
 
 export const verificationStatusLabels = {

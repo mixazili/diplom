@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   loginUser,
+  refreshSession,
   registerUser,
   requestStaffLogin,
   updateCurrentUser,
@@ -18,6 +19,8 @@ import {
   documentTypeLabels
 } from './constants/verificationLabels.js';
 import styles from './App.module.css';
+
+let initialRefreshStarted = false;
 
 const emptyVerificationForm = {
   accountType: 'individual',
@@ -767,8 +770,16 @@ function VerificationForm() {
 }
 
 function App() {
-  const user = useSelector((state) => state.auth.user);
+  const dispatch = useDispatch();
+  const { user, refreshToken } = useSelector((state) => state.auth);
   let content = <AuthPanel />;
+
+  useEffect(() => {
+    if (refreshToken && !initialRefreshStarted) {
+      initialRefreshStarted = true;
+      dispatch(refreshSession(refreshToken));
+    }
+  }, [dispatch, refreshToken]);
 
   if (user?.role === 'admin') {
     content = <AdminPanel />;

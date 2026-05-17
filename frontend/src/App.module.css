@@ -193,6 +193,60 @@ textarea.field__control {
   gap: 24px;
 }
 
+.cabinetLayout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.cabinetSidebar {
+  position: sticky;
+  top: 20px;
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  box-shadow: 0 16px 40px var(--color-shadow);
+  padding: 16px;
+}
+
+.cabinetSidebar__title {
+  margin: 0 0 8px;
+  color: var(--color-muted);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.cabinetSidebar__button {
+  min-height: 42px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-heading);
+  padding: 10px 12px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cabinetSidebar__button:hover,
+.cabinetSidebar__button--active {
+  border-color: var(--color-accent);
+  background: var(--color-accent-muted);
+  color: var(--color-accent);
+}
+
+.cabinetMain,
+.cabinetContent {
+  display: grid;
+  gap: 24px;
+  min-width: 0;
+}
+
 .summary {
   display: flex;
   gap: 18px;
@@ -714,7 +768,12 @@ textarea.field__control {
   .staffActions,
   .staffForm,
   .characteristicRow,
-  .termsGrid {
+  .termsGrid,
+  .cabinetLayout {
     grid-template-columns: 1fr;
+  }
+
+  .cabinetSidebar {
+    position: static;
   }
 }

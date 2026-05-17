@@ -14,17 +14,11 @@ const statusText = {
   rejected: 'Заявка отклонена. Исправьте данные с учетом причины и отправьте форму повторно.'
 };
 
-const tabs = [
-  { id: 'verification', label: 'Верификация' },
-  { id: 'lots', label: 'Мои лоты' },
-  { id: 'create-lot', label: 'Создать лот' }
-];
-
 function UserCabinet({ children }) {
   const dispatch = useDispatch();
   const { accessToken, user } = useSelector((state) => state.auth);
   const { request } = useSelector((state) => state.verification);
-  const [activeTab, setActiveTab] = useState('verification');
+  const [activeSection, setActiveSection] = useState('profile');
 
   useEffect(() => {
     if (accessToken) {
@@ -41,51 +35,18 @@ function UserCabinet({ children }) {
     [effectiveStatus]
   );
 
-  const renderActiveTab = () => {
-    if (activeTab === 'lots') {
-      return <MyAuctions />;
-    }
+  const showProfile = () => setActiveSection('profile');
+  const showLots = () => setActiveSection('lots');
+  const showCreateLot = () => setActiveSection('create-lot');
 
-    if (activeTab === 'create-lot') {
-      if (!canCreateLot) {
-        return (
-          <section className={styles.panel}>
-            <p className={styles.panel__text}>Создание лотов доступно только после одобрения верификации.</p>
-          </section>
-        );
-      }
-
-      return <AuctionCreateForm verification={request} />;
-    }
-
-    if (shouldShowVerificationForm) {
-      return children;
-    }
-
-    return (
-      <section className={styles.panel}>
-        <p className={styles.panel__text}>
-          {effectiveStatus === 'approved'
-            ? 'Верификация уже одобрена. Повторно заполнять форму не нужно.'
-            : 'Заявка на верификацию уже ожидает проверки.'}
-        </p>
-      </section>
-    );
-  };
-
-  return (
-    <div className={styles.cabinet}>
+  const renderProfile = () => (
+    <div className={styles.cabinetContent}>
       <section className={styles.summary}>
         <div>
-          <p className={styles.summary__label}>Аккаунт</p>
+          <p className={styles.summary__label}>Профиль</p>
           <h2 className={styles.summary__title}>{user.email}</h2>
-          <p className={styles.summary__text}>
-            Роль: {user.role} · Email подтвержден · Верификация: {statusLabel}
-          </p>
+          <p className={styles.summary__text}>Статус верификации: {statusLabel}</p>
         </div>
-        <button className={styles.buttonSecondary} type="button" onClick={() => dispatch(logout())}>
-          Выйти
-        </button>
       </section>
 
       <section className={styles.statusPanel}>
@@ -99,20 +60,79 @@ function UserCabinet({ children }) {
         )}
       </section>
 
-      <nav className={styles.cabinetTabs} aria-label="Разделы личного кабинета">
-        {tabs.map((tab) => (
-          <button
-            className={`${styles.cabinetTabs__button} ${activeTab === tab.id ? styles['cabinetTabs__button--active'] : ''}`}
-            type="button"
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </nav>
+      {shouldShowVerificationForm ? (
+        children
+      ) : (
+        <section className={styles.panel}>
+          <p className={styles.panel__text}>
+            {effectiveStatus === 'approved'
+              ? 'Верификация уже одобрена. Повторно заполнять форму не нужно.'
+              : 'Заявка на верификацию уже ожидает проверки.'}
+          </p>
+        </section>
+      )}
+    </div>
+  );
 
-      {renderActiveTab()}
+  const renderLots = () => (
+    <div className={styles.cabinetContent}>
+      <section className={styles.panel}>
+        <div className={styles.panel__header}>
+          <p className={styles.panel__eyebrow}>Личный кабинет</p>
+          <h1 className={styles.panel__title}>Мои лоты</h1>
+          <p className={styles.panel__text}>Список заявок на создание лотов и их текущие статусы.</p>
+        </div>
+        <button className={styles.button} type="button" onClick={showCreateLot} disabled={!canCreateLot}>
+          Создать лот
+        </button>
+        {!canCreateLot && (
+          <p className={styles.message__error}>Создание лота доступно только после одобрения верификации.</p>
+        )}
+      </section>
+      <MyAuctions />
+    </div>
+  );
+
+  const renderCreateLot = () => {
+    if (!canCreateLot) {
+      return (
+        <section className={styles.panel}>
+          <p className={styles.panel__text}>Создание лотов доступно только после одобрения верификации.</p>
+        </section>
+      );
+    }
+
+    return <AuctionCreateForm verification={request} />;
+  };
+
+  return (
+    <div className={styles.cabinetLayout}>
+      <aside className={styles.cabinetSidebar}>
+        <p className={styles.cabinetSidebar__title}>Личный кабинет</p>
+        <button
+          className={`${styles.cabinetSidebar__button} ${activeSection === 'profile' ? styles['cabinetSidebar__button--active'] : ''}`}
+          type="button"
+          onClick={showProfile}
+        >
+          Профиль
+        </button>
+        <button
+          className={`${styles.cabinetSidebar__button} ${['lots', 'create-lot'].includes(activeSection) ? styles['cabinetSidebar__button--active'] : ''}`}
+          type="button"
+          onClick={showLots}
+        >
+          Мои лоты
+        </button>
+        <button className={styles.cabinetSidebar__button} type="button" onClick={() => dispatch(logout())}>
+          Выйти
+        </button>
+      </aside>
+
+      <div className={styles.cabinetMain}>
+        {activeSection === 'profile' && renderProfile()}
+        {activeSection === 'lots' && renderLots()}
+        {activeSection === 'create-lot' && renderCreateLot()}
+      </div>
     </div>
   );
 }

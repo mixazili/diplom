@@ -10,8 +10,10 @@ jest.mock('../src/services/emailService', () => ({
 }));
 
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 const request = require('supertest');
 const app = require('../src/app');
+const config = require('../src/config/env');
 const User = require('../src/models/User');
 
 describe('auth API', () => {
@@ -80,6 +82,32 @@ describe('auth API', () => {
     expect(response.body.message).toBe('Вход выполнен');
     expect(response.body.accessToken).toBeTruthy();
     expect(response.body.user.verificationStatus).toBe('draft');
+
+    const decodedAccessToken = jwt.verify(response.body.accessToken, config.jwt.accessSecret);
+    expect(decodedAccessToken.exp - decodedAccessToken.iat).toBe(24 * 60 * 60);
+  });
+
+  it('refreshes a saved session with refresh token', async () => {
+    await User.create({
+      email: 'refresh@example.com',
+      passwordHash: await bcrypt.hash('Password123', 10),
+      isEmailVerified: true,
+      emailVerifiedAt: new Date()
+    });
+
+    const loginResponse = await request(app).post('/api/auth/login').send({
+      email: 'refresh@example.com',
+      password: 'Password123'
+    });
+
+    const refreshResponse = await request(app).post('/api/auth/refresh').send({
+      refreshToken: loginResponse.body.refreshToken
+    });
+
+    expect(refreshResponse.status).toBe(200);
+    expect(refreshResponse.body.user.email).toBe('refresh@example.com');
+    expect(refreshResponse.body.accessToken).toBeTruthy();
+    expect(refreshResponse.body.refreshToken).toBeTruthy();
   });
 
   it('requires login code for staff accounts', async () => {
