@@ -28,15 +28,21 @@ const getYandexMaps = (apiKey) => {
   return yandexMapsPromise;
 };
 
+const hasSelectedCoordinates = (value) =>
+  value?.lat !== '' &&
+  value?.lat !== undefined &&
+  value?.lng !== '' &&
+  value?.lng !== undefined &&
+  Number.isFinite(Number(value.lat)) &&
+  Number.isFinite(Number(value.lng));
+
 function YandexMapPicker({ value, onChange, error }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const placemarkRef = useRef(null);
   const [loadError, setLoadError] = useState('');
   const apiKey = import.meta.env.VITE_YANDEX_MAPS_API_KEY;
-  const selectedCoords = Number.isFinite(Number(value?.lat)) && Number.isFinite(Number(value?.lng))
-    ? [Number(value.lat), Number(value.lng)]
-    : null;
+  const selectedCoords = hasSelectedCoordinates(value) ? [Number(value.lat), Number(value.lng)] : null;
 
   useEffect(() => {
     if (!apiKey) {
