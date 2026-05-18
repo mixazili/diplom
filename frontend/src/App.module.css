@@ -1,6 +1,8 @@
 .app {
   min-height: 100vh;
-  background: var(--color-background);
+  background:
+    linear-gradient(180deg, rgba(255, 245, 245, 0.86), rgba(246, 247, 249, 0) 260px),
+    var(--color-background);
   color: var(--color-text);
 }
 
@@ -20,6 +22,20 @@
 
 .panel {
   padding: 28px;
+}
+
+.panel,
+.summary,
+.statusPanel,
+.detailSection {
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.panel:hover,
+.summary:hover,
+.statusPanel:hover,
+.detailSection:hover {
+  border-color: rgba(185, 28, 28, 0.24);
 }
 
 .panel__header {
@@ -113,6 +129,7 @@
   color: var(--color-text);
   padding: 10px 12px;
   outline: none;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
 }
 
 textarea.field__control {
@@ -132,6 +149,60 @@ textarea.field__control {
 .field__hint {
   color: var(--color-muted);
   font-size: 12px;
+}
+
+.fileUpload {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  min-height: 46px;
+  overflow: hidden;
+  border: 1px dashed var(--color-border);
+  border-radius: 8px;
+  background: linear-gradient(180deg, var(--color-surface), var(--color-background));
+  color: var(--color-text);
+  cursor: pointer;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+}
+
+.fileUpload:hover,
+.fileUpload:focus-within {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-soft);
+}
+
+.fileUpload--error {
+  border-color: var(--color-danger);
+}
+
+.fileUpload input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.fileUpload__button {
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 132px;
+  background: var(--color-heading);
+  color: var(--color-on-accent);
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.fileUpload__name {
+  overflow: hidden;
+  color: var(--color-muted);
+  padding: 0 14px;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .field__error,
@@ -160,6 +231,7 @@ textarea.field__control {
 .button {
   background: var(--color-accent);
   color: var(--color-on-accent);
+  box-shadow: 0 8px 18px rgba(185, 28, 28, 0.18);
 }
 
 .buttonSecondary {
@@ -172,6 +244,12 @@ textarea.field__control {
 .buttonSecondary:disabled {
   cursor: default;
   opacity: 0.65;
+}
+
+.button:hover:not(:disabled),
+.buttonSecondary:hover:not(:disabled),
+.buttonDanger:hover:not(:disabled) {
+  transform: translateY(-1px);
 }
 
 .notice {
@@ -195,7 +273,7 @@ textarea.field__control {
 
 .cabinetLayout {
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr);
+  grid-template-columns: 260px minmax(0, 1fr);
   gap: 24px;
   align-items: start;
 }
@@ -207,9 +285,11 @@ textarea.field__control {
   gap: 8px;
   border: 1px solid var(--color-border);
   border-radius: 8px;
-  background: var(--color-surface);
+  background:
+    linear-gradient(180deg, rgba(255, 245, 245, 0.9), rgba(255, 255, 255, 0) 150px),
+    var(--color-surface);
   box-shadow: 0 16px 40px var(--color-shadow);
-  padding: 16px;
+  padding: 18px;
 }
 
 .cabinetSidebar__title {
@@ -231,6 +311,7 @@ textarea.field__control {
   font-weight: 700;
   text-align: left;
   cursor: pointer;
+  transition: border-color 0.16s ease, background 0.16s ease, color 0.16s ease, transform 0.16s ease;
 }
 
 .cabinetSidebar__button:hover,
@@ -238,6 +319,10 @@ textarea.field__control {
   border-color: var(--color-accent);
   background: var(--color-accent-muted);
   color: var(--color-accent);
+}
+
+.cabinetSidebar__button:hover {
+  transform: translateX(2px);
 }
 
 .cabinetMain,
@@ -402,8 +487,8 @@ textarea.field__control {
   gap: 10px;
   border: 1px solid var(--color-border);
   border-radius: 8px;
-  background: var(--color-background);
-  padding: 14px;
+  background: var(--color-surface);
+  padding: 18px;
 }
 
 .detailSection__title {
@@ -453,6 +538,7 @@ textarea.field__control {
   border-radius: 8px;
   background: var(--color-surface);
   padding: 12px;
+  box-shadow: 0 8px 22px rgba(17, 24, 39, 0.05);
 }
 
 .documentCard span {
@@ -481,8 +567,11 @@ textarea.field__control {
   gap: 10px;
   border: 1px solid var(--color-border);
   border-radius: 8px;
-  background: var(--color-surface);
-  padding: 18px;
+  background:
+    linear-gradient(180deg, rgba(255, 245, 245, 0.75), rgba(255, 255, 255, 0) 130px),
+    var(--color-surface);
+  padding: 20px;
+  box-shadow: 0 16px 40px var(--color-shadow);
 }
 
 .statusPanel__badge {

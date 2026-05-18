@@ -31,21 +31,31 @@ function UserCabinet({ children }) {
   const isApproved = effectiveStatus === 'approved';
   const isPending = effectiveStatus === 'pending';
   const shouldShowVerificationForm = !isApproved && !isPending;
-  const canCreateLot = effectiveStatus === 'approved';
+  const canCreateLot = isApproved;
   const statusLabel = useMemo(
     () => verificationStatusLabels[effectiveStatus] || effectiveStatus,
     [effectiveStatus]
   );
 
   const showProfile = () => setActiveSection('profile');
+  const showVerification = () => setActiveSection('verification');
   const showLots = () => setActiveSection('lots');
   const showCreateLot = () => setActiveSection('create-lot');
 
   const renderProfile = () => (
+    <section className={styles.statusPanel}>
+      <span className={styles.statusPanel__badge}>{statusLabel}</span>
+      <p className={styles.summary__text}>Email: {user.email}</p>
+      <p className={styles.statusPanel__text}>
+        {isApproved ? 'Верификация пройдена.' : 'Верификация не пройдена.'}
+      </p>
+    </section>
+  );
+
+  const renderVerification = () => (
     <div className={styles.cabinetContent}>
       <section className={styles.statusPanel}>
         <span className={styles.statusPanel__badge}>{statusLabel}</span>
-        <p className={styles.summary__text}>Email: {user.email}</p>
         <p className={styles.statusPanel__text}>{statusText[effectiveStatus] || statusText.draft}</p>
         {rejectionReason && (
           <div className={styles.statusPanel__reason}>
@@ -57,11 +67,15 @@ function UserCabinet({ children }) {
 
       {shouldShowVerificationForm ? (
         children
-      ) : isPending ? (
+      ) : (
         <section className={styles.panel}>
-          <p className={styles.panel__text}>Заявка на верификацию уже ожидает проверки.</p>
+          <p className={styles.panel__text}>
+            {isPending
+              ? 'Заявка на верификацию уже ожидает проверки.'
+              : 'Верификация пройдена. Повторно заполнять форму не нужно.'}
+          </p>
         </section>
-      ) : null}
+      )}
     </div>
   );
 
@@ -108,6 +122,13 @@ function UserCabinet({ children }) {
           Профиль
         </button>
         <button
+          className={`${styles.cabinetSidebar__button} ${activeSection === 'verification' ? styles['cabinetSidebar__button--active'] : ''}`}
+          type="button"
+          onClick={showVerification}
+        >
+          Верификация
+        </button>
+        <button
           className={`${styles.cabinetSidebar__button} ${['lots', 'create-lot'].includes(activeSection) ? styles['cabinetSidebar__button--active'] : ''}`}
           type="button"
           onClick={showLots}
@@ -121,6 +142,7 @@ function UserCabinet({ children }) {
 
       <div className={styles.cabinetMain}>
         {activeSection === 'profile' && renderProfile()}
+        {activeSection === 'verification' && renderVerification()}
         {activeSection === 'lots' && renderLots()}
         {activeSection === 'create-lot' && renderCreateLot()}
       </div>

@@ -143,16 +143,21 @@ function SelectField({ label, section, name, form, onChange, errors, options, re
 }
 
 function FileField({ label, name, files, onFileChange, errors, required = false }) {
+  const selectedFileName = files[name]?.[0]?.name;
+
   return (
     <label className={styles.field}>
       <span className={styles.field__label}>{label}{required ? '*' : ''}</span>
-      <input
-        className={`${styles.field__control} ${errors[name] ? styles['field__control--error'] : ''}`}
-        type="file"
-        accept=".jpg,.jpeg,.png,.pdf"
-        onChange={(event) => onFileChange(name, event.target.files)}
-      />
-      <span className={styles.field__hint}>{files[name]?.[0]?.name || 'jpg, jpeg, png или pdf'}</span>
+      <span className={`${styles.fileUpload} ${errors[name] ? styles['fileUpload--error'] : ''}`}>
+        <span className={styles.fileUpload__button}>Выбрать файл</span>
+        <span className={styles.fileUpload__name}>{selectedFileName || 'Файл не выбран'}</span>
+        <input
+          type="file"
+          accept=".jpg,.jpeg,.png,.pdf"
+          onChange={(event) => onFileChange(name, event.target.files)}
+        />
+      </span>
+      <span className={styles.field__hint}>jpg, jpeg, png или pdf</span>
       {errors[name] && <span className={styles.field__error}>{errors[name]}</span>}
     </label>
   );
@@ -736,7 +741,7 @@ function VerificationForm() {
 
         {(isIndividual || isEntrepreneur) && <IdentityBlock form={form} changeNested={changeNested} errors={errors} />}
 
-        <h2 className={styles.sectionTitle}>{isLegalEntity ? 'Юридический адрес' : 'Адрес'}</h2>
+        <h2 className={styles.sectionTitle}>{isLegalEntity ? 'Юридический адрес' : 'Адрес регистрации'}</h2>
         <AddressBlock form={form} changeNested={changeNested} errors={errors} isLegalEntity={isLegalEntity} />
 
         {isLegalEntity && <LegalManagementFields form={form} changeNested={changeNested} errors={errors} />}

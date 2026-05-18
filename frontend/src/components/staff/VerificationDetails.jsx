@@ -62,6 +62,13 @@ const fieldLabels = {
 
 const documentLabels = {
   registrationCertificate: 'Свидетельство о регистрации',
+  stateRegistrationCertificate: 'Свидетельство о государственной регистрации',
+  documentRegistration: 'Прописка / временная регистрация / 25 страница паспорта',
+  documentMain: 'Лицевая сторона ID-карты / страницы 32-33 паспорта',
+  documentBack: 'Обратная сторона ID-карты / 31 страница паспорта',
+  documentExtra: 'Дополнительный документ',
+  documentExtraSecond: 'Дополнительный документ 2',
+  documentPersonalNumberPage: 'Страница документа с личным номером',
   residenceRegistration: 'Прописка / временная регистрация',
   identityFront: 'Лицевая сторона ID-карты / страницы 32-33 паспорта',
   identityBack: 'Обратная сторона ID-карты / страница 31 паспорта',
@@ -72,6 +79,8 @@ const documentLabels = {
   charter: 'Устав',
   appointmentOrder: 'Приказ о назначении руководителя',
   appointmentOrderExtra: 'Дополнительный документ о назначении',
+  directorAppointmentOrder: 'Документ о назначении руководителя',
+  directorAppointmentReserve: 'Резервный документ о назначении руководителя',
   powerOfAttorney: 'Доверенность',
   organizationCertificate: 'Свидетельство о регистрации организации'
 };
@@ -108,6 +117,17 @@ const toPairs = (data = {}) =>
   Object.entries(data)
     .map(([key, value]) => [fieldLabels[key] || key, formatValue(key, value)])
     .filter(([, value]) => value !== '');
+
+const filterAddressData = (addressData = {}, accountType) => {
+  const hiddenKeys =
+    accountType === 'legal_entity'
+      ? ['sameAsRegistration', 'residentialAddress']
+      : ['sameAsLegalAddress', 'postalAddress', 'legalAddress'];
+
+  return Object.fromEntries(
+    Object.entries(addressData).filter(([key]) => !hiddenKeys.includes(key))
+  );
+};
 
 function DetailSection({ title, data }) {
   const pairs = toPairs(data);
@@ -164,6 +184,7 @@ function VerificationDetails({ verification }) {
   };
   const showOrganization = verification.accountType === 'legal_entity';
   const showIdentityDocument = verification.accountType !== 'legal_entity';
+  const addressData = filterAddressData(verification.addressData, verification.accountType);
 
   return (
     <div className={styles.detailGrid}>
@@ -173,7 +194,7 @@ function VerificationDetails({ verification }) {
       {showIdentityDocument && (
         <DetailSection title="Документ, удостоверяющий личность" data={verification.documentData} />
       )}
-      <DetailSection title="Адрес" data={verification.addressData} />
+      <DetailSection title={showOrganization ? 'Юридический адрес' : 'Адрес регистрации'} data={addressData} />
       <DetailSection title="Банковские реквизиты" data={verification.bankData} />
 
       {verification.documents?.length > 0 && (
