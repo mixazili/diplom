@@ -11,6 +11,7 @@ import {
   operatorInfo
 } from '../../../constants/auctionConstants.js';
 import { submitAuction } from '../../../features/auction/auctionSlice.js';
+import YandexMapPicker from './YandexMapPicker.jsx';
 
 const pad = (value) => String(value).padStart(2, '0');
 const moneyPattern = /^\d+([,.]\d{1,2})?$/;
@@ -323,14 +324,14 @@ function AuctionCreateForm({ verification }) {
     }));
   };
 
-  const updateNested = (section, group, field, value) => {
+  const updateGeoLocation = ({ lat, lng }) => {
     setForm((current) => ({
       ...current,
-      [section]: {
-        ...current[section],
-        [group]: {
-          ...current[section][group],
-          [field]: value
+      item: {
+        ...current.item,
+        geoLocation: {
+          lat,
+          lng
         }
       }
     }));
@@ -845,20 +846,13 @@ function AuctionCreateForm({ verification }) {
               required
               as="textarea"
             />
-            <Field
-              label="Широта для Yandex Maps"
-              value={form.item.geoLocation.lat}
-              onChange={(value) => updateNested('item', 'geoLocation', 'lat', value)}
-              error={errors['item.geoLocation']}
-              hint="Необязательно. Например: 53.9023."
-            />
-            <Field
-              label="Долгота для Yandex Maps"
-              value={form.item.geoLocation.lng}
-              onChange={(value) => updateNested('item', 'geoLocation', 'lng', value)}
-              error={errors['item.geoLocation']}
-              hint="Необязательно. Например: 27.5619."
-            />
+            <div className={styles.fieldFull}>
+              <YandexMapPicker
+                value={form.item.geoLocation}
+                onChange={updateGeoLocation}
+                error={errors['item.geoLocation']}
+              />
+            </div>
           </div>
         </section>
 

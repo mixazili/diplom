@@ -872,6 +872,49 @@ textarea.field__control {
   justify-self: stretch;
 }
 
+.mapPicker {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.mapPicker__header {
+  display: flex;
+  gap: 14px;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.mapPicker__header p {
+  margin: 4px 0 0;
+  color: var(--color-muted);
+  line-height: 1.5;
+}
+
+.mapPicker__header strong {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: rgba(15, 118, 110, 0.1);
+  color: var(--color-success);
+  padding: 7px 10px;
+  font-size: 13px;
+}
+
+.mapPicker__canvas {
+  display: grid;
+  place-items: center;
+  min-height: 360px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: linear-gradient(135deg, #f8fafc, #eef2f7);
+  color: var(--color-muted);
+}
+
+.mapPicker__canvas > ymaps {
+  border-radius: 8px;
+}
+
 .characteristicHeader {
   display: flex;
   gap: 14px;
@@ -1050,6 +1093,7 @@ textarea.field__control {
   .staffActions,
   .staffForm,
   .photoUploader__header,
+  .mapPicker__header,
   .characteristicRow,
   .termsGrid,
   .cabinetLayout {
