@@ -132,6 +132,22 @@
   transition: border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
 }
 
+.field__control--readonly {
+  border-color: #cbd5e1;
+  background:
+    repeating-linear-gradient(135deg, rgba(148, 163, 184, 0.1) 0, rgba(148, 163, 184, 0.1) 8px, transparent 8px, transparent 16px),
+    #f8fafc;
+  color: var(--color-muted);
+  cursor: not-allowed;
+}
+
+.field__control--highlight {
+  border-color: rgba(15, 118, 110, 0.42);
+  background: linear-gradient(180deg, rgba(15, 118, 110, 0.08), rgba(255, 255, 255, 0));
+  box-shadow: inset 4px 0 0 rgba(15, 118, 110, 0.72);
+  font-weight: 700;
+}
+
 textarea.field__control {
   min-height: 92px;
   resize: vertical;
@@ -680,9 +696,43 @@ textarea.field__control {
   gap: 16px;
 }
 
+.lotCreatePanel {
+  padding: 34px;
+}
+
+.lotCreatePanel .panel__header {
+  max-width: 760px;
+}
+
+.auctionForm {
+  gap: 26px;
+}
+
 .auctionBlock {
-  border-top: 1px solid var(--color-border);
-  padding-top: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(248, 250, 252, 0.82), rgba(255, 255, 255, 0) 150px),
+    var(--color-surface);
+  padding: 22px;
+}
+
+.auctionBlock__hint {
+  margin: -4px 0 0;
+  color: var(--color-muted);
+  line-height: 1.5;
+}
+
+.auctionBlockWide {
+  grid-column: 1 / -1;
+}
+
+.fieldWide {
+  grid-column: span 1;
+}
+
+.fieldFull {
+  grid-column: 1 / -1;
 }
 
 .subsectionTitle {
@@ -718,21 +768,74 @@ textarea.field__control {
   color: var(--color-heading);
 }
 
+.photoUploader {
+  display: grid;
+  gap: 14px;
+  grid-column: 1 / -1;
+}
+
+.photoUploader__header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  border: 1px dashed var(--color-border);
+  border-radius: 8px;
+  background: var(--color-background);
+  padding: 16px;
+}
+
+.photoUploader__header p {
+  margin: 4px 0 0;
+  color: var(--color-muted);
+  line-height: 1.5;
+}
+
+.photoUploader__header input {
+  display: none;
+}
+
+.photoUploader__drop {
+  display: grid;
+  gap: 4px;
+  border: 1px solid rgba(15, 118, 110, 0.2);
+  border-radius: 8px;
+  background: rgba(15, 118, 110, 0.06);
+  padding: 14px 16px;
+}
+
+.photoUploader__drop strong {
+  color: var(--color-heading);
+}
+
+.photoUploader__drop span {
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
 .photoGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 14px;
 }
 
 .photoCard {
   display: grid;
-  gap: 8px;
+  gap: 10px;
+  overflow: hidden;
   border: 1px solid var(--color-border);
   border-radius: 8px;
-  background: var(--color-background);
+  background: var(--color-surface);
   padding: 10px;
   color: var(--color-heading);
   font-size: 13px;
+  box-shadow: 0 10px 24px rgba(17, 24, 39, 0.06);
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+}
+
+.photoCard--main {
+  border-color: rgba(15, 118, 110, 0.58);
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12), 0 12px 28px rgba(17, 24, 39, 0.08);
 }
 
 .photoCard img {
@@ -743,14 +846,47 @@ textarea.field__control {
   background: var(--color-surface);
 }
 
-.photoCard span {
+.photoCard__body {
+  display: grid;
+  gap: 3px;
+}
+
+.photoCard__body strong,
+.photoCard__body span {
   overflow-wrap: anywhere;
+}
+
+.photoCard__body span {
+  color: var(--color-muted);
+}
+
+.photoCard__actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.photoCard__actions .button,
+.photoCard__actions .buttonSecondary {
+  width: 100%;
+  justify-self: stretch;
+}
+
+.characteristicHeader {
+  display: flex;
+  gap: 14px;
+  align-items: end;
+  justify-content: space-between;
+}
+
+.characteristicHeader p {
+  margin: 4px 0 0;
   color: var(--color-muted);
 }
 
 .characteristicTable {
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 
 .characteristicRow {
@@ -766,6 +902,13 @@ textarea.field__control {
   gap: 18px;
 }
 
+.termsCard {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-background);
+  padding: 18px;
+}
+
 .termsGrid ul {
   display: grid;
   gap: 8px;
@@ -773,6 +916,11 @@ textarea.field__control {
   padding-left: 18px;
   color: var(--color-text);
   line-height: 1.6;
+}
+
+.formActions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .lotGrid {
@@ -901,6 +1049,7 @@ textarea.field__control {
 
   .staffActions,
   .staffForm,
+  .photoUploader__header,
   .characteristicRow,
   .termsGrid,
   .cabinetLayout {

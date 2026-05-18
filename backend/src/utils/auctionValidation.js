@@ -8,7 +8,6 @@ const {
 const dayMs = 24 * 60 * 60 * 1000;
 const hourMs = 60 * 60 * 1000;
 const moneyPattern = /^\d+(\.\d{1,2})?$/;
-
 const requiredMessage = 'Поле обязательно для заполнения';
 
 const toNumber = (value) => {
@@ -253,7 +252,7 @@ const validateAuctionPayload = ({ payload, photos, user }) => {
         priceWithVat,
         vatApplies,
         vatRate: vatApplies ? VAT_RATE : 0,
-        vatLabel: vatApplies ? 'НДС включен в цену' : 'Не облагается налогом на добавленную стоимость',
+        vatLabel: vatApplies ? 'НДС включен в цену' : 'Не облагается налогом на добавочную стоимость',
         depositAmount,
         minBidStep,
         organizationFeePercent: ORGANIZATION_FEE_PERCENT

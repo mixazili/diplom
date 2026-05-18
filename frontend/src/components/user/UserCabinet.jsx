@@ -57,11 +57,6 @@ function UserCabinet() {
   const canCreateLot = isApproved;
   const currentProfileStatus = profileStatus[effectiveStatus] || profileStatus.draft;
 
-  const showProfile = () => setActiveSection('profile');
-  const showVerification = () => setActiveSection('verification');
-  const showLots = () => setActiveSection('lots');
-  const showCreateLot = () => setActiveSection('create-lot');
-
   const renderProfile = () => (
     <section className={`${styles.statusPanel} ${styles[currentProfileStatus.className]}`}>
       <p className={styles.panel__eyebrow}>Профиль</p>
@@ -106,7 +101,7 @@ function UserCabinet() {
           <h1 className={styles.panel__title}>Мои лоты</h1>
           <p className={styles.panel__text}>Список заявок на создание лотов и их текущие статусы.</p>
         </div>
-        <button className={styles.button} type="button" onClick={showCreateLot} disabled={!canCreateLot}>
+        <button className={styles.button} type="button" onClick={() => setActiveSection('create-lot')} disabled={!canCreateLot}>
           Создать лот
         </button>
         {!canCreateLot && (
@@ -136,21 +131,21 @@ function UserCabinet() {
         <button
           className={`${styles.cabinetSidebar__button} ${activeSection === 'profile' ? styles['cabinetSidebar__button--active'] : ''}`}
           type="button"
-          onClick={showProfile}
+          onClick={() => setActiveSection('profile')}
         >
           Профиль
         </button>
         <button
           className={`${styles.cabinetSidebar__button} ${activeSection === 'verification' ? styles['cabinetSidebar__button--active'] : ''}`}
           type="button"
-          onClick={showVerification}
+          onClick={() => setActiveSection('verification')}
         >
           Верификация
         </button>
         <button
           className={`${styles.cabinetSidebar__button} ${['lots', 'create-lot'].includes(activeSection) ? styles['cabinetSidebar__button--active'] : ''}`}
           type="button"
-          onClick={showLots}
+          onClick={() => setActiveSection('lots')}
         >
           Мои лоты
         </button>
