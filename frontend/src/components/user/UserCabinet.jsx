@@ -1,11 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import styles from '../../App.module.css';
 import { logout } from '../../features/auth/authSlice.js';
 import { fetchMyVerification } from '../../features/verification/verificationSlice.js';
-import { verificationStatusLabels } from '../../constants/verificationLabels.js';
 import AuctionCreateForm from './auction/AuctionCreateForm.jsx';
 import MyAuctions from './auction/MyAuctions.jsx';
+import VerificationForm from './VerificationForm.jsx';
 
 const statusText = {
   draft: 'Верификация не пройдена. Заполните форму и отправьте заявку на проверку.',
@@ -14,7 +14,7 @@ const statusText = {
   rejected: 'Верификация не пройдена. Заявка отклонена, исправьте данные с учетом причины и отправьте форму повторно.'
 };
 
-function UserCabinet({ children }) {
+function UserCabinet() {
   const dispatch = useDispatch();
   const { accessToken, user } = useSelector((state) => state.auth);
   const { request } = useSelector((state) => state.verification);
@@ -32,47 +32,42 @@ function UserCabinet({ children }) {
   const isPending = effectiveStatus === 'pending';
   const shouldShowVerificationForm = !isApproved && !isPending;
   const canCreateLot = isApproved;
-  const statusLabel = useMemo(
-    () => verificationStatusLabels[effectiveStatus] || effectiveStatus,
-    [effectiveStatus]
-  );
-
   const showProfile = () => setActiveSection('profile');
   const showVerification = () => setActiveSection('verification');
   const showLots = () => setActiveSection('lots');
   const showCreateLot = () => setActiveSection('create-lot');
 
   const renderProfile = () => (
-    <section className={styles.statusPanel}>
-      <span className={styles.statusPanel__badge}>{statusLabel}</span>
-      <p className={styles.summary__text}>Email: {user.email}</p>
-      <p className={styles.statusPanel__text}>
-        {isApproved ? 'Верификация пройдена.' : 'Верификация не пройдена.'}
-      </p>
+    <section className={`${styles.statusPanel} ${isApproved ? styles.statusPanelSuccess : styles.statusPanelWarning}`}>
+      <p className={styles.panel__eyebrow}>Профиль</p>
+      <h1 className={styles.profileStatus__title}>
+        {isApproved ? 'Верификация пройдена' : 'Верификация не пройдена'}
+      </h1>
+      <p className={styles.profileStatus__email}>{user.email}</p>
     </section>
   );
 
   const renderVerification = () => (
     <div className={styles.cabinetContent}>
-      <section className={styles.statusPanel}>
-        <span className={styles.statusPanel__badge}>{statusLabel}</span>
-        <p className={styles.statusPanel__text}>{statusText[effectiveStatus] || statusText.draft}</p>
-        {rejectionReason && (
-          <div className={styles.statusPanel__reason}>
-            <strong>Причина отклонения</strong>
-            <p>{rejectionReason}</p>
-          </div>
-        )}
-      </section>
-
       {shouldShowVerificationForm ? (
-        children
+        <>
+          <section className={styles.statusPanel}>
+            <p className={styles.statusPanel__text}>{statusText[effectiveStatus] || statusText.draft}</p>
+            {rejectionReason && (
+              <div className={styles.statusPanel__reason}>
+                <strong>Причина отклонения</strong>
+                <p>{rejectionReason}</p>
+              </div>
+            )}
+          </section>
+          <VerificationForm />
+        </>
       ) : (
         <section className={styles.panel}>
           <p className={styles.panel__text}>
             {isPending
               ? 'Заявка на верификацию уже ожидает проверки.'
-              : 'Верификация пройдена. Повторно заполнять форму не нужно.'}
+              : 'Верификация пройдена. Форма повторной подачи скрыта.'}
           </p>
         </section>
       )}

@@ -29,12 +29,6 @@ function MyAuctions() {
 
   return (
     <section className={styles.panel}>
-      <div className={styles.panel__header}>
-        <p className={styles.panel__eyebrow}>Личный кабинет</p>
-        <h1 className={styles.panel__title}>Мои лоты</h1>
-        <p className={styles.panel__text}>Здесь отображаются заявки на создание лотов и их текущие статусы.</p>
-      </div>
-
       {status === 'loading' && <p className={styles.panel__text}>Загрузка лотов...</p>}
       {status === 'failed' && <p className={styles.message__error}>{message}</p>}
       {status !== 'loading' && items.length === 0 && <p className={styles.panel__text}>Лотов пока нет.</p>}
