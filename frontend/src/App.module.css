@@ -601,22 +601,32 @@ textarea.field__control {
     var(--color-surface);
 }
 
-.statusPanelWarning {
+.statusPanelPending {
+  border-color: rgba(202, 138, 4, 0.34);
+  background:
+    linear-gradient(180deg, rgba(202, 138, 4, 0.1), rgba(255, 255, 255, 0) 130px),
+    var(--color-surface);
+}
+
+.statusPanelDanger {
   border-color: rgba(220, 38, 38, 0.28);
+  background:
+    linear-gradient(180deg, rgba(220, 38, 38, 0.08), rgba(255, 255, 255, 0) 130px),
+    var(--color-surface);
 }
 
 .profileStatus__title {
   margin: 0;
   color: var(--color-heading);
-  font-size: 34px;
-  line-height: 1.15;
+  font-size: 24px;
+  line-height: 1.25;
   letter-spacing: 0;
 }
 
 .profileStatus__email {
   margin: 0;
   color: var(--color-muted);
-  font-size: 18px;
+  font-size: 16px;
 }
 
 .statusPanel__text,

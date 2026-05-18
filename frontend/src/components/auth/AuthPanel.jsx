@@ -54,7 +54,7 @@ function AuthPanel() {
     <section className={styles.panel}>
       <div className={styles.panel__header}>
         <p className={styles.panel__eyebrow}>Auction.by</p>
-        <h1 className={styles.panel__title}>Р РµРіРёСЃС‚СЂР°С†РёСЏ Рё РІС…РѕРґ</h1>
+        <h1 className={styles.panel__title}>Регистрация и вход</h1>
       </div>
 
       <div className={styles.tabs}>
@@ -63,21 +63,21 @@ function AuthPanel() {
           type="button"
           onClick={() => setMode('register')}
         >
-          Р РµРіРёСЃС‚СЂР°С†РёСЏ
+          Регистрация
         </button>
         <button
           className={`${styles.tabs__button} ${mode === 'login' ? styles['tabs__button--active'] : ''}`}
           type="button"
           onClick={() => setMode('login')}
         >
-          Р’С…РѕРґ
+          Вход
         </button>
         <button
           className={`${styles.tabs__button} ${mode === 'staff' ? styles['tabs__button--active'] : ''}`}
           type="button"
           onClick={() => setMode('staff')}
         >
-          РЎРѕС‚СЂСѓРґРЅРёРєРё
+          Сотрудники
         </button>
       </div>
 
@@ -96,18 +96,18 @@ function AuthPanel() {
               {auth.errors.email && <span className={styles.field__error}>{auth.errors.email}</span>}
             </label>
             <label className={styles.field}>
-              <span className={styles.field__label}>РџР°СЂРѕР»СЊ*</span>
+              <span className={styles.field__label}>Пароль*</span>
               <input
                 className={`${styles.field__control} ${auth.errors.password ? styles['field__control--error'] : ''}`}
                 type="password"
                 value={credentials.password}
                 onChange={(event) => updateCredentials('password', event.target.value)}
-                placeholder="РќРµ РјРµРЅРµРµ 8 СЃРёРјРІРѕР»РѕРІ"
+                placeholder="Не менее 8 символов"
               />
               {auth.errors.password && <span className={styles.field__error}>{auth.errors.password}</span>}
             </label>
             <label className={styles.field}>
-              <span className={styles.field__label}>РџРѕРІС‚РѕСЂРёС‚Рµ РїР°СЂРѕР»СЊ*</span>
+              <span className={styles.field__label}>Повторите пароль*</span>
               <input
                 className={`${styles.field__control} ${
                   credentials.passwordRepeat && credentials.passwordRepeat !== credentials.password
@@ -119,11 +119,11 @@ function AuthPanel() {
                 onChange={(event) => updateCredentials('passwordRepeat', event.target.value)}
               />
               {credentials.passwordRepeat && credentials.passwordRepeat !== credentials.password && (
-                <span className={styles.field__error}>РџР°СЂРѕР»Рё РЅРµ СЃРѕРІРїР°РґР°СЋС‚</span>
+                <span className={styles.field__error}>Пароли не совпадают</span>
               )}
             </label>
             <button className={styles.button} type="submit" disabled={isLoading}>
-              РћС‚РїСЂР°РІРёС‚СЊ РєРѕРґ
+              Отправить код
             </button>
           </form>
 
@@ -133,30 +133,30 @@ function AuthPanel() {
                 <strong>{auth.message}</strong>
                 {auth.emailPreviewUrl && (
                   <a href={auth.emailPreviewUrl} target="_blank" rel="noreferrer">
-                    РћС‚РєСЂС‹С‚СЊ РїРёСЃСЊРјРѕ Ethereal
+                    Открыть письмо Ethereal
                   </a>
                 )}
                 {auth.emailCode && (
                   <span>
-                    Dev-РєРѕРґ РїРѕРґС‚РІРµСЂР¶РґРµРЅРёСЏ: <strong>{auth.emailCode}</strong>
+                    Dev-код подтверждения: <strong>{auth.emailCode}</strong>
                   </span>
                 )}
                 {auth.emailDeliveryError && (
-                  <span>РџРѕС‡С‚РѕРІС‹Р№ СЃРµСЂРІРёСЃ СЂР°Р·СЂР°Р±РѕС‚РєРё РѕС‚РІРµС‚РёР» РѕС€РёР±РєРѕР№: {auth.emailDeliveryError}</span>
+                  <span>Почтовый сервис разработки ответил ошибкой: {auth.emailDeliveryError}</span>
                 )}
               </div>
               <label className={styles.field}>
-                <span className={styles.field__label}>РљРѕРґ РёР· РїРёСЃСЊРјР°*</span>
+                <span className={styles.field__label}>Код из письма*</span>
                 <input
                   className={`${styles.field__control} ${auth.errors.code ? styles['field__control--error'] : ''}`}
                   value={credentials.code}
                   onChange={(event) => updateCredentials('code', event.target.value)}
-                  placeholder="6 С†РёС„СЂ"
+                  placeholder="6 цифр"
                 />
                 {auth.errors.code && <span className={styles.field__error}>{auth.errors.code}</span>}
               </label>
               <button className={styles.button} type="submit" disabled={isLoading}>
-                РџРѕРґС‚РІРµСЂРґРёС‚СЊ email
+                Подтвердить email
               </button>
             </form>
           )}
@@ -175,7 +175,7 @@ function AuthPanel() {
             />
           </label>
           <label className={styles.field}>
-            <span className={styles.field__label}>РџР°СЂРѕР»СЊ*</span>
+            <span className={styles.field__label}>Пароль*</span>
             <input
               className={styles.field__control}
               type="password"
@@ -184,7 +184,7 @@ function AuthPanel() {
             />
           </label>
           <button className={styles.button} type="submit" disabled={isLoading}>
-            Р’РѕР№С‚Рё
+            Войти
           </button>
         </form>
       )}
@@ -193,7 +193,7 @@ function AuthPanel() {
         <>
           <form className={styles.form} onSubmit={submitStaffLogin}>
             <label className={styles.field}>
-              <span className={styles.field__label}>Email СЃРѕС‚СЂСѓРґРЅРёРєР°*</span>
+              <span className={styles.field__label}>Email сотрудника*</span>
               <input
                 className={styles.field__control}
                 type="email"
@@ -202,7 +202,7 @@ function AuthPanel() {
               />
             </label>
             <label className={styles.field}>
-              <span className={styles.field__label}>РџР°СЂРѕР»СЊ*</span>
+              <span className={styles.field__label}>Пароль*</span>
               <input
                 className={styles.field__control}
                 type="password"
@@ -211,7 +211,7 @@ function AuthPanel() {
               />
             </label>
             <button className={styles.button} type="submit" disabled={isLoading}>
-              РџРѕР»СѓС‡РёС‚СЊ РєРѕРґ РІС…РѕРґР°
+              Получить код входа
             </button>
           </form>
 
@@ -221,26 +221,26 @@ function AuthPanel() {
                 <strong>{auth.message}</strong>
                 {auth.emailPreviewUrl && (
                   <a href={auth.emailPreviewUrl} target="_blank" rel="noreferrer">
-                    РћС‚РєСЂС‹С‚СЊ РїРёСЃСЊРјРѕ Ethereal
+                    Открыть письмо Ethereal
                   </a>
                 )}
                 {auth.emailCode && (
                   <span>
-                    Dev-РєРѕРґ РІС…РѕРґР°: <strong>{auth.emailCode}</strong>
+                    Dev-код входа: <strong>{auth.emailCode}</strong>
                   </span>
                 )}
               </div>
               <label className={styles.field}>
-                <span className={styles.field__label}>РљРѕРґ РІС…РѕРґР°*</span>
+                <span className={styles.field__label}>Код входа*</span>
                 <input
                   className={styles.field__control}
                   value={credentials.code}
                   onChange={(event) => updateCredentials('code', event.target.value)}
-                  placeholder="6 С†РёС„СЂ"
+                  placeholder="6 цифр"
                 />
               </label>
               <button className={styles.button} type="submit" disabled={isLoading}>
-                Р’РѕР№С‚Рё РІ РїР°РЅРµР»СЊ
+                Войти в панель
               </button>
             </form>
           )}
@@ -251,5 +251,6 @@ function AuthPanel() {
     </section>
   );
 }
+
 
 export default AuthPanel;

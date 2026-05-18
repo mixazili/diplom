@@ -14,6 +14,29 @@ const statusText = {
   rejected: 'Верификация не пройдена. Заявка отклонена, исправьте данные с учетом причины и отправьте форму повторно.'
 };
 
+const profileStatus = {
+  draft: {
+    className: 'statusPanelDanger',
+    title: 'Верификация не пройдена',
+    text: 'Заполните заявку во вкладке верификации.'
+  },
+  pending: {
+    className: 'statusPanelPending',
+    title: 'Верификация ожидает проверки',
+    text: 'Модератор проверит заявку и документы.'
+  },
+  approved: {
+    className: 'statusPanelSuccess',
+    title: 'Верификация пройдена',
+    text: 'Можно создавать лоты и подавать их на проверку.'
+  },
+  rejected: {
+    className: 'statusPanelDanger',
+    title: 'Верификация отклонена',
+    text: 'Посмотрите причину во вкладке верификации и отправьте форму повторно.'
+  }
+};
+
 function UserCabinet() {
   const dispatch = useDispatch();
   const { accessToken, user } = useSelector((state) => state.auth);
@@ -32,18 +55,19 @@ function UserCabinet() {
   const isPending = effectiveStatus === 'pending';
   const shouldShowVerificationForm = !isApproved && !isPending;
   const canCreateLot = isApproved;
+  const currentProfileStatus = profileStatus[effectiveStatus] || profileStatus.draft;
+
   const showProfile = () => setActiveSection('profile');
   const showVerification = () => setActiveSection('verification');
   const showLots = () => setActiveSection('lots');
   const showCreateLot = () => setActiveSection('create-lot');
 
   const renderProfile = () => (
-    <section className={`${styles.statusPanel} ${isApproved ? styles.statusPanelSuccess : styles.statusPanelWarning}`}>
+    <section className={`${styles.statusPanel} ${styles[currentProfileStatus.className]}`}>
       <p className={styles.panel__eyebrow}>Профиль</p>
-      <h1 className={styles.profileStatus__title}>
-        {isApproved ? 'Верификация пройдена' : 'Верификация не пройдена'}
-      </h1>
+      <h1 className={styles.profileStatus__title}>{currentProfileStatus.title}</h1>
       <p className={styles.profileStatus__email}>{user.email}</p>
+      <p className={styles.statusPanel__text}>{currentProfileStatus.text}</p>
     </section>
   );
 
