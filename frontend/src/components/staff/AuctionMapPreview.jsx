@@ -66,7 +66,7 @@ function AuctionMapPreview({ geoLocation, address }) {
           }
         );
 
-        map.behaviors.disable(['drag', 'scrollZoom', 'dblClickZoom', 'multiTouch', 'rightMouseButtonMagnifier']);
+        map.behaviors.disable(['dblClickZoom', 'multiTouch', 'rightMouseButtonMagnifier']);
 
         const placemark = new ymaps.Placemark(
           coords,
