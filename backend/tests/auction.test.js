@@ -4,6 +4,7 @@ const request = require('supertest');
 const app = require('../src/app');
 const config = require('../src/config/env');
 const Auction = require('../src/models/Auction');
+const AuctionReview = require('../src/models/AuctionReview');
 const User = require('../src/models/User');
 const VerificationRequest = require('../src/models/VerificationRequest');
 
@@ -51,6 +52,15 @@ const createApprovedUser = async (overrides = {}) => {
 
   return user;
 };
+
+const createModerator = async (overrides = {}) =>
+  User.create({
+    email: overrides.email || 'moderator@example.com',
+    passwordHash: await bcrypt.hash('Password123', 10),
+    isEmailVerified: true,
+    verificationStatus: 'approved',
+    role: 'moderator'
+  });
 
 const createValidPayload = () => {
   const applicationStartAt = new Date(Date.now() + dayMs);
@@ -161,5 +171,90 @@ describe('auction creation API', () => {
     expect(response.status).toBe(400);
     expect(response.body.errors['pricing.depositAmount']).toBeTruthy();
     expect(response.body.errors['pricing.minBidStep']).toBeTruthy();
+  });
+
+  it('allows moderator to approve pending auction and writes snapshot review', async () => {
+    const user = await createApprovedUser({ email: 'seller-approve@example.com' });
+    const sellerToken = createAccessToken(user);
+    const moderator = await createModerator();
+    const moderatorToken = createAccessToken(moderator);
+
+    const createResponse = await request(app)
+      .post('/api/auctions')
+      .set('Authorization', `Bearer ${sellerToken}`)
+      .field('payload', JSON.stringify(createValidPayload()))
+      .attach('photos', Buffer.from('photo'), {
+        filename: 'car.jpg',
+        contentType: 'image/jpeg'
+      });
+
+    const response = await request(app)
+      .post(`/api/moderation/auctions/${createResponse.body.auction.id}/approve`)
+      .set('Authorization', `Bearer ${moderatorToken}`)
+      .send({});
+
+    expect(response.status).toBe(200);
+    expect(response.body.review.action).toBe('approved');
+    expect(response.body.review.auctionSnapshot.status).toBe('pending');
+
+    const savedAuction = await Auction.findById(createResponse.body.auction.id);
+    expect(savedAuction.status).toBe('active');
+
+    const savedReview = await AuctionReview.findOne({ auction: savedAuction._id });
+    expect(savedReview.auctionSnapshot.item.title).toBe(createValidPayload().item.title);
+  });
+
+  it('returns auction for revision and allows owner to resubmit the same lot', async () => {
+    const user = await createApprovedUser({ email: 'seller-return@example.com' });
+    const sellerToken = createAccessToken(user);
+    const moderator = await createModerator({ email: 'moderator-return@example.com' });
+    const moderatorToken = createAccessToken(moderator);
+    const payload = createValidPayload();
+
+    const createResponse = await request(app)
+      .post('/api/auctions')
+      .set('Authorization', `Bearer ${sellerToken}`)
+      .field('payload', JSON.stringify(payload))
+      .attach('photos', Buffer.from('photo'), {
+        filename: 'car.jpg',
+        contentType: 'image/jpeg'
+      });
+
+    const returnResponse = await request(app)
+      .post(`/api/moderation/auctions/${createResponse.body.auction.id}/return`)
+      .set('Authorization', `Bearer ${moderatorToken}`)
+      .send({ comment: 'Нужно уточнить описание' });
+
+    expect(returnResponse.status).toBe(200);
+    expect(returnResponse.body.review.action).toBe('returned');
+
+    const returnedAuction = await Auction.findById(createResponse.body.auction.id);
+    expect(returnedAuction.status).toBe('returned');
+    expect(returnedAuction.moderationComment).toBe('Нужно уточнить описание');
+
+    const updatedPayload = {
+      ...payload,
+      existingPhotoPaths: createResponse.body.auction.photos.map((photo) => photo.path),
+      item: {
+        ...payload.item,
+        title: 'Исправленный легковой автомобиль',
+        description: 'Описание уточнено'
+      }
+    };
+
+    const updateResponse = await request(app)
+      .put(`/api/auctions/${createResponse.body.auction.id}`)
+      .set('Authorization', `Bearer ${sellerToken}`)
+      .field('payload', JSON.stringify(updatedPayload));
+
+    expect(updateResponse.status).toBe(200);
+    expect(updateResponse.body.auction.id).toBe(createResponse.body.auction.id);
+    expect(updateResponse.body.auction.status).toBe('pending');
+    expect(updateResponse.body.auction.item.title).toBe('Исправленный легковой автомобиль');
+    expect(updateResponse.body.auction.photos).toHaveLength(1);
+
+    const reviews = await AuctionReview.find({ auction: createResponse.body.auction.id });
+    expect(reviews).toHaveLength(1);
+    expect(reviews[0].auctionSnapshot.item.title).toBe(payload.item.title);
   });
 });

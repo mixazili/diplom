@@ -4,7 +4,8 @@ const {
   createModerator,
   deleteModerator,
   listAllReviews,
-  getVerificationDetails
+  getVerificationDetails,
+  listAllAuctionReviews
 } = require('../controllers/adminController');
 const { authenticate, requireRoles } = require('../middleware/authMiddleware');
 
@@ -16,6 +17,7 @@ router.get('/moderators', listModerators);
 router.post('/moderators', createModerator);
 router.delete('/moderators/:id', deleteModerator);
 router.get('/reviews', listAllReviews);
+router.get('/auction-reviews', listAllAuctionReviews);
 router.get('/verifications/:id', getVerificationDetails);
 
 module.exports = router;

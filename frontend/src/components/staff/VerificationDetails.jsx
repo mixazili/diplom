@@ -124,9 +124,7 @@ const filterAddressData = (addressData = {}, accountType) => {
       ? ['sameAsRegistration', 'residentialAddress']
       : ['sameAsLegalAddress', 'postalAddress', 'legalAddress'];
 
-  return Object.fromEntries(
-    Object.entries(addressData).filter(([key]) => !hiddenKeys.includes(key))
-  );
+  return Object.fromEntries(Object.entries(addressData).filter(([key]) => !hiddenKeys.includes(key)));
 };
 
 function DetailSection({ title, data }) {

@@ -1,6 +1,19 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import { apiRequest, authHeader } from '../../api/client.js';
 
+const buildAuctionFormData = ({ payload, photos = [] }) => {
+  const formData = new FormData();
+  formData.append('payload', JSON.stringify(payload));
+
+  photos
+    .filter((photo) => photo.file)
+    .forEach((photo) => {
+      formData.append('photos', photo.file);
+    });
+
+  return formData;
+};
+
 export const fetchMyAuctions = createAsyncThunk(
   'auction/fetchMyAuctions',
   async ({ token }, { rejectWithValue }) => {
@@ -17,19 +30,42 @@ export const fetchMyAuctions = createAsyncThunk(
 export const submitAuction = createAsyncThunk(
   'auction/submitAuction',
   async ({ payload, photos, token }, { rejectWithValue }) => {
-    const formData = new FormData();
-    formData.append('payload', JSON.stringify(payload));
-
-    photos.forEach((photo) => {
-      formData.append('photos', photo.file);
-    });
-
     try {
       return await apiRequest('/auctions', {
         method: 'POST',
         headers: authHeader(token),
-        body: formData
+        body: buildAuctionFormData({ payload, photos })
       });
+    } catch (error) {
+      return rejectWithValue({ message: error.message, errors: error.errors });
+    }
+  }
+);
+
+export const updateAuction = createAsyncThunk(
+  'auction/updateAuction',
+  async ({ id, payload, photos, token }, { rejectWithValue }) => {
+    try {
+      return await apiRequest(`/auctions/${id}`, {
+        method: 'PUT',
+        headers: authHeader(token),
+        body: buildAuctionFormData({ payload, photos })
+      });
+    } catch (error) {
+      return rejectWithValue({ message: error.message, errors: error.errors });
+    }
+  }
+);
+
+export const deleteAuction = createAsyncThunk(
+  'auction/deleteAuction',
+  async ({ id, token }, { rejectWithValue }) => {
+    try {
+      await apiRequest(`/auctions/${id}`, {
+        method: 'DELETE',
+        headers: authHeader(token)
+      });
+      return { id };
     } catch (error) {
       return rejectWithValue({ message: error.message, errors: error.errors });
     }
@@ -78,6 +114,30 @@ const auctionSlice = createSlice({
         state.createStatus = 'failed';
         state.message = action.payload?.message || 'Заявка на лот не отправлена';
         state.errors = action.payload?.errors || {};
+      })
+      .addCase(updateAuction.pending, (state) => {
+        state.createStatus = 'loading';
+        state.message = '';
+        state.errors = {};
+      })
+      .addCase(updateAuction.fulfilled, (state, action) => {
+        state.createStatus = 'succeeded';
+        state.message = action.payload.message;
+        state.items = state.items.map((auction) =>
+          auction.id === action.payload.auction.id ? action.payload.auction : auction
+        );
+      })
+      .addCase(updateAuction.rejected, (state, action) => {
+        state.createStatus = 'failed';
+        state.message = action.payload?.message || 'Лот не отправлен повторно';
+        state.errors = action.payload?.errors || {};
+      })
+      .addCase(deleteAuction.fulfilled, (state, action) => {
+        state.items = state.items.filter((auction) => auction.id !== action.payload.id);
+        state.message = 'Лот удален';
+      })
+      .addCase(deleteAuction.rejected, (state, action) => {
+        state.message = action.payload?.message || 'Не удалось удалить лот';
       });
   }
 });

@@ -10,8 +10,8 @@ import VerificationForm from './VerificationForm.jsx';
 const statusText = {
   draft: 'Верификация не пройдена. Заполните форму и отправьте заявку на проверку.',
   pending: 'Заявка отправлена и ожидает проверки модератором.',
-  approved: 'Верификация пройдена. Можно создавать лоты и подавать их на проверку.',
-  rejected: 'Верификация не пройдена. Заявка отклонена, исправьте данные с учетом причины и отправьте форму повторно.'
+  approved: 'Верификация пройдена.',
+  rejected: 'Верификация не пройдена. Исправьте данные с учетом причины отклонения и отправьте форму повторно.'
 };
 
 const profileStatus = {
@@ -42,6 +42,7 @@ function UserCabinet() {
   const { accessToken, user } = useSelector((state) => state.auth);
   const { request } = useSelector((state) => state.verification);
   const [activeSection, setActiveSection] = useState('profile');
+  const [editingAuction, setEditingAuction] = useState(null);
 
   useEffect(() => {
     if (accessToken) {
@@ -56,6 +57,21 @@ function UserCabinet() {
   const shouldShowVerificationForm = !isApproved && !isPending;
   const canCreateLot = isApproved;
   const currentProfileStatus = profileStatus[effectiveStatus] || profileStatus.draft;
+
+  const openCreateLot = () => {
+    setEditingAuction(null);
+    setActiveSection('create-lot');
+  };
+
+  const openEditLot = (auction) => {
+    setEditingAuction(auction);
+    setActiveSection('create-lot');
+  };
+
+  const closeLotForm = () => {
+    setEditingAuction(null);
+    setActiveSection('lots');
+  };
 
   const renderProfile = () => (
     <section className={`${styles.statusPanel} ${styles[currentProfileStatus.className]}`}>
@@ -86,7 +102,7 @@ function UserCabinet() {
           <p className={styles.panel__text}>
             {isPending
               ? 'Заявка на верификацию уже ожидает проверки.'
-              : 'Верификация пройдена. Форма повторной подачи скрыта.'}
+              : 'Верификация пройдена. Повторно заполнять форму не нужно.'}
           </p>
         </section>
       )}
@@ -99,16 +115,16 @@ function UserCabinet() {
         <div className={styles.panel__header}>
           <p className={styles.panel__eyebrow}>Личный кабинет</p>
           <h1 className={styles.panel__title}>Мои лоты</h1>
-          <p className={styles.panel__text}>Список заявок на создание лотов и их текущие статусы.</p>
+          <p className={styles.panel__text}>Здесь отображаются заявки на создание лотов и их текущие статусы.</p>
         </div>
-        <button className={styles.button} type="button" onClick={() => setActiveSection('create-lot')} disabled={!canCreateLot}>
+        <button className={styles.button} type="button" onClick={openCreateLot} disabled={!canCreateLot}>
           Создать лот
         </button>
         {!canCreateLot && (
           <p className={styles.message__error}>Создание лота доступно только после одобрения верификации.</p>
         )}
       </section>
-      <MyAuctions />
+      <MyAuctions onEdit={openEditLot} />
     </div>
   );
 
@@ -121,7 +137,14 @@ function UserCabinet() {
       );
     }
 
-    return <AuctionCreateForm verification={request} />;
+    return (
+      <AuctionCreateForm
+        verification={request}
+        initialAuction={editingAuction}
+        onSaved={closeLotForm}
+        onCancel={closeLotForm}
+      />
+    );
   };
 
   return (
@@ -145,7 +168,10 @@ function UserCabinet() {
         <button
           className={`${styles.cabinetSidebar__button} ${['lots', 'create-lot'].includes(activeSection) ? styles['cabinetSidebar__button--active'] : ''}`}
           type="button"
-          onClick={() => setActiveSection('lots')}
+          onClick={() => {
+            setEditingAuction(null);
+            setActiveSection('lots');
+          }}
         >
           Мои лоты
         </button>

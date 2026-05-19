@@ -10,7 +10,7 @@ import {
   characteristicTemplates,
   operatorInfo
 } from '../../../constants/auctionConstants.js';
-import { submitAuction } from '../../../features/auction/auctionSlice.js';
+import { submitAuction, updateAuction } from '../../../features/auction/auctionSlice.js';
 import YandexMapPicker from './YandexMapPicker.jsx';
 
 const pad = (value) => String(value).padStart(2, '0');
@@ -20,6 +20,11 @@ const hourMs = 60 * 60 * 1000;
 
 const toDateTimeInput = (date) =>
   `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+
+const toTimeInput = (dateValue, fallback) => {
+  const date = new Date(dateValue);
+  return Number.isNaN(date.getTime()) ? fallback : `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
 
 const addDays = (date, days) => {
   const next = new Date(date);
@@ -139,11 +144,53 @@ const getSellerInfo = (user, verification) => {
   };
 };
 
-const createInitialForm = (user, verification) => {
+const createInitialForm = (user, verification, initialAuction) => {
+  const sellerInfo = getSellerInfo(user, verification);
+
+  if (initialAuction) {
+    const biddingStartAt = initialAuction.schedule?.biddingStartAt;
+    const biddingEndAt = initialAuction.schedule?.biddingEndAt;
+
+    return {
+      pricing: {
+        priceWithoutVat: String(initialAuction.pricing?.priceWithoutVat ?? ''),
+        priceWithVat: String(initialAuction.pricing?.priceWithVat ?? ''),
+        depositAmount: String(initialAuction.pricing?.depositAmount ?? ''),
+        minBidStep: String(initialAuction.pricing?.minBidStep ?? '')
+      },
+      schedule: {
+        applicationStartAt: toDateTimeInput(new Date(initialAuction.schedule?.applicationStartAt || Date.now())),
+        applicationEndAt: toDateTimeInput(new Date(initialAuction.schedule?.applicationEndAt || Date.now())),
+        biddingStartTime: toTimeInput(biddingStartAt, '09:00'),
+        biddingEndTime: toTimeInput(biddingEndAt, '14:00'),
+        paymentDeadlineDays: initialAuction.schedule?.paymentDeadlineDays ?? 10,
+        contractDeadlineDays: initialAuction.schedule?.contractDeadlineDays ?? 10
+      },
+      item: {
+        title: initialAuction.item?.title || '',
+        category: initialAuction.item?.category || 'passenger_cars',
+        characteristics:
+          initialAuction.item?.characteristics?.length > 0
+            ? initialAuction.item.characteristics.map((row) => ({ name: row.name || '', value: row.value || '' }))
+            : toCharacteristicRows(initialAuction.item?.category || 'passenger_cars'),
+        description: initialAuction.item?.description || '',
+        locationAddress: initialAuction.item?.locationAddress || '',
+        geoLocation: {
+          lat: initialAuction.item?.geoLocation?.lat ?? '',
+          lng: initialAuction.item?.geoLocation?.lng ?? ''
+        }
+      },
+      inspection: {
+        contactName: initialAuction.inspection?.contactName || sellerInfo.defaultInspection.contactName,
+        contactPhone: initialAuction.inspection?.contactPhone || sellerInfo.defaultInspection.contactPhone,
+        contactEmail: initialAuction.inspection?.contactEmail || ''
+      }
+    };
+  }
+
   const start = new Date();
   start.setHours(start.getHours() + 1, 0, 0, 0);
   const applicationEnd = addDays(start, 7);
-  const sellerInfo = getSellerInfo(user, verification);
 
   return {
     pricing: {
@@ -171,6 +218,17 @@ const createInitialForm = (user, verification) => {
     inspection: sellerInfo.defaultInspection
   };
 };
+
+const toExistingPhotoState = (auction) =>
+  (auction?.photos || []).map((photo) => ({
+    id: photo.path,
+    path: photo.path,
+    url: photo.url,
+    previewUrl: photo.url,
+    originalName: photo.originalName,
+    size: photo.size,
+    existing: true
+  }));
 
 function Field({
   label,
@@ -230,7 +288,7 @@ function PhotoUploader({ photos, mainPhotoIndex, onAdd, onMainChange, onRemove, 
       <div className={styles.photoUploader__header}>
         <div>
           <span className={styles.field__label}>Фотографии*</span>
-          <p>Добавляйте по одной или сразу несколько фотографий. Уже выбранные файлы сохраняются.</p>
+          <p>Добавляйте по одной или сразу несколько фотографий. Уже выбранные файлы сохраняются при повторном добавлении.</p>
         </div>
         <button className={styles.buttonSecondary} type="button" onClick={() => inputRef.current?.click()}>
           Добавить фото
@@ -253,45 +311,54 @@ function PhotoUploader({ photos, mainPhotoIndex, onAdd, onMainChange, onRemove, 
       {error && <span className={styles.field__error}>{error}</span>}
       {photos.length > 0 && (
         <div className={styles.photoGrid}>
-          {photos.map((photo, index) => (
-            <article
-              className={`${styles.photoCard} ${mainPhotoIndex === index ? styles['photoCard--main'] : ''}`}
-              key={photo.id}
-            >
-              <img src={photo.previewUrl} alt={photo.file.name} />
-              <div className={styles.photoCard__body}>
-                <strong>{photo.file.name}</strong>
-                <span>{(photo.file.size / 1024 / 1024).toFixed(2)} МБ</span>
-              </div>
-              <div className={styles.photoCard__actions}>
-                <button
-                  className={mainPhotoIndex === index ? styles.button : styles.buttonSecondary}
-                  type="button"
-                  onClick={() => onMainChange(index)}
-                >
-                  {mainPhotoIndex === index ? 'Главная' : 'Сделать главной'}
-                </button>
-                <button className={styles.buttonSecondary} type="button" onClick={() => onRemove(index)}>
-                  Удалить
-                </button>
-              </div>
-            </article>
-          ))}
+          {photos.map((photo, index) => {
+            const photoName = photo.file?.name || photo.originalName || 'Фото';
+            const photoSize = photo.file?.size || photo.size || 0;
+
+            return (
+              <article
+                className={`${styles.photoCard} ${mainPhotoIndex === index ? styles['photoCard--main'] : ''}`}
+                key={photo.id}
+              >
+                <img src={photo.previewUrl || photo.url} alt={photoName} />
+                <div className={styles.photoCard__body}>
+                  <strong>{photoName}</strong>
+                  <span>{(photoSize / 1024 / 1024).toFixed(2)} МБ</span>
+                </div>
+                <div className={styles.photoCard__actions}>
+                  <button
+                    className={mainPhotoIndex === index ? styles.button : styles.buttonSecondary}
+                    type="button"
+                    onClick={() => onMainChange(index)}
+                  >
+                    {mainPhotoIndex === index ? 'Главная' : 'Сделать главной'}
+                  </button>
+                  <button className={styles.buttonSecondary} type="button" onClick={() => onRemove(index)}>
+                    Удалить
+                  </button>
+                </div>
+              </article>
+            );
+          })}
         </div>
       )}
     </div>
   );
 }
 
-function AuctionCreateForm({ verification }) {
+function AuctionCreateForm({ verification, initialAuction = null, onSaved, onCancel }) {
   const dispatch = useDispatch();
   const { accessToken, user } = useSelector((state) => state.auth);
   const auction = useSelector((state) => state.auction);
-  const [form, setForm] = useState(() => createInitialForm(user, verification));
-  const [photos, setPhotos] = useState([]);
-  const [mainPhotoIndex, setMainPhotoIndex] = useState(0);
+  const [form, setForm] = useState(() => createInitialForm(user, verification, initialAuction));
+  const [photos, setPhotos] = useState(() => toExistingPhotoState(initialAuction));
+  const [mainPhotoIndex, setMainPhotoIndex] = useState(() => {
+    const index = (initialAuction?.photos || []).findIndex((photo) => photo.isMain);
+    return index >= 0 ? index : 0;
+  });
   const [localErrors, setLocalErrors] = useState({});
   const errors = { ...localErrors, ...(auction.errors || {}) };
+  const isEditing = Boolean(initialAuction);
   const vatApplies = ['legal_entity', 'entrepreneur'].includes(user.accountType);
   const sellerInfo = useMemo(() => getSellerInfo(user, verification), [user, verification]);
   const biddingDate = getBiddingDate(form.schedule.applicationEndAt);
@@ -304,12 +371,28 @@ function AuctionCreateForm({ verification }) {
   const maxApplicationEnd = Number.isNaN(startDate.getTime()) ? '' : toDateTimeInput(addDays(startDate, 90));
 
   useEffect(() => {
-    setForm(createInitialForm(user, verification));
-  }, [user, verification]);
+    setForm(createInitialForm(user, verification, initialAuction));
+    const nextPhotos = toExistingPhotoState(initialAuction);
+    setPhotos((current) => {
+      current.forEach((photo) => {
+        if (photo.file && photo.previewUrl) {
+          URL.revokeObjectURL(photo.previewUrl);
+        }
+      });
+      return nextPhotos;
+    });
+    const index = (initialAuction?.photos || []).findIndex((photo) => photo.isMain);
+    setMainPhotoIndex(index >= 0 ? index : 0);
+    setLocalErrors({});
+  }, [user, verification, initialAuction]);
 
   useEffect(
     () => () => {
-      photos.forEach((photo) => URL.revokeObjectURL(photo.previewUrl));
+      photos.forEach((photo) => {
+        if (photo.file && photo.previewUrl) {
+          URL.revokeObjectURL(photo.previewUrl);
+        }
+      });
     },
     [photos]
   );
@@ -329,10 +412,7 @@ function AuctionCreateForm({ verification }) {
       ...current,
       item: {
         ...current.item,
-        geoLocation: {
-          lat,
-          lng
-        }
+        geoLocation: { lat, lng }
       }
     }));
   };
@@ -437,7 +517,7 @@ function AuctionCreateForm({ verification }) {
   const removePhoto = (index) => {
     setPhotos((current) => {
       const removed = current[index];
-      if (removed) {
+      if (removed?.file && removed.previewUrl) {
         URL.revokeObjectURL(removed.previewUrl);
       }
       return current.filter((_, photoIndex) => photoIndex !== index);
@@ -499,7 +579,7 @@ function AuctionCreateForm({ verification }) {
 
     if (Number.isNaN(applicationStartAt.getTime())) {
       nextErrors['schedule.applicationStartAt'] = 'Укажите дату и время начала приема заявок';
-    } else if (applicationStartAt < now || applicationStartAt > addDays(now, 90)) {
+    } else if (!isEditing && (applicationStartAt < now || applicationStartAt > addDays(now, 90))) {
       nextErrors['schedule.applicationStartAt'] = 'Начало приема заявок должно быть от текущего времени до 90 дней';
     }
 
@@ -540,27 +620,29 @@ function AuctionCreateForm({ verification }) {
     }
 
     requireText('item.title', form.item.title);
-    if (form.item.title.trim().length > 100) {
-      nextErrors['item.title'] = 'Название лота должно быть до 100 знаков';
+    if (form.item.title.length > 100) {
+      nextErrors['item.title'] = 'Название должно быть не длиннее 100 знаков';
     }
+
     requireText('item.locationAddress', form.item.locationAddress);
+    requireText('inspection.contactName', form.inspection.contactName);
+    requireText('inspection.contactPhone', form.inspection.contactPhone);
 
-    const lat = form.item.geoLocation.lat;
-    const lng = form.item.geoLocation.lng;
-    if ((lat && !Number.isFinite(Number(lat))) || (lng && !Number.isFinite(Number(lng)))) {
-      nextErrors['item.geoLocation'] = 'Укажите корректные координаты';
+    if (!form.item.geoLocation.lat || !form.item.geoLocation.lng) {
+      nextErrors['item.geoLocation'] = 'Укажите место нахождения предмета торгов на карте';
     }
 
-    if (photos.length === 0) {
-      nextErrors.photos = 'Загрузите хотя бы 1 фотографию';
+    if (photos.length < 1) {
+      nextErrors.photos = 'Загрузите хотя бы одну фотографию';
     }
 
     if (photos.length > 50) {
       nextErrors.photos = 'Можно загрузить не более 50 фотографий';
     }
 
-    requireText('inspection.contactName', form.inspection.contactName);
-    requireText('inspection.contactPhone', form.inspection.contactPhone);
+    if (mainPhotoIndex < 0 || mainPhotoIndex >= photos.length) {
+      nextErrors.mainPhotoIndex = 'Выберите главное фото';
+    }
 
     setLocalErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
@@ -568,7 +650,6 @@ function AuctionCreateForm({ verification }) {
 
   const submitForm = async (event) => {
     event.preventDefault();
-
     if (!validateClient()) {
       return;
     }
@@ -588,16 +669,24 @@ function AuctionCreateForm({ verification }) {
         characteristics: form.item.characteristics.filter((row) => row.name.trim() && row.value.trim())
       },
       inspection: form.inspection,
-      mainPhotoIndex
+      mainPhotoIndex,
+      existingPhotoPaths: photos.filter((photo) => photo.path && !photo.file).map((photo) => photo.path)
     };
 
-    await dispatch(submitAuction({ payload, photos, token: accessToken }));
+    const action = isEditing
+      ? updateAuction({ id: initialAuction.id, payload, photos, token: accessToken })
+      : submitAuction({ payload, photos, token: accessToken });
+    const result = await dispatch(action);
+
+    if ((isEditing ? updateAuction.fulfilled : submitAuction.fulfilled).match(result)) {
+      onSaved?.(result.payload.auction);
+    }
   };
 
   if (!verification || verification.status !== 'approved') {
     return (
       <section className={styles.panel}>
-        <p className={styles.panel__text}>Данные верификации загружаются. Создание лота доступно только после одобрения верификации.</p>
+        <p className={styles.panel__text}>Создание лота доступно только после одобрения верификации.</p>
       </section>
     );
   }
@@ -605,9 +694,19 @@ function AuctionCreateForm({ verification }) {
   return (
     <section className={`${styles.panel} ${styles.lotCreatePanel}`}>
       <div className={styles.panel__header}>
-        <p className={styles.panel__eyebrow}>Создание лота</p>
-        <h1 className={styles.panel__title}>Заявка на создание лота</h1>
-        <p className={styles.panel__text}>Заполните карточку будущего аукциона. После отправки лот получит статус ожидания проверки модератором.</p>
+        <p className={styles.panel__eyebrow}>{isEditing ? 'Доработка лота' : 'Создание лота'}</p>
+        <h1 className={styles.panel__title}>{isEditing ? 'Повторная отправка лота' : 'Заявка на создание лота'}</h1>
+        <p className={styles.panel__text}>
+          {isEditing
+            ? 'Исправьте данные по замечаниям модератора и отправьте этот же лот на повторную проверку.'
+            : 'Заполните карточку будущего аукциона. После отправки лот получит статус ожидания проверки модератором.'}
+        </p>
+        {initialAuction?.moderationComment && (
+          <div className={styles.statusPanel__reason}>
+            <strong>Причина возврата</strong>
+            <p>{initialAuction.moderationComment}</p>
+          </div>
+        )}
       </div>
 
       <form className={styles.auctionForm} onSubmit={submitForm} noValidate>
@@ -636,7 +735,7 @@ function AuctionCreateForm({ verification }) {
               type="number"
               step="0.01"
               highlight
-              hint={vatApplies ? 'Именно эта цена будет отображаться в каталоге, карточке лота и заявках участников.' : 'Эта цена будет отображаться в каталоге, карточке лота и заявках участников.'}
+              hint="Именно эта цена будет отображаться в каталоге, карточке лота и заявках участников."
             />
             <Field
               label="НДС"
@@ -927,8 +1026,13 @@ function AuctionCreateForm({ verification }) {
         )}
 
         <div className={styles.formActions}>
+          {isEditing && (
+            <button className={styles.buttonSecondary} type="button" onClick={onCancel}>
+              Отменить
+            </button>
+          )}
           <button className={styles.button} type="submit" disabled={auction.createStatus === 'loading'}>
-            Подать заявку на создание лота
+            {isEditing ? 'Отправить лот повторно' : 'Подать заявку на создание лота'}
           </button>
         </div>
       </form>
