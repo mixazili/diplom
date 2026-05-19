@@ -1,21 +1,48 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import styles from '../../App.module.css';
 import { logout } from '../../features/auth/authSlice.js';
 import { fetchMyVerification } from '../../features/verification/verificationSlice.js';
-import { verificationStatusLabels } from '../../constants/verificationLabels.js';
+import AuctionCreateForm from './auction/AuctionCreateForm.jsx';
+import MyAuctions from './auction/MyAuctions.jsx';
+import VerificationForm from './VerificationForm.jsx';
 
 const statusText = {
-  draft: 'Заполните форму и отправьте заявку на проверку.',
+  draft: 'Верификация не пройдена. Заполните форму и отправьте заявку на проверку.',
   pending: 'Заявка отправлена и ожидает проверки модератором.',
-  approved: 'Верификация одобрена. Повторно заполнять форму не нужно.',
-  rejected: 'Заявка отклонена. Исправьте данные с учетом причины и отправьте форму повторно.'
+  approved: 'Верификация пройдена.',
+  rejected: 'Верификация не пройдена. Исправьте данные с учетом причины отклонения и отправьте форму повторно.'
 };
 
-function UserCabinet({ children }) {
+const profileStatus = {
+  draft: {
+    className: 'statusPanelDanger',
+    title: 'Верификация не пройдена',
+    text: 'Заполните заявку во вкладке верификации.'
+  },
+  pending: {
+    className: 'statusPanelPending',
+    title: 'Верификация ожидает проверки',
+    text: 'Модератор проверит заявку и документы.'
+  },
+  approved: {
+    className: 'statusPanelSuccess',
+    title: 'Верификация пройдена',
+    text: 'Можно создавать лоты и подавать их на проверку.'
+  },
+  rejected: {
+    className: 'statusPanelDanger',
+    title: 'Верификация отклонена',
+    text: 'Посмотрите причину во вкладке верификации и отправьте форму повторно.'
+  }
+};
+
+function UserCabinet() {
   const dispatch = useDispatch();
   const { accessToken, user } = useSelector((state) => state.auth);
   const { request } = useSelector((state) => state.verification);
+  const [activeSection, setActiveSection] = useState('profile');
+  const [editingAuction, setEditingAuction] = useState(null);
 
   useEffect(() => {
     if (accessToken) {
@@ -25,39 +52,140 @@ function UserCabinet({ children }) {
 
   const effectiveStatus = request?.status || user.verificationStatus || 'draft';
   const rejectionReason = request?.status === 'rejected' ? request.moderationComment : '';
-  const shouldShowForm = !['approved', 'pending'].includes(effectiveStatus);
-  const statusLabel = useMemo(
-    () => verificationStatusLabels[effectiveStatus] || effectiveStatus,
-    [effectiveStatus]
+  const isApproved = effectiveStatus === 'approved';
+  const isPending = effectiveStatus === 'pending';
+  const shouldShowVerificationForm = !isApproved && !isPending;
+  const canCreateLot = isApproved;
+  const currentProfileStatus = profileStatus[effectiveStatus] || profileStatus.draft;
+
+  const openCreateLot = () => {
+    setEditingAuction(null);
+    setActiveSection('create-lot');
+  };
+
+  const openEditLot = (auction) => {
+    setEditingAuction(auction);
+    setActiveSection('create-lot');
+  };
+
+  const closeLotForm = () => {
+    setEditingAuction(null);
+    setActiveSection('lots');
+  };
+
+  const renderProfile = () => (
+    <section className={`${styles.statusPanel} ${styles[currentProfileStatus.className]}`}>
+      <p className={styles.panel__eyebrow}>Профиль</p>
+      <h1 className={styles.profileStatus__title}>{currentProfileStatus.title}</h1>
+      <p className={styles.profileStatus__email}>{user.email}</p>
+      <p className={styles.statusPanel__text}>{currentProfileStatus.text}</p>
+    </section>
   );
 
-  return (
-    <div className={styles.cabinet}>
-      <section className={styles.summary}>
-        <div>
-          <p className={styles.summary__label}>Аккаунт</p>
-          <h2 className={styles.summary__title}>{user.email}</h2>
-          <p className={styles.summary__text}>
-            Роль: {user.role} · Email подтвержден · Верификация: {statusLabel}
+  const renderVerification = () => (
+    <div className={styles.cabinetContent}>
+      {shouldShowVerificationForm ? (
+        <>
+          <section className={styles.statusPanel}>
+            <p className={styles.statusPanel__text}>{statusText[effectiveStatus] || statusText.draft}</p>
+            {rejectionReason && (
+              <div className={styles.statusPanel__reason}>
+                <strong>Причина отклонения</strong>
+                <p>{rejectionReason}</p>
+              </div>
+            )}
+          </section>
+          <VerificationForm />
+        </>
+      ) : (
+        <section className={styles.panel}>
+          <p className={styles.panel__text}>
+            {isPending
+              ? 'Заявка на верификацию уже ожидает проверки.'
+              : 'Верификация пройдена. Повторно заполнять форму не нужно.'}
           </p>
-        </div>
-        <button className={styles.buttonSecondary} type="button" onClick={() => dispatch(logout())}>
-          Выйти
-        </button>
-      </section>
+        </section>
+      )}
+    </div>
+  );
 
-      <section className={styles.statusPanel}>
-        <span className={styles.statusPanel__badge}>{statusLabel}</span>
-        <p className={styles.statusPanel__text}>{statusText[effectiveStatus] || statusText.draft}</p>
-        {rejectionReason && (
-          <div className={styles.statusPanel__reason}>
-            <strong>Причина отклонения</strong>
-            <p>{rejectionReason}</p>
-          </div>
+  const renderLots = () => (
+    <div className={styles.cabinetContent}>
+      <section className={styles.panel}>
+        <div className={styles.panel__header}>
+          <p className={styles.panel__eyebrow}>Личный кабинет</p>
+          <h1 className={styles.panel__title}>Мои лоты</h1>
+          <p className={styles.panel__text}>Здесь отображаются заявки на создание лотов и их текущие статусы.</p>
+        </div>
+        <button className={styles.button} type="button" onClick={openCreateLot} disabled={!canCreateLot}>
+          Создать лот
+        </button>
+        {!canCreateLot && (
+          <p className={styles.message__error}>Создание лота доступно только после одобрения верификации.</p>
         )}
       </section>
+      <MyAuctions onEdit={openEditLot} />
+    </div>
+  );
 
-      {shouldShowForm && children}
+  const renderCreateLot = () => {
+    if (!canCreateLot) {
+      return (
+        <section className={styles.panel}>
+          <p className={styles.panel__text}>Создание лотов доступно только после одобрения верификации.</p>
+        </section>
+      );
+    }
+
+    return (
+      <AuctionCreateForm
+        verification={request}
+        initialAuction={editingAuction}
+        onSaved={closeLotForm}
+        onCancel={closeLotForm}
+      />
+    );
+  };
+
+  return (
+    <div className={styles.cabinetLayout}>
+      <aside className={styles.cabinetSidebar}>
+        <p className={styles.cabinetSidebar__title}>Личный кабинет</p>
+        <button
+          className={`${styles.cabinetSidebar__button} ${activeSection === 'profile' ? styles['cabinetSidebar__button--active'] : ''}`}
+          type="button"
+          onClick={() => setActiveSection('profile')}
+        >
+          Профиль
+        </button>
+        <button
+          className={`${styles.cabinetSidebar__button} ${activeSection === 'verification' ? styles['cabinetSidebar__button--active'] : ''}`}
+          type="button"
+          onClick={() => setActiveSection('verification')}
+        >
+          Верификация
+        </button>
+        <button
+          className={`${styles.cabinetSidebar__button} ${['lots', 'create-lot'].includes(activeSection) ? styles['cabinetSidebar__button--active'] : ''}`}
+          type="button"
+          onClick={() => {
+            setEditingAuction(null);
+            setActiveSection('lots');
+          }}
+        >
+          Мои лоты
+        </button>
+        <button className={styles.cabinetSidebar__button} type="button" onClick={() => dispatch(logout())}>
+          Выйти
+        </button>
+      </aside>
+
+      <div className={styles.cabinetMain}>
+        {activeSection === 'profile' && renderProfile()}
+        {activeSection === 'verification' && renderVerification()}
+        {activeSection === 'lots' && renderLots()}
+        {activeSection === 'create-lot' && renderCreateLot()}
+      </div>
     </div>
   );
 }

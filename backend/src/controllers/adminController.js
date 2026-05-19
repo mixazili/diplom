@@ -2,9 +2,11 @@ const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const VerificationRequest = require('../models/VerificationRequest');
 const VerificationReview = require('../models/VerificationReview');
+const AuctionReview = require('../models/AuctionReview');
 const asyncHandler = require('../utils/asyncHandler');
 const { validateRegisterPayload } = require('../utils/authValidation');
 const { formatModerator, formatReview, formatVerification } = require('../utils/staffFormatters');
+const { formatAuctionReview } = require('../utils/auctionFormatters');
 
 const listModerators = asyncHandler(async (req, res) => {
   const moderators = await User.find({ role: 'moderator', isActive: true }).sort({ createdAt: -1 });
@@ -92,10 +94,24 @@ const getVerificationDetails = asyncHandler(async (req, res) => {
   res.json({ verification: formatVerification(verification) });
 });
 
+const listAllAuctionReviews = asyncHandler(async (req, res) => {
+  const reviews = await AuctionReview.find({})
+    .sort({ createdAt: -1 })
+    .populate('moderator')
+    .populate('owner')
+    .populate({
+      path: 'auction',
+      populate: ['owner', 'reviewedBy']
+    });
+
+  res.json({ reviews: reviews.map(formatAuctionReview) });
+});
+
 module.exports = {
   listModerators,
   createModerator,
   deleteModerator,
   listAllReviews,
-  getVerificationDetails
+  getVerificationDetails,
+  listAllAuctionReviews
 };

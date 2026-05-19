@@ -252,7 +252,20 @@ const refresh = asyncHandler(async (req, res) => {
     return res.json({ message: 'Refresh token обязателен' });
   }
 
-  const payload = verifyRefreshToken(refreshToken);
+  let payload;
+
+  try {
+    payload = verifyRefreshToken(refreshToken);
+  } catch (error) {
+    res.status(401);
+    return res.json({ message: 'Refresh token недействителен' });
+  }
+
+  if (payload.tokenType !== 'refresh') {
+    res.status(401);
+    return res.json({ message: 'Refresh token недействителен' });
+  }
+
   const user = await User.findById(payload.sub);
 
   if (!user || !user.isActive || !user.refreshTokenHash || !(await compareRefreshToken(refreshToken, user.refreshTokenHash))) {

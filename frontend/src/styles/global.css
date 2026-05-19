@@ -21,11 +21,11 @@
 body {
   margin: 0;
   font-family:
-    Inter,
+    "Segoe UI",
+    Arial,
     system-ui,
     -apple-system,
     BlinkMacSystemFont,
-    "Segoe UI",
     sans-serif;
   background: var(--color-background);
 }

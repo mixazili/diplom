@@ -66,6 +66,14 @@ export const verifyStaffLogin = createAsyncThunk('auth/verifyStaffLogin', async 
   }
 });
 
+export const refreshSession = createAsyncThunk('auth/refreshSession', async (refreshToken, { rejectWithValue }) => {
+  try {
+    return await postJson('/auth/refresh', { refreshToken });
+  } catch (error) {
+    return rejectApiError(error, rejectWithValue);
+  }
+});
+
 const storedSession = getStoredSession();
 
 const setPendingState = (state) => {
@@ -164,6 +172,15 @@ const authSlice = createSlice({
       .addCase(verifyStaffLogin.fulfilled, setSessionState)
       .addCase(verifyStaffLogin.rejected, (state, action) => {
         setRejectedState(state, action, 'Код входа не подтверждён');
+      })
+      .addCase(refreshSession.fulfilled, (state, action) => {
+        setSessionState(state, action);
+      })
+      .addCase(refreshSession.rejected, (state) => {
+        state.user = null;
+        state.accessToken = null;
+        state.refreshToken = null;
+        clearSession();
       });
   }
 });
