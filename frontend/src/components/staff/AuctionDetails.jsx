@@ -2,6 +2,7 @@ import React from 'react';
 import styles from '../../App.module.css';
 import { auctionCategoryLabels, buyerTerms, operatorInfo } from '../../constants/auctionConstants.js';
 import { accountTypeLabels } from '../../constants/verificationLabels.js';
+import AuctionMapPreview from './AuctionMapPreview.jsx';
 
 const formatMoney = (value) =>
   new Intl.NumberFormat('ru-BY', { style: 'currency', currency: 'BYN' }).format(Number(value || 0));
@@ -112,6 +113,11 @@ function AuctionDetails({ auction }) {
           ['Описание', auction.item?.description],
           ['Геолокация', auction.item?.geoLocation?.lat && auction.item?.geoLocation?.lng ? 'Указана на карте' : 'Не указана']
         ]}
+      />
+
+      <AuctionMapPreview
+        geoLocation={auction.item?.geoLocation}
+        address={auction.item?.locationAddress}
       />
 
       {auction.item?.characteristics?.length > 0 && (
