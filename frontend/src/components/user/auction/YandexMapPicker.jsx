@@ -45,10 +45,10 @@ function YandexMapPicker({ value, onChange, error }) {
   const selectedCoords = hasSelectedCoordinates(value) ? [Number(value.lat), Number(value.lng)] : null;
 
   useEffect(() => {
-    if (!apiKey) {
-      setLoadError('Не указан ключ VITE_YANDEX_MAPS_API_KEY');
-      return undefined;
-    }
+    // if (!apiKey) {
+    //   setLoadError('Не указан ключ VITE_YANDEX_MAPS_API_KEY');
+    //   return undefined;
+    // }
 
     let isMounted = true;
 
@@ -71,7 +71,7 @@ function YandexMapPicker({ value, onChange, error }) {
           }
         );
 
-        map.behaviors.disable(['scrollZoom', 'rightMouseButtonMagnifier']);
+        map.behaviors.disable(['rightMouseButtonMagnifier']);
 
         const setPoint = (coords) => {
           if (!placemarkRef.current) {
@@ -148,9 +148,6 @@ function YandexMapPicker({ value, onChange, error }) {
           <span className={styles.field__label}>Геолокация на карте</span>
           <p>Кликните по карте, чтобы указать место нахождения предмета торгов. Метку можно перетащить.</p>
         </div>
-        {selectedCoords && (
-          <strong>{selectedCoords[0].toFixed(6)}, {selectedCoords[1].toFixed(6)}</strong>
-        )}
       </div>
       <div className={styles.mapPicker__canvas} ref={mapRef}>
         {loadError && <span>{loadError}</span>}
