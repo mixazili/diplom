@@ -1,8 +1,16 @@
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const asyncHandler = require('../utils/asyncHandler');
-const { validateRegisterPayload, validateVerificationCodePayload } = require('../utils/authValidation');
-const { sendEmailVerificationCode, sendStaffLoginCode } = require('../services/emailService');
+const {
+  validateRegisterPayload,
+  validateVerificationCodePayload,
+  validatePasswordPayload
+} = require('../utils/authValidation');
+const {
+  sendEmailVerificationCode,
+  sendStaffLoginCode,
+  sendPasswordResetCode
+} = require('../services/emailService');
 const { createTokenPair, verifyRefreshToken, compareRefreshToken } = require('../services/tokenService');
 const {
   createEmailVerificationCode,
@@ -59,6 +67,15 @@ const sendLoginCodeForStaff = async (user) => {
   });
 
   return sendStaffLoginCode({ email: user.email, code });
+};
+
+const sendPasswordResetCodeForUser = async (user) => {
+  const code = await setCode(user, {
+    hash: 'passwordResetCodeHash',
+    expiresAt: 'passwordResetCodeExpiresAt'
+  });
+
+  return sendPasswordResetCode({ email: user.email, code });
 };
 
 const register = asyncHandler(async (req, res) => {
@@ -126,9 +143,7 @@ const verifyEmail = asyncHandler(async (req, res) => {
     return res.json({ message: 'Код подтверждения истёк' });
   }
 
-  const isValidCode = await compareValue(code, user.emailVerificationCodeHash);
-
-  if (!isValidCode) {
+  if (!(await compareValue(code, user.emailVerificationCodeHash))) {
     res.status(400);
     return res.json({ message: 'Неверный код подтверждения' });
   }
@@ -149,7 +164,6 @@ const verifyEmail = asyncHandler(async (req, res) => {
 const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
   const normalizedEmail = String(email || '').trim().toLowerCase();
-
   const user = await User.findOne({ email: normalizedEmail });
 
   if (!user || !user.isActive || !(await bcrypt.compare(String(password || ''), user.passwordHash))) {
@@ -159,7 +173,7 @@ const login = asyncHandler(async (req, res) => {
 
   if (user.role !== 'user') {
     res.status(403);
-    return res.json({ message: 'Для админа и модератора используйте вход с кодом подтверждения' });
+    return res.json({ message: 'Для администратора и модератора используйте вход с кодом подтверждения' });
   }
 
   if (!user.isEmailVerified) {
@@ -178,7 +192,6 @@ const login = asyncHandler(async (req, res) => {
 const requestStaffLoginCode = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
   const normalizedEmail = String(email || '').trim().toLowerCase();
-
   const user = await User.findOne({ email: normalizedEmail });
 
   if (
@@ -226,9 +239,7 @@ const verifyStaffLoginCode = asyncHandler(async (req, res) => {
     return res.json({ message: 'Код входа истёк' });
   }
 
-  const isValidCode = await compareValue(code, user.loginCodeHash);
-
-  if (!isValidCode) {
+  if (!(await compareValue(code, user.loginCodeHash))) {
     res.status(400);
     return res.json({ message: 'Неверный код входа' });
   }
@@ -240,6 +251,79 @@ const verifyStaffLoginCode = asyncHandler(async (req, res) => {
 
   res.json({
     message: 'Вход выполнен',
+    ...session
+  });
+});
+
+const requestPasswordReset = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  const errors = validateVerificationCodePayload({ email: normalizedEmail, code: '000000' });
+  delete errors.code;
+
+  if (Object.keys(errors).length > 0) {
+    res.status(400);
+    return res.json({ message: 'Проверьте email', errors });
+  }
+
+  const user = await User.findOne({ email: normalizedEmail, role: 'user', isActive: true });
+
+  if (!user) {
+    res.status(404);
+    return res.json({ message: 'Пользователь с таким email не найден' });
+  }
+
+  const emailInfo = await sendPasswordResetCodeForUser(user);
+
+  res.json(
+    createEmailResponse({
+      message: emailInfo.deliveryError
+        ? 'Код восстановления создан. Почтовый сервис разработки недоступен, используйте dev-код ниже.'
+        : 'Код восстановления отправлен на email',
+      user,
+      emailInfo
+    })
+  );
+});
+
+const confirmPasswordReset = asyncHandler(async (req, res) => {
+  const { email, code, password } = req.body;
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  const errors = {
+    ...validateVerificationCodePayload({ email: normalizedEmail, code }),
+    ...validatePasswordPayload({ password })
+  };
+
+  if (Object.keys(errors).length > 0) {
+    res.status(400);
+    return res.json({ message: 'Проверьте данные восстановления', errors });
+  }
+
+  const user = await User.findOne({ email: normalizedEmail, role: 'user', isActive: true });
+
+  if (!user || !user.passwordResetCodeHash) {
+    res.status(400);
+    return res.json({ message: 'Код восстановления не найден' });
+  }
+
+  if (user.passwordResetCodeExpiresAt < new Date()) {
+    res.status(400);
+    return res.json({ message: 'Код восстановления истёк' });
+  }
+
+  if (!(await compareValue(code, user.passwordResetCodeHash))) {
+    res.status(400);
+    return res.json({ message: 'Неверный код восстановления' });
+  }
+
+  user.passwordHash = await bcrypt.hash(password, 10);
+  user.passwordResetCodeHash = null;
+  user.passwordResetCodeExpiresAt = null;
+
+  const session = await issueTokens(user);
+
+  res.json({
+    message: 'Пароль изменён, вход выполнен',
     ...session
   });
 });
@@ -280,6 +364,31 @@ const refresh = asyncHandler(async (req, res) => {
 
 const me = asyncHandler(async (req, res) => {
   res.json({ user: sanitizeUser(req.user) });
+});
+
+const changePassword = asyncHandler(async (req, res) => {
+  const { password } = req.body;
+  const errors = validatePasswordPayload({ password });
+
+  if (Object.keys(errors).length > 0) {
+    res.status(400);
+    return res.json({ message: 'Проверьте новый пароль', errors });
+  }
+
+  const user = await User.findById(req.user._id);
+
+  if (!user || !user.isActive) {
+    res.status(404);
+    return res.json({ message: 'Пользователь не найден' });
+  }
+
+  user.passwordHash = await bcrypt.hash(password, 10);
+  const session = await issueTokens(user);
+
+  res.json({
+    message: 'Пароль изменён',
+    ...session
+  });
 });
 
 const logout = asyncHandler(async (req, res) => {
@@ -328,6 +437,9 @@ module.exports = {
   login,
   requestStaffLoginCode,
   verifyStaffLoginCode,
+  requestPasswordReset,
+  confirmPasswordReset,
+  changePassword,
   refresh,
   me,
   logout,

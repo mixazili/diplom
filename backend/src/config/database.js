@@ -28,6 +28,31 @@ const isRetryableConnectionError = (error) =>
   error.cause?.type === 'ReplicaSetNoPrimary' ||
   error.code === 'ETIMEOUT';
 
+const ensureAuctionIndexes = async () => {
+  const collection = mongoose.connection.db.collection('auctions');
+  await collection.updateMany({ lotNumber: null }, { $unset: { lotNumber: '' } }).catch(() => {});
+
+  const indexes = await collection.indexes().catch(() => []);
+  const lotNumberIndex = indexes.find((index) => index.name === 'lotNumber_1');
+  const hasDesiredPartialIndex =
+    lotNumberIndex?.unique &&
+    lotNumberIndex.partialFilterExpression?.lotNumber?.$type === 'string';
+
+  if (!hasDesiredPartialIndex) {
+    if (lotNumberIndex) {
+      await collection.dropIndex('lotNumber_1');
+    }
+    await collection.createIndex(
+      { lotNumber: 1 },
+      {
+        unique: true,
+        name: 'lotNumber_1',
+        partialFilterExpression: { lotNumber: { $type: 'string' } }
+      }
+    );
+  }
+};
+
 const connectDatabase = async () => {
   if (!config.mongoUri) {
     throw new Error(`MongoDB URI is not configured for NODE_ENV=${config.env}`);
@@ -51,6 +76,7 @@ const connectDatabase = async () => {
         serverSelectionTimeoutMS: 15000,
         maxPoolSize: config.env === 'test' ? 1 : 10
       });
+      await ensureAuctionIndexes();
       return mongoose.connection;
     } catch (error) {
       lastError = error;

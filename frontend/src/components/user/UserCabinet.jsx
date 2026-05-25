@@ -1,48 +1,59 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import styles from '../../App.module.css';
-import { logout } from '../../features/auth/authSlice.js';
+import { changePassword, logout } from '../../features/auth/authSlice.js';
 import { fetchMyVerification } from '../../features/verification/verificationSlice.js';
 import AuctionCreateForm from './auction/AuctionCreateForm.jsx';
 import MyAuctions from './auction/MyAuctions.jsx';
 import VerificationForm from './VerificationForm.jsx';
 
-const statusText = {
-  draft: 'Верификация не пройдена. Заполните форму и отправьте заявку на проверку.',
-  pending: 'Заявка отправлена и ожидает проверки модератором.',
-  approved: 'Верификация пройдена.',
-  rejected: 'Верификация не пройдена. Исправьте данные с учетом причины отклонения и отправьте форму повторно.'
-};
-
-const profileStatus = {
+const verificationStatus = {
   draft: {
-    className: 'statusPanelDanger',
-    title: 'Верификация не пройдена',
-    text: 'Заполните заявку во вкладке верификации.'
+    label: 'Верификация не пройдена',
+    tone: 'danger',
+    text: 'Без верификации нельзя участвовать в торгах и выставлять свои лоты на продажу.'
   },
   pending: {
-    className: 'statusPanelPending',
-    title: 'Верификация ожидает проверки',
-    text: 'Модератор проверит заявку и документы.'
+    label: 'Верификация ожидает проверки',
+    tone: 'warning',
+    text: 'Заявка отправлена модератору. После отправки форма недоступна до решения.'
   },
   approved: {
-    className: 'statusPanelSuccess',
-    title: 'Верификация пройдена',
-    text: 'Можно создавать лоты и подавать их на проверку.'
+    label: 'Верификация пройдена',
+    tone: 'success',
+    text: 'Можно участвовать в торгах и подавать лоты на проверку.'
   },
   rejected: {
-    className: 'statusPanelDanger',
-    title: 'Верификация отклонена',
-    text: 'Посмотрите причину во вкладке верификации и отправьте форму повторно.'
+    label: 'Верификация отклонена',
+    tone: 'danger',
+    text: 'Исправьте данные с учетом причины отклонения и отправьте заявку повторно.'
   }
 };
 
+function ConfirmModal({ onClose, onConfirm }) {
+  return (
+    <div className={styles.modalBackdrop} role="presentation">
+      <div className={styles.modal} role="dialog" aria-modal="true">
+        <h2>Выйти из аккаунта?</h2>
+        <p>Текущая сессия будет завершена на этом устройстве.</p>
+        <div className={styles.modal__actions}>
+          <button className={styles.buttonSecondary} type="button" onClick={onClose}>Отмена</button>
+          <button className={styles.buttonDanger} type="button" onClick={onConfirm}>Выйти</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function UserCabinet() {
   const dispatch = useDispatch();
-  const { accessToken, user } = useSelector((state) => state.auth);
+  const { accessToken, user, status: authStatus, errors: authErrors } = useSelector((state) => state.auth);
   const { request } = useSelector((state) => state.verification);
   const [activeSection, setActiveSection] = useState('profile');
   const [editingAuction, setEditingAuction] = useState(null);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({ password: '', passwordRepeat: '' });
+  const [passwordError, setPasswordError] = useState('');
 
   useEffect(() => {
     if (accessToken) {
@@ -51,16 +62,34 @@ function UserCabinet() {
   }, [accessToken, dispatch]);
 
   const effectiveStatus = request?.status || user.verificationStatus || 'draft';
-  const rejectionReason = request?.status === 'rejected' ? request.moderationComment : '';
-  const isApproved = effectiveStatus === 'approved';
-  const isPending = effectiveStatus === 'pending';
-  const shouldShowVerificationForm = !isApproved && !isPending;
-  const canCreateLot = isApproved;
-  const currentProfileStatus = profileStatus[effectiveStatus] || profileStatus.draft;
+  const statusConfig = verificationStatus[effectiveStatus] || verificationStatus.draft;
+  const canCreateLot = effectiveStatus === 'approved';
+  const canShowVerificationForm = !['approved', 'pending'].includes(effectiveStatus);
+  const rejectionReason = effectiveStatus === 'rejected' ? request?.moderationComment : '';
+
+  const submitPassword = (event) => {
+    event.preventDefault();
+    setPasswordError('');
+
+    if (passwordForm.password !== passwordForm.passwordRepeat) {
+      setPasswordError('Пароли не совпадают');
+      return;
+    }
+
+    dispatch(changePassword({ password: passwordForm.password })).then((result) => {
+      if (!result.error) {
+        setPasswordForm({ password: '', passwordRepeat: '' });
+      }
+    });
+  };
 
   const openCreateLot = () => {
     setEditingAuction(null);
     setActiveSection('create-lot');
+  };
+
+  const openVerificationForm = () => {
+    setActiveSection('verification-form');
   };
 
   const openEditLot = (auction) => {
@@ -73,59 +102,77 @@ function UserCabinet() {
     setActiveSection('lots');
   };
 
-  const renderProfile = () => (
-    <section className={`${styles.statusPanel} ${styles[currentProfileStatus.className]}`}>
-      <p className={styles.panel__eyebrow}>Профиль</p>
-      <h1 className={styles.profileStatus__title}>{currentProfileStatus.title}</h1>
-      <p className={styles.profileStatus__email}>{user.email}</p>
-      <p className={styles.statusPanel__text}>{currentProfileStatus.text}</p>
-    </section>
-  );
+  const closeVerificationForm = () => {
+    setActiveSection('profile');
+  };
 
-  const renderVerification = () => (
+  const confirmLogout = () => {
+    setShowLogoutModal(false);
+    dispatch(logout());
+  };
+
+  const renderProfile = () => (
     <div className={styles.cabinetContent}>
-      {shouldShowVerificationForm ? (
-        <>
-          <section className={styles.statusPanel}>
-            <p className={styles.statusPanel__text}>{statusText[effectiveStatus] || statusText.draft}</p>
-            {rejectionReason && (
-              <div className={styles.statusPanel__reason}>
-                <strong>Причина отклонения</strong>
-                <p>{rejectionReason}</p>
-              </div>
+      <section className={styles.panel}>
+        <h1 className={styles.panel__title}>Профиль</h1>
+        <div className={styles.profileStack}>
+          <div className={styles.profileLine}>
+            <span>Email</span>
+            <strong>{user.email}</strong>
+          </div>
+
+          <div className={styles.verificationSummary}>
+            <div className={styles.verificationSummary__status}>
+              <strong className={`${styles.statusBadge} ${styles[`statusBadge--${statusConfig.tone}`]}`}>
+                {statusConfig.label}
+              </strong>
+              {rejectionReason && <p className={styles.message__error}>Причина отказа: {rejectionReason}</p>}
+            </div>
+            {canShowVerificationForm && (
+              <button className={styles.button} type="button" onClick={openVerificationForm}>
+                Пройти верификацию
+              </button>
             )}
-          </section>
-          <VerificationForm />
-        </>
-      ) : (
-        <section className={styles.panel}>
-          <p className={styles.panel__text}>
-            {isPending
-              ? 'Заявка на верификацию уже ожидает проверки.'
-              : 'Верификация пройдена. Повторно заполнять форму не нужно.'}
-          </p>
-        </section>
-      )}
+            <p className={styles.verificationSummary__text}>{statusConfig.text}</p>
+          </div>
+        </div>
+
+        <form className={styles.passwordForm} onSubmit={submitPassword}>
+          <h2>Смена пароля</h2>
+          <label className={styles.field}>
+            <span className={styles.field__label}>Новый пароль<span className={styles.requiredMark}>*</span></span>
+            <input
+              className={styles.field__control}
+              type="password"
+              value={passwordForm.password}
+              onChange={(event) => setPasswordForm((current) => ({ ...current, password: event.target.value }))}
+              placeholder="Минимум 8 символов"
+            />
+          </label>
+          <label className={styles.field}>
+            <span className={styles.field__label}>Повторите новый пароль<span className={styles.requiredMark}>*</span></span>
+            <input
+              className={styles.field__control}
+              type="password"
+              value={passwordForm.passwordRepeat}
+              onChange={(event) => setPasswordForm((current) => ({ ...current, passwordRepeat: event.target.value }))}
+            />
+          </label>
+          {(passwordError || authErrors.password) && <p className={styles.message__error}>{passwordError || authErrors.password}</p>}
+          <button className={styles.buttonSecondary} type="submit" disabled={authStatus === 'loading'}>
+            Сменить пароль
+          </button>
+        </form>
+      </section>
     </div>
   );
 
   const renderLots = () => (
-    <div className={styles.cabinetContent}>
-      <section className={styles.panel}>
-        <div className={styles.panel__header}>
-          <p className={styles.panel__eyebrow}>Личный кабинет</p>
-          <h1 className={styles.panel__title}>Мои лоты</h1>
-          <p className={styles.panel__text}>Здесь отображаются заявки на создание лотов и их текущие статусы.</p>
-        </div>
-        <button className={styles.button} type="button" onClick={openCreateLot} disabled={!canCreateLot}>
-          Создать лот
-        </button>
-        {!canCreateLot && (
-          <p className={styles.message__error}>Создание лота доступно только после одобрения верификации.</p>
-        )}
-      </section>
-      <MyAuctions onEdit={openEditLot} />
-    </div>
+    <MyAuctions
+      canCreateLot={canCreateLot}
+      onCreate={openCreateLot}
+      onEdit={openEditLot}
+    />
   );
 
   const renderCreateLot = () => {
@@ -147,6 +194,24 @@ function UserCabinet() {
     );
   };
 
+  const renderVerificationForm = () => {
+    if (!canShowVerificationForm) {
+      return (
+        <section className={styles.panel}>
+          <button className={styles.backButton} type="button" onClick={closeVerificationForm}>← Назад</button>
+          <p className={styles.panel__text}>Форма верификации сейчас недоступна.</p>
+        </section>
+      );
+    }
+
+    return (
+      <section className={styles.panel}>
+        <button className={styles.backButton} type="button" onClick={closeVerificationForm}>← Назад</button>
+        <VerificationForm onSubmitted={closeVerificationForm} onCancel={closeVerificationForm} />
+      </section>
+    );
+  };
+
   return (
     <div className={styles.cabinetLayout}>
       <aside className={styles.cabinetSidebar}>
@@ -159,13 +224,6 @@ function UserCabinet() {
           Профиль
         </button>
         <button
-          className={`${styles.cabinetSidebar__button} ${activeSection === 'verification' ? styles['cabinetSidebar__button--active'] : ''}`}
-          type="button"
-          onClick={() => setActiveSection('verification')}
-        >
-          Верификация
-        </button>
-        <button
           className={`${styles.cabinetSidebar__button} ${['lots', 'create-lot'].includes(activeSection) ? styles['cabinetSidebar__button--active'] : ''}`}
           type="button"
           onClick={() => {
@@ -175,17 +233,19 @@ function UserCabinet() {
         >
           Мои лоты
         </button>
-        <button className={styles.cabinetSidebar__button} type="button" onClick={() => dispatch(logout())}>
+        <button className={styles.cabinetSidebar__button} type="button" onClick={() => setShowLogoutModal(true)}>
           Выйти
         </button>
       </aside>
 
       <div className={styles.cabinetMain}>
         {activeSection === 'profile' && renderProfile()}
-        {activeSection === 'verification' && renderVerification()}
         {activeSection === 'lots' && renderLots()}
         {activeSection === 'create-lot' && renderCreateLot()}
+        {activeSection === 'verification-form' && renderVerificationForm()}
       </div>
+
+      {showLogoutModal && <ConfirmModal onClose={() => setShowLogoutModal(false)} onConfirm={confirmLogout} />}
     </div>
   );
 }

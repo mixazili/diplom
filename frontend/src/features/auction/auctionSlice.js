@@ -72,6 +72,20 @@ export const deleteAuction = createAsyncThunk(
   }
 );
 
+export const returnAuctionToDraft = createAsyncThunk(
+  'auction/returnAuctionToDraft',
+  async ({ id, token }, { rejectWithValue }) => {
+    try {
+      return await apiRequest(`/auctions/${id}/draft`, {
+        method: 'PATCH',
+        headers: authHeader(token)
+      });
+    } catch (error) {
+      return rejectWithValue({ message: error.message, errors: error.errors });
+    }
+  }
+);
+
 const auctionSlice = createSlice({
   name: 'auction',
   initialState: {
@@ -107,7 +121,7 @@ const auctionSlice = createSlice({
       })
       .addCase(submitAuction.fulfilled, (state, action) => {
         state.createStatus = 'succeeded';
-        state.message = action.payload.message;
+        state.message = action.payload.auction.status === 'draft' ? '' : action.payload.message;
         state.items = [action.payload.auction, ...state.items];
       })
       .addCase(submitAuction.rejected, (state, action) => {
@@ -122,7 +136,7 @@ const auctionSlice = createSlice({
       })
       .addCase(updateAuction.fulfilled, (state, action) => {
         state.createStatus = 'succeeded';
-        state.message = action.payload.message;
+        state.message = action.payload.auction.status === 'draft' ? '' : action.payload.message;
         state.items = state.items.map((auction) =>
           auction.id === action.payload.auction.id ? action.payload.auction : auction
         );
@@ -134,10 +148,19 @@ const auctionSlice = createSlice({
       })
       .addCase(deleteAuction.fulfilled, (state, action) => {
         state.items = state.items.filter((auction) => auction.id !== action.payload.id);
-        state.message = 'Лот удален';
+        state.message = '';
       })
       .addCase(deleteAuction.rejected, (state, action) => {
         state.message = action.payload?.message || 'Не удалось удалить лот';
+      })
+      .addCase(returnAuctionToDraft.fulfilled, (state, action) => {
+        state.items = state.items.map((auction) =>
+          auction.id === action.payload.auction.id ? action.payload.auction : auction
+        );
+        state.message = '';
+      })
+      .addCase(returnAuctionToDraft.rejected, (state, action) => {
+        state.message = action.payload?.message || 'Не удалось вернуть лот в черновик';
       });
   }
 });

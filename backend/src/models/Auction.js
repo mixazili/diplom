@@ -31,13 +31,22 @@ const auctionSchema = new mongoose.Schema(
     },
     lotNumber: {
       type: String,
-      required: true,
-      unique: true,
       trim: true
     },
     status: {
       type: String,
-      enum: ['pending', 'returned', 'published', 'active', 'finished', 'cancelled'],
+      enum: [
+        'draft',
+        'pending',
+        'returned',
+        'application_waiting',
+        'applications_open',
+        'bidding_waiting',
+        'bidding_active',
+        'finished_success',
+        'finished_failed',
+        'cancelled'
+      ],
       default: 'pending',
       index: true
     },
@@ -46,13 +55,17 @@ const auctionSchema = new mongoose.Schema(
       default: null
     },
     pricing: {
+      auctionType: { type: String, enum: ['increase', 'decrease'], default: 'increase' },
       priceWithoutVat: { type: Number, required: true, min: 0 },
       priceWithVat: { type: Number, required: true, min: 0 },
+      minPriceWithVat: { type: Number, default: null, min: 0 },
       vatApplies: { type: Boolean, required: true },
       vatRate: { type: Number, default: 0 },
       vatLabel: { type: String, required: true },
-      depositAmount: { type: Number, required: true, min: 0 },
-      minBidStep: { type: Number, required: true, min: 0 },
+      depositAmount: { type: Number, default: null, min: 0 },
+      minBidStep: { type: Number, default: null, min: 0 },
+      bidStepsCount: { type: Number, default: null, min: 5, max: 50 },
+      calculatedBidStep: { type: Number, default: null, min: 0 },
       organizationFeePercent: { type: Number, default: 1 }
     },
     schedule: {
@@ -61,7 +74,6 @@ const auctionSchema = new mongoose.Schema(
       biddingStartAt: { type: Date, required: true },
       biddingEndAt: { type: Date, required: true },
       paymentDeadlineDays: { type: Number, required: true, min: 5, max: 90 },
-      depositReturnDays: { type: Number, default: 10 },
       contractDeadlineDays: { type: Number, required: true, min: 5, max: 90 }
     },
     item: {
@@ -69,7 +81,7 @@ const auctionSchema = new mongoose.Schema(
       category: { type: String, required: true, trim: true },
       characteristics: { type: [characteristicSchema], default: [] },
       description: { type: String, default: '', trim: true },
-      locationAddress: { type: String, required: true, trim: true },
+      locationAddress: { type: String, default: '', trim: true },
       geoLocation: {
         lat: { type: Number, default: null },
         lng: { type: Number, default: null }
@@ -80,9 +92,9 @@ const auctionSchema = new mongoose.Schema(
       default: []
     },
     inspection: {
-      contactName: { type: String, required: true, trim: true },
-      contactPhone: { type: String, required: true, trim: true },
-      contactEmail: { type: String, default: '', trim: true }
+      contactName: { type: String, default: '', trim: true },
+      contactPhone: { type: String, default: '', trim: true },
+      contactEmail: { type: String, required: true, trim: true }
     },
     seller: {
       accountType: { type: String, enum: ['individual', 'legal_entity', 'entrepreneur'], required: true },
@@ -109,6 +121,15 @@ const auctionSchema = new mongoose.Schema(
     }
   },
   { timestamps: true }
+);
+
+auctionSchema.index(
+  { lotNumber: 1 },
+  {
+    unique: true,
+    name: 'lotNumber_1',
+    partialFilterExpression: { lotNumber: { $type: 'string' } }
+  }
 );
 
 module.exports = mongoose.model('Auction', auctionSchema);

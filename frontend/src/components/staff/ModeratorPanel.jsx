@@ -49,7 +49,6 @@ function ModeratorPanel() {
         method: 'POST',
         body: JSON.stringify({ comment })
       });
-      setMessage(action === 'approve' ? 'Заявка на верификацию одобрена' : 'Заявка на верификацию отклонена');
       await loadPanel();
     } catch (error) {
       setMessage(error.message);
@@ -62,7 +61,6 @@ function ModeratorPanel() {
         method: 'POST',
         body: JSON.stringify({ comment })
       });
-      setMessage(action === 'approve' ? 'Лот одобрен и стал активным' : 'Лот возвращен пользователю на доработку');
       await loadPanel();
     } catch (error) {
       setMessage(error.message);
@@ -81,11 +79,11 @@ function ModeratorPanel() {
     }
 
     if (activeSection === 'verificationReviews') {
-      return <ReviewList reviews={verificationReviews} title="Мой журнал решений по верификациям" />;
+      return <ReviewList reviews={verificationReviews} showModerator={false} title="Мой журнал решений по верификациям" />;
     }
 
     if (activeSection === 'auctionReviews') {
-      return <AuctionReviewList reviews={auctionReviews} title="Мой журнал решений по лотам" />;
+      return <AuctionReviewList reviews={auctionReviews} title="Мой журнал решений по лотам" showModerator={false} />;
     }
 
     return (
@@ -124,7 +122,7 @@ function ModeratorPanel() {
             <p className={styles.summary__text}>Проверка заявок пользователей, заявок на лоты и журнал собственных решений.</p>
           </div>
         </section>
-        {message && <p className={styles.message__success}>{message}</p>}
+        {message && <p className={styles.message__error}>{message}</p>}
         {renderSection()}
       </div>
     </div>

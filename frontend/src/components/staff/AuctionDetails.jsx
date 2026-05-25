@@ -1,45 +1,123 @@
 import React from 'react';
 import styles from '../../App.module.css';
-import { auctionCategoryLabels, buyerTerms, operatorInfo } from '../../constants/auctionConstants.js';
+import { ORGANIZATION_FEE_PERCENT, VAT_RATE, auctionCategoryLabels, buyerTerms, operatorInfo } from '../../constants/auctionConstants.js';
 import { accountTypeLabels } from '../../constants/verificationLabels.js';
+import { formatDateTime } from '../../utils/formatters.js';
+import CollapsibleSection from '../auction/CollapsibleSection.jsx';
 import AuctionMapPreview from './AuctionMapPreview.jsx';
 
 const formatMoney = (value) =>
   new Intl.NumberFormat('ru-BY', { style: 'currency', currency: 'BYN' }).format(Number(value || 0));
 
-const formatDateTime = (value) => {
-  if (!value) {
-    return '';
-  }
+const padTime = (value) => String(value).padStart(2, '0');
 
-  return new Date(value).toLocaleString('ru-BY', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-};
+const minutesToTime = (minutes) => `${padTime(Math.floor(minutes / 60))}:${padTime(minutes % 60)}`;
 
-function DetailSection({ title, items }) {
-  const rows = items.filter(([, value]) => value !== undefined && value !== null && value !== '');
+const timeToMinutes = (value) => {
+  const date = value ? new Date(value) : null;
 
-  if (rows.length === 0) {
+  if (!date || Number.isNaN(date.getTime())) {
     return null;
   }
 
+  return date.getHours() * 60 + date.getMinutes();
+};
+
+function TimeRangePreview({ startAt, endAt, min = 540, max = 1140 }) {
+  const startMinutes = timeToMinutes(startAt) ?? 720;
+  const endMinutes = timeToMinutes(endAt) ?? 1020;
+  const durationHours = Math.max(0, (endMinutes - startMinutes) / 60);
+
   return (
-    <section className={styles.detailSection}>
-      <h3 className={styles.detailSection__title}>{title}</h3>
-      <dl className={styles.detailList}>
-        {rows.map(([label, value]) => (
-          <div className={styles.detailItem} key={label}>
-            <dt>{label}</dt>
-            <dd>{value}</dd>
-          </div>
-        ))}
-      </dl>
+    <div className={styles.fieldFull}>
+      <span className={styles.field__label}>Время торгов</span>
+      <div className={styles.timeRange}>
+        <label>
+          <span>Начало</span>
+          <input className={`${styles.field__control} ${styles['field__control--readonly']}`} type="time" value={minutesToTime(startMinutes)} disabled />
+        </label>
+        <label>
+          <span>Конец</span>
+          <input className={`${styles.field__control} ${styles['field__control--readonly']}`} type="time" value={minutesToTime(endMinutes)} disabled />
+        </label>
+      </div>
+      <div className={styles.timeRangeSliders}>
+        <input type="range" min={min} max={max - 180} step="30" value={startMinutes} disabled readOnly />
+        <input type="range" min={min + 180} max={max} step="30" value={endMinutes} disabled readOnly />
+      </div>
+      <div className={styles.timeMarks}>
+        <span>{minutesToTime(min)}</span>
+        <span>12:00</span>
+        <span>15:00</span>
+        <span>{minutesToTime(max)}</span>
+      </div>
+      <span className={styles.field__hint}>Продолжительность: {durationHours.toLocaleString('ru-RU')} ч. Минимум 3 часа.</span>
+    </div>
+  );
+}
+
+const auctionTypeLabels = {
+  increase: 'Аукцион на повышение',
+  decrease: 'Аукцион на понижение'
+};
+
+function ReadField({ label, value, wide = false, as = 'input', hint = '' }) {
+  const Control = as;
+
+  return (
+    <label className={`${styles.field} ${wide ? styles.fieldFull : ''}`}>
+      <span className={styles.field__label}>{label}</span>
+      <Control
+        className={`${styles.field__control} ${styles['field__control--readonly']}`}
+        value={value || 'Не указано'}
+        disabled
+        rows={as === 'textarea' ? 3 : undefined}
+      />
+      {hint && <span className={styles.field__hint}>{hint}</span>}
+    </label>
+  );
+}
+
+function ReadSection({ title, children, userEntered = false }) {
+  return (
+    <section className={`${styles.auctionBlock} ${userEntered ? styles.userEnteredSection : ''}`}>
+      <h2 className={styles.sectionTitle}>{title}</h2>
+      <div className={styles.formGrid}>{children}</div>
     </section>
+  );
+}
+
+function PriceBreakdown({ label, amount, vatApplies }) {
+  const price = Number(amount || 0);
+
+  if (!price) {
+    return null;
+  }
+
+  const fee = price * (ORGANIZATION_FEE_PERCENT / 100);
+  const vat = vatApplies ? price * VAT_RATE : 0;
+  const clean = price - fee - vat;
+
+  return (
+    <div className={`${styles.priceBreakdown} ${styles.fieldFull}`}>
+      <strong>{label}</strong>
+      <span>Комиссия площадки {ORGANIZATION_FEE_PERCENT}%: {formatMoney(fee)}</span>
+      {vatApplies ? <span>НДС 20%: {formatMoney(vat)}</span> : <span>НДС не применяется</span>}
+      <span>К получению: {formatMoney(clean)} ({vatApplies ? '79%' : '99%'} от цены)</span>
+    </div>
+  );
+}
+
+function ReadOnlyGrid({ items }) {
+  return (
+    <div className={styles.readonlyGrid}>
+      {items.filter(([, value]) => value).map(([label, value]) => (
+        <div className={styles.readonlyItem} key={label}>
+          <span>{label}</span>
+          <strong>{value}</strong>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -48,138 +126,124 @@ function AuctionDetails({ auction }) {
     return <p className={styles.panel__text}>Нет данных лота.</p>;
   }
 
-  const mainPhoto = auction.photos?.find((photo) => photo.isMain) || auction.photos?.[0];
+  const pricing = auction.pricing || {};
+  const item = auction.item || {};
+  const schedule = auction.schedule || {};
+  const inspection = auction.inspection || {};
+  const seller = auction.seller || {};
 
   return (
-    <div className={styles.detailGrid}>
-      <section className={styles.auctionDetailHero}>
-        {mainPhoto ? (
-          <img src={mainPhoto.url} alt={auction.item?.title || 'Фото лота'} />
-        ) : (
-          <div className={styles.lotCard__placeholder}>Фото не загружено</div>
+    <div className={`${styles.auctionForm} ${styles.readonlyForm}`}>
+      <ReadSection title="Цена и условия торгов" userEntered>
+        <ReadField label="Тип аукциона" value={auctionTypeLabels[pricing.auctionType] || pricing.auctionType} wide />
+        <ReadField label={pricing.vatApplies ? 'Начальная цена с НДС, BYN' : 'Начальная цена, BYN'} value={formatMoney(pricing.priceWithVat)} wide hint="Эта цена будет отображаться пользователям." />
+        <PriceBreakdown label="Расчет по начальной цене" amount={pricing.priceWithVat} vatApplies={pricing.vatApplies} />
+        {pricing.auctionType === 'decrease' && (
+          <>
+            <ReadField label={pricing.vatApplies ? 'Минимальная цена с НДС, BYN' : 'Минимальная цена, BYN'} value={formatMoney(pricing.minPriceWithVat)} wide />
+            <PriceBreakdown label="Расчет по минимальной цене" amount={pricing.minPriceWithVat} vatApplies={pricing.vatApplies} />
+          </>
         )}
-        <div>
-          <span className={styles.statusPanel__badge}>{auction.status}</span>
-          <h3>{auction.item?.title}</h3>
-          <p>{auction.lotNumber}</p>
-          <strong>{formatMoney(auction.pricing?.priceWithVat)}</strong>
-        </div>
-      </section>
+        <ReadField label="Сумма задатка, BYN" value={formatMoney(pricing.depositAmount)} />
+        {pricing.auctionType === 'increase' ? (
+          <ReadField label="Минимальный шаг торгов, BYN" value={formatMoney(pricing.minBidStep)} />
+        ) : (
+          <>
+            <ReadField label="Количество шагов торгов" value={pricing.bidStepsCount} />
+            <ReadField label="Расчетный шаг снижения" value={formatMoney(pricing.calculatedBidStep)} />
+          </>
+        )}
+      </ReadSection>
 
-      {auction.photos?.length > 0 && (
-        <section className={styles.detailSection}>
-          <h3 className={styles.detailSection__title}>Фотографии</h3>
-          <div className={styles.auctionPhotoStrip}>
-            {auction.photos.map((photo) => (
-              <a href={photo.url} target="_blank" rel="noreferrer" key={photo.path || photo.url}>
-                <img src={photo.url} alt={photo.originalName || 'Фото лота'} />
-                <span>{photo.isMain ? 'Главная' : photo.originalName}</span>
-              </a>
-            ))}
+      <ReadSection title="Сроки проведения аукциона" userEntered>
+        <ReadField label="Начало приема заявок" value={formatDateTime(schedule.applicationStartAt)} />
+        <ReadField label="Конец приема заявок" value={formatDateTime(schedule.applicationEndAt)} />
+        <ReadField label="Дата торгов" value={formatDateTime(schedule.biddingStartAt).split(',')[0]} />
+        <TimeRangePreview startAt={schedule.biddingStartAt} endAt={schedule.biddingEndAt} />
+        <ReadField label="Срок полной оплаты, дней" value={schedule.paymentDeadlineDays} />
+        <ReadField label="Срок заключения договора, дней" value={schedule.contractDeadlineDays} />
+      </ReadSection>
+
+      <ReadSection title="Информация о предмете торгов" userEntered>
+        <ReadField label="Название лота" value={item.title} wide />
+        <ReadField label="Категория" value={auctionCategoryLabels[item.category] || item.category} />
+        {auction.photos?.length > 0 && (
+          <div className={styles.fieldFull}>
+            <div className={styles.photoGrid}>
+              {auction.photos.map((photo, index) => (
+                <a className={`${styles.photoCard} ${photo.isMain ? styles['photoCard--main'] : ''}`} href={photo.url} target="_blank" rel="noreferrer" key={photo.path || index}>
+                  <img src={photo.url} alt="Фото лота" />
+                </a>
+              ))}
+            </div>
           </div>
-        </section>
-      )}
-
-      <DetailSection
-        title="Ценовой блок"
-        items={[
-          ['Цена без НДС', formatMoney(auction.pricing?.priceWithoutVat)],
-          ['Цена с НДС', formatMoney(auction.pricing?.priceWithVat)],
-          ['НДС', auction.pricing?.vatLabel],
-          ['Сумма задатка', formatMoney(auction.pricing?.depositAmount)],
-          ['Минимальный шаг торгов', formatMoney(auction.pricing?.minBidStep)],
-          ['Затраты на организацию торгов', `${auction.pricing?.organizationFeePercent || 1}%`]
-        ]}
-      />
-
-      <DetailSection
-        title="Даты"
-        items={[
-          ['Начало приема заявок', formatDateTime(auction.schedule?.applicationStartAt)],
-          ['Конец приема заявок', formatDateTime(auction.schedule?.applicationEndAt)],
-          ['Начало торгов', formatDateTime(auction.schedule?.biddingStartAt)],
-          ['Конец торгов', formatDateTime(auction.schedule?.biddingEndAt)],
-          ['Срок полной оплаты', `${auction.schedule?.paymentDeadlineDays} дней`],
-          ['Срок возвращения задатков', `${auction.schedule?.depositReturnDays} дней`],
-          ['Срок заключения договора', `${auction.schedule?.contractDeadlineDays} дней`]
-        ]}
-      />
-
-      <DetailSection
-        title="Предмет торгов"
-        items={[
-          ['Категория', auctionCategoryLabels[auction.item?.category] || auction.item?.category],
-          ['Адрес нахождения', auction.item?.locationAddress],
-          ['Описание', auction.item?.description],
-          ['Геолокация', auction.item?.geoLocation?.lat && auction.item?.geoLocation?.lng ? 'Указана на карте' : 'Не указана']
-        ]}
-      />
-
-      <AuctionMapPreview
-        geoLocation={auction.item?.geoLocation}
-        address={auction.item?.locationAddress}
-      />
-
-      {auction.item?.characteristics?.length > 0 && (
-        <section className={styles.detailSection}>
-          <h3 className={styles.detailSection__title}>Характеристики</h3>
-          <dl className={styles.detailList}>
-            {auction.item.characteristics.map((row) => (
-              <div className={styles.detailItem} key={`${row.name}-${row.value}`}>
-                <dt>{row.name}</dt>
-                <dd>{row.value}</dd>
+        )}
+        {item.characteristics?.length > 0 && (
+          <div className={`${styles.characteristicTable} ${styles.fieldFull}`}>
+            {item.characteristics.map((row, index) => (
+              <div className={styles.characteristicRow} key={`${row.name}-${index}`}>
+                <input className={`${styles.field__control} ${styles['field__control--readonly']}`} value={row.name} disabled />
+                <input className={`${styles.field__control} ${styles['field__control--readonly']}`} value={row.value} disabled />
               </div>
             ))}
-          </dl>
-        </section>
-      )}
+          </div>
+        )}
+        <ReadField label="Описание" value={item.description} as="textarea" wide />
+        <ReadField label="Адрес нахождения предмета торгов" value={item.locationAddress} as="textarea" wide />
+        <div className={styles.fieldFull}>
+          <AuctionMapPreview geoLocation={item.geoLocation} address={item.locationAddress} />
+        </div>
+      </ReadSection>
 
-      <DetailSection
-        title="Осмотр предмета торгов"
-        items={[
-          ['ФИО контактного лица', auction.inspection?.contactName],
-          ['Телефон контактного лица', auction.inspection?.contactPhone],
-          ['Email контактного лица', auction.inspection?.contactEmail]
-        ]}
-      />
+      <ReadSection title="Осмотр предмета торгов" userEntered>
+        <ReadField label="ФИО контактного лица" value={inspection.contactName} />
+        <ReadField label="Телефон контактного лица" value={inspection.contactPhone} />
+        <ReadField label="Email контактного лица" value={inspection.contactEmail} />
+      </ReadSection>
 
-      <DetailSection
-        title="Продавец"
-        items={[
-          ['Тип участника', accountTypeLabels[auction.seller?.accountType] || auction.seller?.accountType],
-          ['ФИО', auction.seller?.fullName],
-          ['Телефон', auction.seller?.phone],
-          ['Дополнительный телефон', auction.seller?.additionalPhone],
-          ['Полное наименование', auction.seller?.organizationName],
-          ['УНП', auction.seller?.unp],
-          ['Юридический адрес', auction.seller?.legalAddress]
-        ]}
-      />
+      <ReadSection title="Информация о продавце">
+        <div className={styles.fieldFull}>
+          <ReadOnlyGrid
+            items={[
+              ['Тип участника', accountTypeLabels[seller.accountType] || seller.accountType],
+              ['ФИО', seller.fullName],
+              ['Телефон', seller.phone],
+              ['Дополнительный телефон', seller.additionalPhone],
+              ['Краткое наименование', seller.organizationName],
+              [seller.isResident ? 'УНП' : 'ИНН/БИН', seller.unp],
+              ['Юридический адрес', seller.legalAddress]
+            ]}
+          />
+        </div>
+      </ReadSection>
 
-      <DetailSection
-        title="Оператор торгов"
-        items={[
-          ['Наименование', operatorInfo.name],
-          ['Контактное лицо', operatorInfo.contactPerson],
-          ['Адрес', operatorInfo.address],
-          ['Электронная почта', operatorInfo.email],
-          ['УНП', operatorInfo.unp]
-        ]}
-      />
+      <CollapsibleSection title="Оператор торгов">
+        <div className={styles.fieldFull}>
+          <ReadOnlyGrid
+            items={[
+              ['Наименование', operatorInfo.name],
+              ['Адрес', operatorInfo.address],
+              ['ФИО контактного лица', operatorInfo.contactPerson],
+              ['Телефон', operatorInfo.phone],
+              ['Электронная почта', operatorInfo.email],
+              ['УНП', operatorInfo.unp]
+            ]}
+          />
+        </div>
+      </CollapsibleSection>
 
-      <section className={styles.detailSection}>
-        <h3 className={styles.detailSection__title}>Обязанности и ответственность покупателя</h3>
+      <CollapsibleSection title="Обязанности и ответственность покупателя">
         <div className={styles.termsGrid}>
           <div className={styles.termsCard}>
-            <h4 className={styles.subsectionTitle}>Обязанности</h4>
-            <ul>{buyerTerms.obligations.map((item) => <li key={item}>{item}</li>)}</ul>
+            <h3 className={styles.subsectionTitle}>Обязанности</h3>
+            <ul>{buyerTerms.obligations.map((itemText) => <li key={itemText}>{itemText}</li>)}</ul>
           </div>
           <div className={styles.termsCard}>
-            <h4 className={styles.subsectionTitle}>Ответственность</h4>
-            <ul>{buyerTerms.responsibility.map((item) => <li key={item}>{item}</li>)}</ul>
+            <h3 className={styles.subsectionTitle}>Ответственность</h3>
+            <ul>{buyerTerms.responsibility.map((itemText) => <li key={itemText}>{itemText}</li>)}</ul>
           </div>
         </div>
-      </section>
+      </CollapsibleSection>
     </div>
   );
 }

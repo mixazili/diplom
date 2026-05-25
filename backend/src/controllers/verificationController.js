@@ -1,6 +1,6 @@
+const fs = require('fs');
 const VerificationRequest = require('../models/VerificationRequest');
 const User = require('../models/User');
-const fs = require('fs');
 const asyncHandler = require('../utils/asyncHandler');
 const { sanitizeUser } = require('../services/authService');
 const { validateVerificationPayload } = require('../utils/verificationValidation');
@@ -39,9 +39,7 @@ const removeUploadedFiles = (files = []) => {
 const getMyVerification = asyncHandler(async (req, res) => {
   const verification = await VerificationRequest.findOne({ user: req.user._id }).sort({ createdAt: -1 });
 
-  res.json({
-    verification
-  });
+  res.json({ verification });
 });
 
 const submitVerification = asyncHandler(async (req, res) => {

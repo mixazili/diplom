@@ -1,43 +1,40 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import styles from '../../../App.module.css';
-import { auctionCategoryLabels } from '../../../constants/auctionConstants.js';
-import { deleteAuction, fetchMyAuctions } from '../../../features/auction/auctionSlice.js';
-
-const statusLabels = {
-  pending: 'Ожидает проверки',
-  returned: 'Возвращен на доработку',
-  published: 'Опубликован',
-  active: 'Активен',
-  finished: 'Завершен',
-  cancelled: 'Отменен'
-};
+import AuctionCard from '../../auction/AuctionCard.jsx';
+import { deleteAuction, fetchMyAuctions, returnAuctionToDraft } from '../../../features/auction/auctionSlice.js';
 
 const filterLabels = {
-  inactive: 'Неактивные',
-  active: 'Активные',
-  finished: 'Завершенные'
+  unpublished: 'Неопубликованные',
+  applications: 'Прием заявок',
+  bidding: 'Торги',
+  finished: 'Завершенные торги'
 };
 
 const statusGroups = {
-  inactive: ['pending', 'returned'],
-  active: ['published', 'active'],
-  finished: ['finished']
+  unpublished: ['draft', 'pending', 'returned'],
+  applications: ['application_waiting', 'applications_open'],
+  bidding: ['bidding_waiting', 'bidding_active'],
+  finished: ['finished_success', 'finished_failed']
 };
 
-const formatMoney = (value) =>
-  new Intl.NumberFormat('ru-BY', { style: 'currency', currency: 'BYN' }).format(Number(value || 0));
-
-function MyAuctions({ onEdit }) {
+function MyAuctions({ canCreateLot, onCreate, onEdit }) {
   const dispatch = useDispatch();
   const { accessToken } = useSelector((state) => state.auth);
   const { items, status, message } = useSelector((state) => state.auction);
-  const [activeFilter, setActiveFilter] = useState('inactive');
+  const [activeFilter, setActiveFilter] = useState('unpublished');
 
   useEffect(() => {
-    if (accessToken) {
-      dispatch(fetchMyAuctions({ token: accessToken }));
+    if (!accessToken) {
+      return undefined;
     }
+
+    dispatch(fetchMyAuctions({ token: accessToken }));
+    const intervalId = window.setInterval(() => {
+      dispatch(fetchMyAuctions({ token: accessToken }));
+    }, 30000);
+
+    return () => window.clearInterval(intervalId);
   }, [accessToken, dispatch]);
 
   const filteredItems = useMemo(
@@ -49,8 +46,23 @@ function MyAuctions({ onEdit }) {
     await dispatch(deleteAuction({ id, token: accessToken }));
   };
 
+  const moveToDraft = async (id) => {
+    await dispatch(returnAuctionToDraft({ id, token: accessToken }));
+  };
+
   return (
     <section className={styles.panel}>
+      <div className={styles.panel__header}>
+        <h1 className={styles.panel__title}>Мои лоты</h1>
+      </div>
+
+      <div className={styles.lotToolbar}>
+        <button className={styles.button} type="button" onClick={onCreate} disabled={!canCreateLot}>
+          Создать лот
+        </button>
+        {!canCreateLot && <p className={styles.message__error}>Создание лота доступно только после одобрения верификации.</p>}
+      </div>
+
       <div className={styles.filterTabs}>
         {Object.entries(filterLabels).map(([key, label]) => (
           <button
@@ -71,42 +83,17 @@ function MyAuctions({ onEdit }) {
       )}
 
       <div className={styles.lotGrid}>
-        {filteredItems.map((auction) => {
-          const mainPhoto = auction.photos?.find((photo) => photo.isMain) || auction.photos?.[0];
-          const editable = ['pending', 'returned'].includes(auction.status);
-
-          return (
-            <article className={styles.lotCard} key={auction.id}>
-              {mainPhoto ? (
-                <img className={styles.lotCard__image} src={mainPhoto.url} alt={auction.item.title} />
-              ) : (
-                <div className={styles.lotCard__placeholder}>Фото не загружено</div>
-              )}
-              <div className={styles.lotCard__body}>
-                <span className={styles.statusPanel__badge}>{statusLabels[auction.status] || auction.status}</span>
-                <h2>{auction.item.title}</h2>
-                <p>{auction.lotNumber} · {auctionCategoryLabels[auction.item.category]}</p>
-                <strong>{formatMoney(auction.pricing.priceWithVat)}</strong>
-                {auction.status === 'returned' && auction.moderationComment && (
-                  <div className={styles.lotCard__comment}>
-                    <strong>Причина возврата</strong>
-                    <p>{auction.moderationComment}</p>
-                  </div>
-                )}
-                {editable && (
-                  <div className={styles.lotCard__actions}>
-                    <button className={styles.buttonSecondary} type="button" onClick={() => onEdit?.(auction)}>
-                      Редактировать
-                    </button>
-                    <button className={styles.buttonDanger} type="button" onClick={() => removeLot(auction.id)}>
-                      Удалить
-                    </button>
-                  </div>
-                )}
-              </div>
-            </article>
-          );
-        })}
+        {filteredItems.map((auction) => (
+          <AuctionCard
+            auction={auction}
+            isVerified={canCreateLot}
+            key={auction.id}
+            mode="owner"
+            onDelete={removeLot}
+            onEdit={onEdit}
+            onReturnToDraft={moveToDraft}
+          />
+        ))}
       </div>
     </section>
   );

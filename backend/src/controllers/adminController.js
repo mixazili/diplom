@@ -7,6 +7,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const { validateRegisterPayload } = require('../utils/authValidation');
 const { formatModerator, formatReview, formatVerification } = require('../utils/staffFormatters');
 const { formatAuctionReview } = require('../utils/auctionFormatters');
+const { expirePendingAuctions, expirePendingVerifications, updateAuctionStatuses } = require('../services/statusAutomationService');
 
 const listModerators = asyncHandler(async (req, res) => {
   const moderators = await User.find({ role: 'moderator', isActive: true }).sort({ createdAt: -1 });
@@ -71,6 +72,7 @@ const deleteModerator = asyncHandler(async (req, res) => {
 });
 
 const listAllReviews = asyncHandler(async (req, res) => {
+  await expirePendingVerifications();
   const reviews = await VerificationReview.find({})
     .sort({ createdAt: -1 })
     .populate('moderator')
@@ -95,6 +97,8 @@ const getVerificationDetails = asyncHandler(async (req, res) => {
 });
 
 const listAllAuctionReviews = asyncHandler(async (req, res) => {
+  await updateAuctionStatuses();
+  await expirePendingAuctions();
   const reviews = await AuctionReview.find({})
     .sort({ createdAt: -1 })
     .populate('moderator')

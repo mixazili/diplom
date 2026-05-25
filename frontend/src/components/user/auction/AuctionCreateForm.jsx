@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import styles from '../../../App.module.css';
 import {
-  DEPOSIT_RETURN_DAYS,
   ORGANIZATION_FEE_PERCENT,
   VAT_RATE,
   auctionCategoryLabels,
@@ -11,51 +10,35 @@ import {
   operatorInfo
 } from '../../../constants/auctionConstants.js';
 import { submitAuction, updateAuction } from '../../../features/auction/auctionSlice.js';
+import CollapsibleSection from '../../auction/CollapsibleSection.jsx';
 import YandexMapPicker from './YandexMapPicker.jsx';
 
-const pad = (value) => String(value).padStart(2, '0');
 const moneyPattern = /^\d+([,.]\d{1,2})?$/;
+const pad = (value) => String(value).padStart(2, '0');
 const dayMs = 24 * 60 * 60 * 1000;
-const hourMs = 60 * 60 * 1000;
 
-const toDateTimeInput = (date) =>
-  `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-
-const toTimeInput = (dateValue, fallback) => {
-  const date = new Date(dateValue);
-  return Number.isNaN(date.getTime()) ? fallback : `${pad(date.getHours())}:${pad(date.getMinutes())}`;
-};
-
-const addDays = (date, days) => {
-  const next = new Date(date);
-  next.setDate(next.getDate() + days);
-  return next;
-};
-
-const formatDate = (dateValue) => {
-  if (!dateValue) {
-    return '';
-  }
-
-  const date = new Date(dateValue);
-  if (Number.isNaN(date.getTime())) {
-    return '';
-  }
-
-  return `${pad(date.getDate())}.${pad(date.getMonth() + 1)}.${date.getFullYear()}`;
-};
-
-const getBiddingDate = (applicationEndAt) => {
-  if (!applicationEndAt) {
-    return '';
-  }
-
-  const date = addDays(new Date(applicationEndAt), 1);
+const toDateInput = (value) => {
+  const date = value ? new Date(value) : new Date();
   if (Number.isNaN(date.getTime())) {
     return '';
   }
 
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+};
+
+const addDays = (value, days) => {
+  const date = value ? new Date(value) : new Date();
+  date.setDate(date.getDate() + days);
+  return date;
+};
+
+const formatDate = (value) => {
+  const date = value ? new Date(value) : null;
+  if (!date || Number.isNaN(date.getTime())) {
+    return 'Дата не выбрана';
+  }
+
+  return `${pad(date.getDate())}.${pad(date.getMonth() + 1)}.${date.getFullYear()}`;
 };
 
 const toMoneyNumber = (value) => {
@@ -67,31 +50,39 @@ const toMoneyNumber = (value) => {
   return moneyPattern.test(normalized) ? Number(normalized) : Number.NaN;
 };
 
+const formatMoney = (value) =>
+  new Intl.NumberFormat('ru-BY', { style: 'currency', currency: 'BYN' }).format(Number(value || 0));
+
+const minutesToTime = (minutes) => `${pad(Math.floor(minutes / 60))}:${pad(minutes % 60)}`;
+const timeToMinutes = (value, fallback) => {
+  const [hours, minutes] = String(value || fallback).split(':').map(Number);
+  return (Number.isFinite(hours) ? hours : 9) * 60 + (Number.isFinite(minutes) ? minutes : 0);
+};
+const normalizeTimeToStep = (value, fallback, min = 540, max = 1140) => {
+  const raw = timeToMinutes(value, fallback);
+  const rounded = Math.round(raw / 30) * 30;
+  return minutesToTime(Math.min(Math.max(rounded, min), max));
+};
+
 const makePhotoId = (file) => {
   const randomPart = globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : String(Math.random()).slice(2);
   return `${file.name}-${file.size}-${file.lastModified}-${randomPart}`;
 };
 
-const toCharacteristicRows = (category) =>
+const joinName = (...parts) => parts.filter(Boolean).join(' ').trim();
+const rowsForCategory = (category) =>
   (characteristicTemplates[category] || characteristicTemplates.passenger_cars).map((name) => ({ name, value: '' }));
 
-const joinName = (...parts) => parts.filter(Boolean).join(' ').trim();
-
-const formatAddress = (address = {}) =>
-  address.legalAddress ||
-  address.registrationAddress ||
-  [
-    address.region,
-    address.district,
-    address.locality,
-    address.postalCode,
-    address.street,
-    address.house,
-    address.building,
-    address.apartment
-  ]
-    .filter(Boolean)
-    .join(', ');
+const toExistingPhotoState = (auction) =>
+  (auction?.photos || []).map((photo) => ({
+    id: photo.path,
+    path: photo.path,
+    url: photo.url,
+    previewUrl: photo.url,
+    originalName: photo.originalName,
+    size: photo.size,
+    existing: true
+  }));
 
 const getSellerInfo = (user, verification) => {
   const personalData = verification?.personalData || {};
@@ -100,16 +91,17 @@ const getSellerInfo = (user, verification) => {
   const fullName =
     personalData.fullName ||
     joinName(personalData.lastName, personalData.firstName, personalData.middleName);
+  const notificationEmail = personalData.notificationEmail || '';
 
   if (user.accountType === 'legal_entity') {
     return {
       typeLabel: 'Юридическое лицо',
       fields: [
-        ['Полное наименование', organizationData.fullName],
-        ['УНП', organizationData.unp],
-        ['Юридический адрес', formatAddress(addressData)]
+        ['Краткое наименование', organizationData.shortName],
+        [verification?.isResident ? 'УНП' : 'ИНН/БИН', organizationData.unp || organizationData.taxId],
+        ['Юридический адрес', addressData.legalAddress]
       ],
-      defaultInspection: { contactName: '', contactPhone: '', contactEmail: '' }
+      defaultInspection: { contactName: '', contactPhone: '', contactEmail: notificationEmail }
     };
   }
 
@@ -118,13 +110,13 @@ const getSellerInfo = (user, verification) => {
       typeLabel: 'Индивидуальный предприниматель',
       fields: [
         ['ФИО', fullName],
-        ['УНП', organizationData.unp],
-        ['Телефон', organizationData.contactPhone || personalData.phone]
+        [verification?.isResident ? 'УНП' : 'ИНН/БИН', organizationData.unp || organizationData.taxId],
+        ['Телефон', personalData.phone]
       ],
       defaultInspection: {
         contactName: fullName,
-        contactPhone: organizationData.contactPhone || personalData.phone || '',
-        contactEmail: ''
+        contactPhone: personalData.phone || '',
+        contactEmail: notificationEmail
       }
     };
   }
@@ -139,7 +131,7 @@ const getSellerInfo = (user, verification) => {
     defaultInspection: {
       contactName: fullName,
       contactPhone: personalData.phone || '',
-      contactEmail: ''
+      contactEmail: notificationEmail
     }
   };
 };
@@ -148,23 +140,26 @@ const createInitialForm = (user, verification, initialAuction) => {
   const sellerInfo = getSellerInfo(user, verification);
 
   if (initialAuction) {
-    const biddingStartAt = initialAuction.schedule?.biddingStartAt;
-    const biddingEndAt = initialAuction.schedule?.biddingEndAt;
-
     return {
       pricing: {
-        priceWithoutVat: String(initialAuction.pricing?.priceWithoutVat ?? ''),
+        auctionType: initialAuction.pricing?.auctionType || 'increase',
         priceWithVat: String(initialAuction.pricing?.priceWithVat ?? ''),
+        minPriceWithVat: String(initialAuction.pricing?.minPriceWithVat ?? ''),
         depositAmount: String(initialAuction.pricing?.depositAmount ?? ''),
-        minBidStep: String(initialAuction.pricing?.minBidStep ?? '')
+        minBidStep: String(initialAuction.pricing?.minBidStep ?? ''),
+        bidStepsCount: String(initialAuction.pricing?.bidStepsCount ?? 10)
       },
       schedule: {
-        applicationStartAt: toDateTimeInput(new Date(initialAuction.schedule?.applicationStartAt || Date.now())),
-        applicationEndAt: toDateTimeInput(new Date(initialAuction.schedule?.applicationEndAt || Date.now())),
-        biddingStartTime: toTimeInput(biddingStartAt, '09:00'),
-        biddingEndTime: toTimeInput(biddingEndAt, '14:00'),
-        paymentDeadlineDays: initialAuction.schedule?.paymentDeadlineDays ?? 10,
-        contractDeadlineDays: initialAuction.schedule?.contractDeadlineDays ?? 10
+        applicationStartAt: toDateInput(initialAuction.schedule?.applicationStartAt),
+        applicationEndAt: toDateInput(initialAuction.schedule?.applicationEndAt),
+        biddingStartTime: initialAuction.schedule?.biddingStartAt
+          ? minutesToTime(timeToMinutes(new Date(initialAuction.schedule.biddingStartAt).toTimeString().slice(0, 5), '09:00'))
+          : '09:00',
+        biddingEndTime: initialAuction.schedule?.biddingEndAt
+          ? minutesToTime(timeToMinutes(new Date(initialAuction.schedule.biddingEndAt).toTimeString().slice(0, 5), '12:00'))
+          : '12:00',
+        paymentDeadlineDays: String(initialAuction.schedule?.paymentDeadlineDays ?? 10),
+        contractDeadlineDays: String(initialAuction.schedule?.contractDeadlineDays ?? 10)
       },
       item: {
         title: initialAuction.item?.title || '',
@@ -172,7 +167,7 @@ const createInitialForm = (user, verification, initialAuction) => {
         characteristics:
           initialAuction.item?.characteristics?.length > 0
             ? initialAuction.item.characteristics.map((row) => ({ name: row.name || '', value: row.value || '' }))
-            : toCharacteristicRows(initialAuction.item?.category || 'passenger_cars'),
+            : rowsForCategory(initialAuction.item?.category || 'passenger_cars'),
         description: initialAuction.item?.description || '',
         locationAddress: initialAuction.item?.locationAddress || '',
         geoLocation: {
@@ -183,34 +178,35 @@ const createInitialForm = (user, verification, initialAuction) => {
       inspection: {
         contactName: initialAuction.inspection?.contactName || sellerInfo.defaultInspection.contactName,
         contactPhone: initialAuction.inspection?.contactPhone || sellerInfo.defaultInspection.contactPhone,
-        contactEmail: initialAuction.inspection?.contactEmail || ''
+        contactEmail: initialAuction.inspection?.contactEmail || sellerInfo.defaultInspection.contactEmail
       }
     };
   }
 
-  const start = new Date();
-  start.setHours(start.getHours() + 1, 0, 0, 0);
-  const applicationEnd = addDays(start, 7);
+  const start = addDays(new Date(), 1);
+  const end = addDays(start, 7);
 
   return {
     pricing: {
-      priceWithoutVat: '',
+      auctionType: 'increase',
       priceWithVat: '',
+      minPriceWithVat: '',
       depositAmount: '',
-      minBidStep: ''
+      minBidStep: '',
+      bidStepsCount: '10'
     },
     schedule: {
-      applicationStartAt: toDateTimeInput(start),
-      applicationEndAt: toDateTimeInput(applicationEnd),
+      applicationStartAt: toDateInput(start),
+      applicationEndAt: toDateInput(end),
       biddingStartTime: '09:00',
-      biddingEndTime: '14:00',
-      paymentDeadlineDays: 10,
-      contractDeadlineDays: 10
+      biddingEndTime: '12:00',
+      paymentDeadlineDays: '10',
+      contractDeadlineDays: '10'
     },
     item: {
       title: '',
       category: 'passenger_cars',
-      characteristics: toCharacteristicRows('passenger_cars'),
+      characteristics: rowsForCategory('passenger_cars'),
       description: '',
       locationAddress: '',
       geoLocation: { lat: '', lng: '' }
@@ -219,51 +215,49 @@ const createInitialForm = (user, verification, initialAuction) => {
   };
 };
 
-const toExistingPhotoState = (auction) =>
-  (auction?.photos || []).map((photo) => ({
-    id: photo.path,
-    path: photo.path,
-    url: photo.url,
-    previewUrl: photo.url,
-    originalName: photo.originalName,
-    size: photo.size,
-    existing: true
-  }));
-
-function Field({
-  label,
-  value,
-  onChange,
-  error,
-  required = false,
-  type = 'text',
-  as = 'input',
-  disabled = false,
-  hint = '',
-  className = '',
-  highlight = false,
-  min,
-  max,
-  step
-}) {
-  const Component = as;
+function Field({ label, value, onChange, error, required = false, type = 'text', as = 'input', disabled = false, hint = '', placeholder = '', className = '', min, max, step }) {
+  const Control = as;
 
   return (
     <label className={`${styles.field} ${className}`}>
-      <span className={styles.field__label}>{label}{required ? '*' : ''}</span>
-      <Component
-        className={`${styles.field__control} ${error ? styles['field__control--error'] : ''} ${disabled ? styles['field__control--readonly'] : ''} ${highlight ? styles['field__control--highlight'] : ''}`}
-        type={type}
+      <span className={styles.field__label}>
+        {label}{required && <span className={styles.requiredMark}>*</span>}
+      </span>
+      <Control
+        className={`${styles.field__control} ${error ? styles['field__control--error'] : ''} ${disabled ? styles['field__control--readonly'] : ''}`}
+        type={as === 'input' ? type : undefined}
         value={value}
         disabled={disabled}
         min={min}
         max={max}
         step={step}
+        placeholder={placeholder}
         onChange={(event) => onChange(event.target.value)}
       />
       {hint && <span className={styles.field__hint}>{hint}</span>}
       {error && <span className={styles.field__error}>{error}</span>}
     </label>
+  );
+}
+
+function PriceBreakdown({ label, amount, vatApplies }) {
+  const price = toMoneyNumber(amount);
+
+  if (!Number.isFinite(price) || price <= 0) {
+    return null;
+  }
+
+  const fee = price * (ORGANIZATION_FEE_PERCENT / 100);
+  const vat = vatApplies ? price * VAT_RATE : 0;
+  const clean = price - fee - vat;
+
+  return (
+    <div className={styles.priceBreakdown}>
+      <strong>{label}</strong>
+      <span>Комиссия площадки {ORGANIZATION_FEE_PERCENT}%: {formatMoney(fee)}</span>
+      {vatApplies ? <span>НДС 20%: {formatMoney(vat)}</span> : <span>НДС не применяется</span>}
+      <span>К получению: {formatMoney(clean)} ({vatApplies ? '79%' : '99%'} от цены)</span>
+    </div>
   );
 }
 
@@ -280,6 +274,72 @@ function ReadOnlyGrid({ items }) {
   );
 }
 
+function TimeRangePicker({ startValue, endValue, onStartChange, onEndChange, error, min = 540, max = 1140 }) {
+  const startMinutes = timeToMinutes(startValue, '09:00');
+  const endMinutes = timeToMinutes(endValue, '12:00');
+  const durationMinutes = endMinutes - startMinutes;
+
+  return (
+    <div className={`${styles.field} ${styles.fieldFull}`}>
+      <span className={styles.field__label}>Время торгов<span className={styles.requiredMark}>*</span></span>
+      <div className={styles.timeRange}>
+        <label>
+          <span>Начало</span>
+          <input
+            className={styles.field__control}
+            type="time"
+            min="09:00"
+            max="16:00"
+            step="1800"
+            value={startValue}
+            onChange={(event) => onStartChange(normalizeTimeToStep(event.target.value, startValue, min, max - 180))}
+          />
+        </label>
+        <label>
+          <span>Конец</span>
+          <input
+            className={styles.field__control}
+            type="time"
+            min="12:00"
+            max="19:00"
+            step="1800"
+            value={endValue}
+            onChange={(event) => onEndChange(normalizeTimeToStep(event.target.value, endValue, min + 180, max))}
+          />
+        </label>
+      </div>
+      <div className={styles.timeRangeSliders}>
+        <input
+          type="range"
+          min={min}
+          max={max - 180}
+          step="30"
+          value={startMinutes}
+          onChange={(event) => onStartChange(minutesToTime(Number(event.target.value)))}
+        />
+        <input
+          type="range"
+          min={min + 180}
+          max={max}
+          step="30"
+          value={endMinutes}
+          onChange={(event) => onEndChange(minutesToTime(Number(event.target.value)))}
+        />
+      </div>
+      <div className={styles.timeMarks}>
+        <span>09:00</span>
+        <span>12:00</span>
+        <span>15:00</span>
+        <span>19:00</span>
+      </div>
+      <span className={durationMinutes >= 180 ? styles.field__hint : styles.field__error}>
+        Продолжительность: {Math.max(durationMinutes, 0) / 60} ч. Минимум 3 часа.
+      </span>
+      {error && <span className={styles.field__error}>{error}</span>}
+    </div>
+  );
+}
+
 function PhotoUploader({ photos, mainPhotoIndex, onAdd, onMainChange, onRemove, error }) {
   const inputRef = useRef(null);
 
@@ -287,8 +347,8 @@ function PhotoUploader({ photos, mainPhotoIndex, onAdd, onMainChange, onRemove, 
     <div className={styles.photoUploader}>
       <div className={styles.photoUploader__header}>
         <div>
-          <span className={styles.field__label}>Фотографии*</span>
-          <p>Добавляйте по одной или сразу несколько фотографий. Уже выбранные файлы сохраняются при повторном добавлении.</p>
+          <span className={styles.field__label}>Фотографии</span>
+          <p>Можно добавить один файл или сразу несколько.</p>
         </div>
         <button className={styles.buttonSecondary} type="button" onClick={() => inputRef.current?.click()}>
           Добавить фото
@@ -306,31 +366,17 @@ function PhotoUploader({ photos, mainPhotoIndex, onAdd, onMainChange, onRemove, 
       </div>
       <div className={styles.photoUploader__drop}>
         <strong>{photos.length ? `Выбрано фото: ${photos.length} из 50` : 'Фото пока не выбраны'}</strong>
-        <span>Минимум 1 фото. Главное фото будет показываться в каталоге и карточке лота.</span>
+        <span>Главная фотография будет использоваться в каталоге и карточке лота.</span>
       </div>
       {error && <span className={styles.field__error}>{error}</span>}
       {photos.length > 0 && (
         <div className={styles.photoGrid}>
           {photos.map((photo, index) => {
-            const photoName = photo.file?.name || photo.originalName || 'Фото';
-            const photoSize = photo.file?.size || photo.size || 0;
-
             return (
-              <article
-                className={`${styles.photoCard} ${mainPhotoIndex === index ? styles['photoCard--main'] : ''}`}
-                key={photo.id}
-              >
-                <img src={photo.previewUrl || photo.url} alt={photoName} />
-                <div className={styles.photoCard__body}>
-                  <strong>{photoName}</strong>
-                  <span>{(photoSize / 1024 / 1024).toFixed(2)} МБ</span>
-                </div>
+              <article className={`${styles.photoCard} ${mainPhotoIndex === index ? styles['photoCard--main'] : ''}`} key={photo.id}>
+                <img src={photo.previewUrl || photo.url} alt="Фото лота" />
                 <div className={styles.photoCard__actions}>
-                  <button
-                    className={mainPhotoIndex === index ? styles.button : styles.buttonSecondary}
-                    type="button"
-                    onClick={() => onMainChange(index)}
-                  >
+                  <button className={mainPhotoIndex === index ? styles.button : styles.buttonSecondary} type="button" onClick={() => onMainChange(index)}>
                     {mainPhotoIndex === index ? 'Главная' : 'Сделать главной'}
                   </button>
                   <button className={styles.buttonSecondary} type="button" onClick={() => onRemove(index)}>
@@ -361,25 +407,27 @@ function AuctionCreateForm({ verification, initialAuction = null, onSaved, onCan
   const isEditing = Boolean(initialAuction);
   const vatApplies = ['legal_entity', 'entrepreneur'].includes(user.accountType);
   const sellerInfo = useMemo(() => getSellerInfo(user, verification), [user, verification]);
-  const biddingDate = getBiddingDate(form.schedule.applicationEndAt);
+  const biddingDate = toDateInput(addDays(form.schedule.applicationEndAt, 1));
   const priceWithVat = toMoneyNumber(form.pricing.priceWithVat);
+  const minPriceWithVat = toMoneyNumber(form.pricing.minPriceWithVat);
   const recommendedDeposit = Number.isFinite(priceWithVat) && priceWithVat > 0 ? (priceWithVat * 0.1).toFixed(2) : '0.00';
-  const startDate = new Date(form.schedule.applicationStartAt);
-  const minApplicationStart = toDateTimeInput(new Date());
-  const maxApplicationStart = toDateTimeInput(addDays(new Date(), 90));
-  const minApplicationEnd = Number.isNaN(startDate.getTime()) ? '' : toDateTimeInput(addDays(startDate, 3));
-  const maxApplicationEnd = Number.isNaN(startDate.getTime()) ? '' : toDateTimeInput(addDays(startDate, 90));
+  const calculatedDecreaseStep =
+    form.pricing.auctionType === 'decrease' &&
+    Number.isFinite(priceWithVat) &&
+    Number.isFinite(minPriceWithVat) &&
+    Number(form.pricing.bidStepsCount) > 0
+      ? (Math.max(priceWithVat - minPriceWithVat, 0) / Number(form.pricing.bidStepsCount)).toFixed(2)
+      : '0.00';
 
   useEffect(() => {
     setForm(createInitialForm(user, verification, initialAuction));
-    const nextPhotos = toExistingPhotoState(initialAuction);
     setPhotos((current) => {
       current.forEach((photo) => {
         if (photo.file && photo.previewUrl) {
           URL.revokeObjectURL(photo.previewUrl);
         }
       });
-      return nextPhotos;
+      return toExistingPhotoState(initialAuction);
     });
     const index = (initialAuction?.photos || []).findIndex((photo) => photo.isMain);
     setMainPhotoIndex(index >= 0 ? index : 0);
@@ -400,59 +448,21 @@ function AuctionCreateForm({ verification, initialAuction = null, onSaved, onCan
   const updateSection = (section, field, value) => {
     setForm((current) => ({
       ...current,
-      [section]: {
-        ...current[section],
-        [field]: value
-      }
+      [section]: { ...current[section], [field]: value }
     }));
   };
 
   const updateGeoLocation = ({ lat, lng }) => {
     setForm((current) => ({
       ...current,
-      item: {
-        ...current.item,
-        geoLocation: { lat, lng }
-      }
-    }));
-  };
-
-  const updatePriceWithoutVat = (value) => {
-    const number = toMoneyNumber(value);
-    const priceWithVatValue = vatApplies && Number.isFinite(number) ? (number * (1 + VAT_RATE)).toFixed(2) : value;
-
-    setForm((current) => ({
-      ...current,
-      pricing: {
-        ...current.pricing,
-        priceWithoutVat: value,
-        priceWithVat: priceWithVatValue
-      }
-    }));
-  };
-
-  const updatePriceWithVat = (value) => {
-    const number = toMoneyNumber(value);
-    const priceWithoutVatValue = vatApplies && Number.isFinite(number) ? (number / (1 + VAT_RATE)).toFixed(2) : value;
-
-    setForm((current) => ({
-      ...current,
-      pricing: {
-        ...current.pricing,
-        priceWithoutVat: priceWithoutVatValue,
-        priceWithVat: value
-      }
+      item: { ...current.item, geoLocation: { lat, lng } }
     }));
   };
 
   const changeCategory = (category) => {
     setForm((current) => ({
       ...current,
-      item: {
-        ...current.item,
-        category,
-        characteristics: toCharacteristicRows(category)
-      }
+      item: { ...current.item, category, characteristics: rowsForCategory(category) }
     }));
   };
 
@@ -471,20 +481,14 @@ function AuctionCreateForm({ verification, initialAuction = null, onSaved, onCan
   const addCharacteristic = () => {
     setForm((current) => ({
       ...current,
-      item: {
-        ...current.item,
-        characteristics: [...current.item.characteristics, { name: '', value: '' }]
-      }
+      item: { ...current.item, characteristics: [...current.item.characteristics, { name: '', value: '' }] }
     }));
   };
 
   const removeCharacteristic = (index) => {
     setForm((current) => ({
       ...current,
-      item: {
-        ...current.item,
-        characteristics: current.item.characteristics.filter((_, rowIndex) => rowIndex !== index)
-      }
+      item: { ...current.item, characteristics: current.item.characteristics.filter((_, rowIndex) => rowIndex !== index) }
     }));
   };
 
@@ -522,15 +526,10 @@ function AuctionCreateForm({ verification, initialAuction = null, onSaved, onCan
       }
       return current.filter((_, photoIndex) => photoIndex !== index);
     });
-    setMainPhotoIndex((current) => {
-      if (index === current) {
-        return 0;
-      }
-      return index < current ? current - 1 : current;
-    });
+    setMainPhotoIndex((current) => (index === current ? 0 : index < current ? current - 1 : current));
   };
 
-  const validateClient = () => {
+  const validateClient = (isDraft) => {
     const nextErrors = {};
     const requireText = (field, value) => {
       if (!String(value || '').trim()) {
@@ -542,137 +541,101 @@ function AuctionCreateForm({ verification, initialAuction = null, onSaved, onCan
       if (number === null) {
         nextErrors[field] = 'Поле обязательно для заполнения';
       } else if (!Number.isFinite(number) || number <= 0) {
-        nextErrors[field] = 'Введите сумму больше 0 с точностью до 2 знаков';
+        nextErrors[field] = 'Введите сумму больше 0';
       }
       return number;
     };
 
-    const currentPriceWithVat = requireMoney('pricing.priceWithVat', form.pricing.priceWithVat);
-    const currentPriceWithoutVat = requireMoney('pricing.priceWithoutVat', form.pricing.priceWithoutVat);
-    const depositAmount = requireMoney('pricing.depositAmount', form.pricing.depositAmount);
-    const minBidStep = requireMoney('pricing.minBidStep', form.pricing.minBidStep);
-
-    if (vatApplies && Number.isFinite(currentPriceWithoutVat) && Number.isFinite(currentPriceWithVat)) {
-      const expected = Number((currentPriceWithoutVat * (1 + VAT_RATE)).toFixed(2));
-      if (Math.abs(expected - currentPriceWithVat) > 0.05) {
-        nextErrors['pricing.priceWithVat'] = 'Цена с НДС должна соответствовать цене без НДС и ставке 20%';
-      }
-    }
-
-    if (Number.isFinite(currentPriceWithVat) && Number.isFinite(depositAmount)) {
-      if (depositAmount < currentPriceWithVat * 0.01 || depositAmount > currentPriceWithVat * 0.5) {
-        nextErrors['pricing.depositAmount'] = 'Задаток должен быть от 1% до 50% цены с НДС';
-      }
-    }
-
-    if (Number.isFinite(currentPriceWithVat) && Number.isFinite(minBidStep)) {
-      if (minBidStep < currentPriceWithVat * 0.01 || minBidStep > currentPriceWithVat * 0.1) {
-        nextErrors['pricing.minBidStep'] = 'Минимальный шаг должен быть от 1% до 10% цены с НДС';
-      }
-    }
-
-    const now = new Date();
-    const applicationStartAt = new Date(form.schedule.applicationStartAt);
-    const applicationEndAt = new Date(form.schedule.applicationEndAt);
-    const biddingStartAt = new Date(`${biddingDate}T${form.schedule.biddingStartTime}`);
-    const biddingEndAt = new Date(`${biddingDate}T${form.schedule.biddingEndTime}`);
-
-    if (Number.isNaN(applicationStartAt.getTime())) {
-      nextErrors['schedule.applicationStartAt'] = 'Укажите дату и время начала приема заявок';
-    } else if (!isEditing && (applicationStartAt < now || applicationStartAt > addDays(now, 90))) {
-      nextErrors['schedule.applicationStartAt'] = 'Начало приема заявок должно быть от текущего времени до 90 дней';
-    }
-
-    if (Number.isNaN(applicationEndAt.getTime())) {
-      nextErrors['schedule.applicationEndAt'] = 'Укажите дату и время конца приема заявок';
-    } else if (
-      !Number.isNaN(applicationStartAt.getTime()) &&
-      (applicationEndAt < addDays(applicationStartAt, 3) || applicationEndAt > addDays(applicationStartAt, 90))
-    ) {
-      nextErrors['schedule.applicationEndAt'] = 'Конец приема заявок должен быть через 3-90 дней после начала';
-    }
-
-    if (form.schedule.biddingStartTime < '09:00') {
-      nextErrors['schedule.biddingStartAt'] = 'Начало торгов не раньше 09:00';
-    }
-
-    if (form.schedule.biddingEndTime > '19:00') {
-      nextErrors['schedule.biddingEndAt'] = 'Конец торгов не позже 19:00';
-    }
-
-    if (
-      !Number.isNaN(biddingStartAt.getTime()) &&
-      !Number.isNaN(biddingEndAt.getTime()) &&
-      biddingEndAt.getTime() - biddingStartAt.getTime() < 5 * hourMs
-    ) {
-      nextErrors['schedule.biddingEndAt'] = 'Минимальный срок торгов - 5 часов';
-    }
-
-    const paymentDeadlineDays = Number(form.schedule.paymentDeadlineDays);
-    const contractDeadlineDays = Number(form.schedule.contractDeadlineDays);
-
-    if (!Number.isInteger(paymentDeadlineDays) || paymentDeadlineDays < 5 || paymentDeadlineDays > 90) {
-      nextErrors['schedule.paymentDeadlineDays'] = 'Срок должен быть от 5 до 90 дней';
-    }
-
-    if (!Number.isInteger(contractDeadlineDays) || contractDeadlineDays < 5 || contractDeadlineDays > 90) {
-      nextErrors['schedule.contractDeadlineDays'] = 'Срок должен быть от 5 до 90 дней';
-    }
-
+    const price = requireMoney('pricing.priceWithVat', form.pricing.priceWithVat);
+    requireText('schedule.applicationStartAt', form.schedule.applicationStartAt);
+    requireText('schedule.applicationEndAt', form.schedule.applicationEndAt);
     requireText('item.title', form.item.title);
+    requireText('inspection.contactEmail', form.inspection.contactEmail);
+
     if (form.item.title.length > 100) {
       nextErrors['item.title'] = 'Название должно быть не длиннее 100 знаков';
     }
 
-    requireText('item.locationAddress', form.item.locationAddress);
-    requireText('inspection.contactName', form.inspection.contactName);
-    requireText('inspection.contactPhone', form.inspection.contactPhone);
+    if (!isDraft) {
+      const deposit = requireMoney('pricing.depositAmount', form.pricing.depositAmount);
 
-    if (!form.item.geoLocation.lat || !form.item.geoLocation.lng) {
-      nextErrors['item.geoLocation'] = 'Укажите место нахождения предмета торгов на карте';
-    }
+      if (Number.isFinite(price) && Number.isFinite(deposit) && (deposit < price * 0.01 || deposit > price * 0.5)) {
+        nextErrors['pricing.depositAmount'] = 'Задаток должен быть от 1% до 50% цены';
+      }
 
-    if (photos.length < 1) {
-      nextErrors.photos = 'Загрузите хотя бы одну фотографию';
-    }
+      if (form.pricing.auctionType === 'increase') {
+        const step = requireMoney('pricing.minBidStep', form.pricing.minBidStep);
+        if (Number.isFinite(price) && Number.isFinite(step) && (step < price * 0.01 || step > price * 0.1)) {
+          nextErrors['pricing.minBidStep'] = 'Шаг торгов должен быть от 1% до 10% цены';
+        }
+      } else {
+        const minPrice = requireMoney('pricing.minPriceWithVat', form.pricing.minPriceWithVat);
+        const steps = Number(form.pricing.bidStepsCount);
+        if (!Number.isInteger(steps) || steps < 5 || steps > 50) {
+          nextErrors['pricing.bidStepsCount'] = 'Количество шагов должно быть от 5 до 50';
+        }
+        if (Number.isFinite(price) && Number.isFinite(minPrice) && minPrice >= price) {
+          nextErrors['pricing.minPriceWithVat'] = 'Минимальная цена должна быть ниже начальной';
+        }
+      }
 
-    if (photos.length > 50) {
-      nextErrors.photos = 'Можно загрузить не более 50 фотографий';
-    }
+      const startMinutes = timeToMinutes(form.schedule.biddingStartTime, '09:00');
+      const endMinutes = timeToMinutes(form.schedule.biddingEndTime, '12:00');
+      if (endMinutes - startMinutes < 180) {
+        nextErrors['schedule.biddingEndTime'] = 'Минимальный срок торгов должен быть 3 часа';
+      }
 
-    if (mainPhotoIndex < 0 || mainPhotoIndex >= photos.length) {
-      nextErrors.mainPhotoIndex = 'Выберите главное фото';
+      ['paymentDeadlineDays', 'contractDeadlineDays'].forEach((field) => {
+        const value = Number(form.schedule[field]);
+        if (!Number.isInteger(value) || value < 5 || value > 90) {
+          nextErrors[`schedule.${field}`] = 'Срок должен быть от 5 до 90 дней';
+        }
+      });
+
+      requireText('item.locationAddress', form.item.locationAddress);
+      requireText('inspection.contactName', form.inspection.contactName);
+      requireText('inspection.contactPhone', form.inspection.contactPhone);
+
+      if (!form.item.geoLocation.lat || !form.item.geoLocation.lng) {
+        nextErrors['item.geoLocation'] = 'Укажите место нахождения предмета торгов на карте';
+      }
+
+      if (photos.length < 1) {
+        nextErrors.photos = 'Загрузите хотя бы одну фотографию';
+      }
     }
 
     setLocalErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   };
 
-  const submitForm = async (event) => {
-    event.preventDefault();
-    if (!validateClient()) {
+  const buildPayload = (isDraft) => ({
+    isDraft,
+    pricing: form.pricing,
+    schedule: {
+      applicationStartAt: form.schedule.applicationStartAt,
+      applicationEndAt: form.schedule.applicationEndAt,
+      biddingDate,
+      biddingStartTime: form.schedule.biddingStartTime,
+      biddingEndTime: form.schedule.biddingEndTime,
+      paymentDeadlineDays: form.schedule.paymentDeadlineDays,
+      contractDeadlineDays: form.schedule.contractDeadlineDays
+    },
+    item: {
+      ...form.item,
+      characteristics: form.item.characteristics.filter((row) => row.name.trim() && row.value.trim())
+    },
+    inspection: form.inspection,
+    mainPhotoIndex,
+    existingPhotoPaths: photos.filter((photo) => photo.path && !photo.file).map((photo) => photo.path)
+  });
+
+  const save = async (isDraft) => {
+    if (!validateClient(isDraft)) {
       return;
     }
 
-    const payload = {
-      pricing: form.pricing,
-      schedule: {
-        applicationStartAt: form.schedule.applicationStartAt,
-        applicationEndAt: form.schedule.applicationEndAt,
-        biddingStartAt: `${biddingDate}T${form.schedule.biddingStartTime}`,
-        biddingEndAt: `${biddingDate}T${form.schedule.biddingEndTime}`,
-        paymentDeadlineDays: form.schedule.paymentDeadlineDays,
-        contractDeadlineDays: form.schedule.contractDeadlineDays
-      },
-      item: {
-        ...form.item,
-        characteristics: form.item.characteristics.filter((row) => row.name.trim() && row.value.trim())
-      },
-      inspection: form.inspection,
-      mainPhotoIndex,
-      existingPhotoPaths: photos.filter((photo) => photo.path && !photo.file).map((photo) => photo.path)
-    };
-
+    const payload = buildPayload(isDraft);
     const action = isEditing
       ? updateAuction({ id: initialAuction.id, payload, photos, token: accessToken })
       : submitAuction({ payload, photos, token: accessToken });
@@ -681,6 +644,18 @@ function AuctionCreateForm({ verification, initialAuction = null, onSaved, onCan
     if ((isEditing ? updateAuction.fulfilled : submitAuction.fulfilled).match(result)) {
       onSaved?.(result.payload.auction);
     }
+  };
+
+  const resetForm = () => {
+    photos.forEach((photo) => {
+      if (photo.file && photo.previewUrl) {
+        URL.revokeObjectURL(photo.previewUrl);
+      }
+    });
+    setForm(createInitialForm(user, verification, null));
+    setPhotos([]);
+    setMainPhotoIndex(0);
+    setLocalErrors({});
   };
 
   if (!verification || verification.status !== 'approved') {
@@ -694,56 +669,79 @@ function AuctionCreateForm({ verification, initialAuction = null, onSaved, onCan
   return (
     <section className={`${styles.panel} ${styles.lotCreatePanel}`}>
       <div className={styles.panel__header}>
-        <p className={styles.panel__eyebrow}>{isEditing ? 'Доработка лота' : 'Создание лота'}</p>
-        <h1 className={styles.panel__title}>{isEditing ? 'Повторная отправка лота' : 'Заявка на создание лота'}</h1>
+        <button className={styles.backButton} type="button" onClick={onCancel}>← Назад</button>
+        <h1 className={styles.panel__title}>{isEditing ? 'Редактирование лота' : 'Заявка на создание лота'}</h1>
         <p className={styles.panel__text}>
-          {isEditing
-            ? 'Исправьте данные по замечаниям модератора и отправьте этот же лот на повторную проверку.'
-            : 'Заполните карточку будущего аукциона. После отправки лот получит статус ожидания проверки модератором.'}
+          Заполните карточку будущего аукциона. Черновик можно сохранить и продолжить позже.
         </p>
         {initialAuction?.moderationComment && (
           <div className={styles.statusPanel__reason}>
-            <strong>Причина возврата</strong>
+            <strong>Причина отклонения</strong>
             <p>{initialAuction.moderationComment}</p>
           </div>
         )}
       </div>
 
-      <form className={styles.auctionForm} onSubmit={submitForm} noValidate>
+      <form className={styles.auctionForm} onSubmit={(event) => { event.preventDefault(); save(false); }} noValidate>
         <section className={styles.auctionBlock}>
-          <h2 className={styles.sectionTitle}>Ценовой блок</h2>
-          <div className={styles.formGrid}>
-            {vatApplies && (
-              <Field
-                label="Начальная цена без НДС, BYN"
-                value={form.pricing.priceWithoutVat}
-                onChange={updatePriceWithoutVat}
-                error={errors['pricing.priceWithoutVat']}
-                required
-                type="number"
-                step="0.01"
-                hint="Можно ввести цену без НДС, цена с НДС пересчитается автоматически по ставке 20%."
+          <h2 className={styles.sectionTitle}>Цена и условия торгов</h2>
+          <div className={`${styles.segmentGroup} ${styles.fieldFull}`}>
+            <label className={styles.segmentOption}>
+              <input
+                type="radio"
+                checked={form.pricing.auctionType === 'increase'}
+                onChange={() => updateSection('pricing', 'auctionType', 'increase')}
               />
-            )}
+              <span>Аукцион на повышение</span>
+            </label>
+            <label className={styles.segmentOption}>
+              <input
+                type="radio"
+                checked={form.pricing.auctionType === 'decrease'}
+                onChange={() => updateSection('pricing', 'auctionType', 'decrease')}
+              />
+              <span>Аукцион на понижение</span>
+            </label>
+          </div>
+          <p className={styles.auctionBlock__hint}>
+            На повышение участники увеличивают цену шагом торгов. На понижение цена снижается заданным количеством шагов до минимальной цены.
+          </p>
+
+          <div className={styles.formGrid}>
             <Field
-              className={styles.fieldWide}
+              className={styles.fieldFull}
               label={vatApplies ? 'Начальная цена с НДС, BYN' : 'Начальная цена, BYN'}
               value={form.pricing.priceWithVat}
-              onChange={updatePriceWithVat}
+              onChange={(value) => updateSection('pricing', 'priceWithVat', value)}
               error={errors['pricing.priceWithVat']}
               required
               type="number"
               step="0.01"
-              highlight
-              hint="Именно эта цена будет отображаться в каталоге, карточке лота и заявках участников."
+              hint="Эта цена будет отображаться пользователям."
             />
-            <Field
-              label="НДС"
-              value={vatApplies ? 'НДС включен в цену' : 'Не облагается налогом на добавочную стоимость'}
-              onChange={() => {}}
-              disabled
-              hint="Поле определяется типом аккаунта продавца и не редактируется."
-            />
+            <div className={styles.fieldFull}>
+              <PriceBreakdown label="Расчет по начальной цене" amount={form.pricing.priceWithVat} vatApplies={vatApplies} />
+            </div>
+
+            {form.pricing.auctionType === 'decrease' && (
+              <>
+                <Field
+                  className={styles.fieldFull}
+                  label={vatApplies ? 'Минимальная цена с НДС, BYN' : 'Минимальная цена, BYN'}
+                  value={form.pricing.minPriceWithVat}
+                  onChange={(value) => updateSection('pricing', 'minPriceWithVat', value)}
+                  error={errors['pricing.minPriceWithVat']}
+                  required
+                  type="number"
+                  step="0.01"
+                  hint="Минимальная цена должна быть ниже начальной. Эта цена будет отображаться пользователям при снижении."
+                />
+                <div className={styles.fieldFull}>
+                  <PriceBreakdown label="Расчет по минимальной цене" amount={form.pricing.minPriceWithVat} vatApplies={vatApplies} />
+                </div>
+              </>
+            )}
+
             <Field
               label="Сумма задатка, BYN"
               value={form.pricing.depositAmount}
@@ -752,30 +750,37 @@ function AuctionCreateForm({ verification, initialAuction = null, onSaved, onCan
               required
               type="number"
               step="0.01"
-              hint={`От 1% до 50% цены с НДС. Рекомендуемое значение 10%: ${recommendedDeposit} BYN.`}
+              hint={`От 1% до 50% цены. Рекомендуемое значение 10%: ${recommendedDeposit} BYN.`}
             />
-            <Field
-              label="Минимальный шаг торгов, BYN"
-              value={form.pricing.minBidStep}
-              onChange={(value) => updateSection('pricing', 'minBidStep', value)}
-              error={errors['pricing.minBidStep']}
-              required
-              type="number"
-              step="0.01"
-              hint="От 1% до 10% цены с НДС."
-            />
-            <Field
-              label="Затраты на организацию и проведение торгов"
-              value={`${ORGANIZATION_FEE_PERCENT}%`}
-              onChange={() => {}}
-              disabled
-              hint="Фиксированное значение, пользователь не меняет поле."
-            />
+            {form.pricing.auctionType === 'increase' ? (
+              <Field
+                label="Минимальный шаг торгов, BYN"
+                value={form.pricing.minBidStep}
+                onChange={(value) => updateSection('pricing', 'minBidStep', value)}
+                error={errors['pricing.minBidStep']}
+                required
+                type="number"
+                step="0.01"
+                hint="От 1% до 10% начальной цены."
+              />
+            ) : (
+              <Field
+                label="Количество шагов торгов"
+                value={form.pricing.bidStepsCount}
+                onChange={(value) => updateSection('pricing', 'bidStepsCount', value)}
+                error={errors['pricing.bidStepsCount']}
+                required
+                type="number"
+                min="5"
+                max="50"
+                hint={`От 5 до 50. Расчетный шаг снижения: ${calculatedDecreaseStep} BYN.`}
+              />
+            )}
           </div>
         </section>
 
         <section className={styles.auctionBlock}>
-          <h2 className={styles.sectionTitle}>Даты</h2>
+          <h2 className={styles.sectionTitle}>Сроки проведения аукциона</h2>
           <div className={styles.formGrid}>
             <Field
               label="Начало приема заявок"
@@ -783,10 +788,10 @@ function AuctionCreateForm({ verification, initialAuction = null, onSaved, onCan
               onChange={(value) => updateSection('schedule', 'applicationStartAt', value)}
               error={errors['schedule.applicationStartAt']}
               required
-              type="datetime-local"
-              min={minApplicationStart}
-              max={maxApplicationStart}
-              hint="От текущего времени до 90 дней."
+              type="date"
+              min={toDateInput(new Date())}
+              max={toDateInput(addDays(new Date(), 90))}
+              hint="От текущей даты до 90 дней."
             />
             <Field
               label="Конец приема заявок"
@@ -794,9 +799,9 @@ function AuctionCreateForm({ verification, initialAuction = null, onSaved, onCan
               onChange={(value) => updateSection('schedule', 'applicationEndAt', value)}
               error={errors['schedule.applicationEndAt']}
               required
-              type="datetime-local"
-              min={minApplicationEnd}
-              max={maxApplicationEnd}
+              type="date"
+              min={toDateInput(addDays(form.schedule.applicationStartAt, 3))}
+              max={toDateInput(addDays(form.schedule.applicationStartAt, 90))}
               hint="Через 3-90 дней после начала приема заявок."
             />
             <Field
@@ -806,27 +811,12 @@ function AuctionCreateForm({ verification, initialAuction = null, onSaved, onCan
               disabled
               hint="Следующий день после конца приема заявок."
             />
-            <Field
-              label="Время начала торгов"
-              value={form.schedule.biddingStartTime}
-              onChange={(value) => updateSection('schedule', 'biddingStartTime', value)}
-              error={errors['schedule.biddingStartAt']}
-              required
-              type="time"
-              min="09:00"
-              max="14:00"
-              hint="Не раньше 09:00."
-            />
-            <Field
-              label="Время конца торгов"
-              value={form.schedule.biddingEndTime}
-              onChange={(value) => updateSection('schedule', 'biddingEndTime', value)}
-              error={errors['schedule.biddingEndAt']}
-              required
-              type="time"
-              min="14:00"
-              max="19:00"
-              hint="Не позже 19:00. Минимальный срок торгов - 5 часов."
+            <TimeRangePicker
+              startValue={form.schedule.biddingStartTime}
+              endValue={form.schedule.biddingEndTime}
+              onStartChange={(value) => updateSection('schedule', 'biddingStartTime', value)}
+              onEndChange={(value) => updateSection('schedule', 'biddingEndTime', value)}
+              error={errors['schedule.biddingStartTime'] || errors['schedule.biddingStartAt'] || errors['schedule.biddingEndTime'] || errors['schedule.biddingEndAt']}
             />
             <Field
               label="Срок полной оплаты, дней"
@@ -838,13 +828,6 @@ function AuctionCreateForm({ verification, initialAuction = null, onSaved, onCan
               min="5"
               max="90"
               hint="От 5 до 90 дней."
-            />
-            <Field
-              label="Срок возвращения задатков"
-              value={`${DEPOSIT_RETURN_DAYS} дней`}
-              onChange={() => {}}
-              disabled
-              hint="Фиксированное значение."
             />
             <Field
               label="Срок заключения договора, дней"
@@ -873,12 +856,8 @@ function AuctionCreateForm({ verification, initialAuction = null, onSaved, onCan
               hint={`До 100 знаков. Сейчас: ${form.item.title.length}/100.`}
             />
             <label className={styles.field}>
-              <span className={styles.field__label}>Категория*</span>
-              <select
-                className={styles.field__control}
-                value={form.item.category}
-                onChange={(event) => changeCategory(event.target.value)}
-              >
+              <span className={styles.field__label}>Категория<span className={styles.requiredMark}>*</span></span>
+              <select className={styles.field__control} value={form.item.category} onChange={(event) => changeCategory(event.target.value)}>
                 {Object.entries(auctionCategoryLabels).map(([value, label]) => (
                   <option value={value} key={value}>{label}</option>
                 ))}
@@ -899,7 +878,7 @@ function AuctionCreateForm({ verification, initialAuction = null, onSaved, onCan
           <div className={styles.characteristicHeader}>
             <div>
               <h3 className={styles.subsectionTitle}>Характеристики</h3>
-              <p>Шаблон зависит от категории. Пустые строки не сохраняются в лоте.</p>
+              <p>Шаблон зависит от категории. Пустые строки не сохраняются.</p>
             </div>
             <button className={styles.buttonSecondary} type="button" onClick={addCharacteristic}>
               Добавить характеристику
@@ -908,34 +887,15 @@ function AuctionCreateForm({ verification, initialAuction = null, onSaved, onCan
           <div className={styles.characteristicTable}>
             {form.item.characteristics.map((row, index) => (
               <div className={styles.characteristicRow} key={`${row.name}-${index}`}>
-                <input
-                  className={styles.field__control}
-                  value={row.name}
-                  onChange={(event) => updateCharacteristic(index, 'name', event.target.value)}
-                  placeholder="Название характеристики"
-                />
-                <input
-                  className={styles.field__control}
-                  value={row.value}
-                  onChange={(event) => updateCharacteristic(index, 'value', event.target.value)}
-                  placeholder="Значение"
-                />
-                <button className={styles.buttonSecondary} type="button" onClick={() => removeCharacteristic(index)}>
-                  Удалить
-                </button>
+                <input className={styles.field__control} value={row.name} onChange={(event) => updateCharacteristic(index, 'name', event.target.value)} placeholder="Название характеристики" />
+                <input className={styles.field__control} value={row.value} onChange={(event) => updateCharacteristic(index, 'value', event.target.value)} placeholder="Значение" />
+                <button className={styles.buttonSecondary} type="button" onClick={() => removeCharacteristic(index)}>Удалить</button>
               </div>
             ))}
           </div>
 
           <div className={styles.formGrid}>
-            <Field
-              className={styles.fieldFull}
-              label="Описание"
-              value={form.item.description}
-              onChange={(value) => updateSection('item', 'description', value)}
-              as="textarea"
-              hint="Необязательное поле. Можно добавить состояние, комплектацию, ограничения или особенности осмотра."
-            />
+            <Field className={styles.fieldFull} label="Описание" value={form.item.description} onChange={(value) => updateSection('item', 'description', value)} as="textarea" />
             <Field
               className={styles.fieldFull}
               label="Адрес нахождения предмета торгов"
@@ -944,13 +904,10 @@ function AuctionCreateForm({ verification, initialAuction = null, onSaved, onCan
               error={errors['item.locationAddress']}
               required
               as="textarea"
+              placeholder="Например: г. Минск, ул. Октябрьская, д. 10"
             />
             <div className={styles.fieldFull}>
-              <YandexMapPicker
-                value={form.item.geoLocation}
-                onChange={updateGeoLocation}
-                error={errors['item.geoLocation']}
-              />
+              <YandexMapPicker value={form.item.geoLocation} onChange={updateGeoLocation} error={errors['item.geoLocation']} />
             </div>
           </div>
         </section>
@@ -958,84 +915,58 @@ function AuctionCreateForm({ verification, initialAuction = null, onSaved, onCan
         <section className={styles.auctionBlock}>
           <h2 className={styles.sectionTitle}>Осмотр предмета торгов</h2>
           <div className={styles.formGrid}>
-            <Field
-              label="ФИО контактного лица"
-              value={form.inspection.contactName}
-              onChange={(value) => updateSection('inspection', 'contactName', value)}
-              error={errors['inspection.contactName']}
-              required
-            />
-            <Field
-              label="Телефон контактного лица"
-              value={form.inspection.contactPhone}
-              onChange={(value) => updateSection('inspection', 'contactPhone', value)}
-              error={errors['inspection.contactPhone']}
-              required
-            />
-            <Field
-              label="Email контактного лица"
-              value={form.inspection.contactEmail}
-              onChange={(value) => updateSection('inspection', 'contactEmail', value)}
-              type="email"
-              hint="Необязательно."
-            />
+            <Field label="ФИО контактного лица" value={form.inspection.contactName} onChange={(value) => updateSection('inspection', 'contactName', value)} error={errors['inspection.contactName']} required />
+            <Field label="Телефон контактного лица" value={form.inspection.contactPhone} onChange={(value) => updateSection('inspection', 'contactPhone', value)} error={errors['inspection.contactPhone']} required />
+            <Field label="Email контактного лица" value={form.inspection.contactEmail} onChange={(value) => updateSection('inspection', 'contactEmail', value)} error={errors['inspection.contactEmail']} required type="email" />
           </div>
         </section>
 
         <section className={styles.auctionBlock}>
           <h2 className={styles.sectionTitle}>Информация о продавце</h2>
-          <p className={styles.auctionBlock__hint}>Эти данные подтягиваются из одобренной верификации и не редактируются в лоте.</p>
           <ReadOnlyGrid items={sellerInfo.fields} />
         </section>
 
-        <section className={styles.auctionBlock}>
-          <h2 className={styles.sectionTitle}>Оператор торгов</h2>
+        <CollapsibleSection title="Оператор торгов">
           <ReadOnlyGrid
             items={[
               ['Наименование', operatorInfo.name],
-              ['ФИО контактного лица', operatorInfo.contactPerson],
               ['Адрес', operatorInfo.address],
+              ['ФИО контактного лица', operatorInfo.contactPerson],
+              ['Телефон', operatorInfo.phone],
               ['Электронная почта', operatorInfo.email],
               ['УНП', operatorInfo.unp]
             ]}
           />
-        </section>
+        </CollapsibleSection>
 
-        <section className={`${styles.auctionBlock} ${styles.auctionBlockWide}`}>
-          <h2 className={styles.sectionTitle}>Обязанности и ответственность покупателя</h2>
+        <CollapsibleSection title="Обязанности и ответственность покупателя" className={styles.auctionBlockWide}>
           <div className={styles.termsGrid}>
             <div className={styles.termsCard}>
               <h3 className={styles.subsectionTitle}>Обязанности</h3>
-              <ul>
-                {buyerTerms.obligations.map((item) => <li key={item}>{item}</li>)}
-              </ul>
+              <ul>{buyerTerms.obligations.map((item) => <li key={item}>{item}</li>)}</ul>
             </div>
             <div className={styles.termsCard}>
               <h3 className={styles.subsectionTitle}>Ответственность</h3>
-              <ul>
-                {buyerTerms.responsibility.map((item) => <li key={item}>{item}</li>)}
-              </ul>
+              <ul>{buyerTerms.responsibility.map((item) => <li key={item}>{item}</li>)}</ul>
             </div>
           </div>
-        </section>
+        </CollapsibleSection>
 
-        {auction.message && (
-          <p className={auction.createStatus === 'failed' ? styles.message__error : styles.message__success}>
-            {auction.message}
-          </p>
-        )}
+        {auction.message && auction.createStatus === 'failed' && <p className={styles.message__error}>{auction.message}</p>}
 
         <div className={styles.formActions}>
-          {isEditing && (
-            <button className={styles.buttonSecondary} type="button" onClick={onCancel}>
-              Отменить
-            </button>
-          )}
+          <button className={styles.buttonSecondary} type="button" onClick={resetForm}>Стереть все</button>
+          <button className={styles.buttonSecondary} type="button" onClick={() => save(true)} disabled={auction.createStatus === 'loading'}>
+            Сохранить черновой вариант
+          </button>
           <button className={styles.button} type="submit" disabled={auction.createStatus === 'loading'}>
-            {isEditing ? 'Отправить лот повторно' : 'Подать заявку на создание лота'}
+            Подать заявку на создание лота
           </button>
         </div>
       </form>
+      <div className={styles.formBackActions}>
+        <button className={styles.backButton} type="button" onClick={onCancel}>Назад</button>
+      </div>
     </section>
   );
 }

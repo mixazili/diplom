@@ -32,7 +32,9 @@ describe('verification API', () => {
         firstName: 'Иван',
         lastName: 'Иванов',
         middleName: 'Иванович',
-        phone: '+375291112233'
+        phone: '375291112233',
+        notificationEmail: 'person@example.com',
+        postalAddress: 'г. Минск, ул. Октябрьская, д. 10, кв. 18'
       },
       addressData: {
         region: 'Минская область',
