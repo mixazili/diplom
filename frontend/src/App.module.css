@@ -1504,6 +1504,69 @@ textarea.field__control {
   padding: 14px;
 }
 
+.devTimePanel {
+  display: grid;
+  gap: 18px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  padding: 18px;
+}
+
+.devTimeGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.devTimeCard {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-background);
+  padding: 14px;
+}
+
+.devTimeCard span {
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+.devTimeCard strong {
+  color: var(--color-heading);
+  font-size: 20px;
+}
+
+.devTimeActions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.devTimeActionGroup {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.devTimeActionGroup span {
+  color: var(--color-heading);
+  font-weight: 700;
+}
+
+.devTimeExact {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto auto;
+  gap: 12px;
+  align-items: end;
+  border-top: 1px solid var(--color-border);
+  padding-top: 16px;
+}
+
 .online,
 .offline {
   justify-self: start;
@@ -2122,6 +2185,9 @@ textarea.field__control {
 
   .staffActions,
   .staffForm,
+  .devTimeGrid,
+  .devTimeActions,
+  .devTimeExact,
   .auctionDetailHero,
   .photoUploader__header,
   .mapPicker__header,

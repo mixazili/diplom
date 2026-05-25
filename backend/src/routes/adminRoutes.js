@@ -5,7 +5,11 @@ const {
   deleteModerator,
   listAllReviews,
   getVerificationDetails,
-  listAllAuctionReviews
+  listAllAuctionReviews,
+  getDevTime,
+  advanceDevTime,
+  setDevTime,
+  resetDevTime
 } = require('../controllers/adminController');
 const { authenticate, requireRoles } = require('../middleware/authMiddleware');
 
@@ -19,5 +23,9 @@ router.delete('/moderators/:id', deleteModerator);
 router.get('/reviews', listAllReviews);
 router.get('/auction-reviews', listAllAuctionReviews);
 router.get('/verifications/:id', getVerificationDetails);
+router.get('/dev-time', getDevTime);
+router.post('/dev-time/advance', advanceDevTime);
+router.post('/dev-time/set', setDevTime);
+router.post('/dev-time/reset', resetDevTime);
 
 module.exports = router;
