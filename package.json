@@ -11,6 +11,12 @@
     "dev:frontend": "vite",
     "build": "npm run build:frontend",
     "build:frontend": "vite build",
+    "seed:demo": "node scripts/seed-demo-data.js all",
+    "seed:demo:test": "node scripts/seed-demo-data.js test",
+    "seed:demo:dev": "node scripts/seed-demo-data.js dev",
+    "time:status": "node scripts/time-travel.js dev status",
+    "time:advance": "node scripts/time-travel.js dev advance",
+    "time:reset": "node scripts/time-travel.js dev reset",
     "test": "jest --runInBand",
     "test:watch": "jest --watch"
   },

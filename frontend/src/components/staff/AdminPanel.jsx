@@ -7,10 +7,35 @@ import AuctionReviewList from './AuctionReviewList.jsx';
 import ReviewList from './ReviewList.jsx';
 import { createStaffRequest } from './useStaffRequest.js';
 
+const isDevBuild = import.meta.env.DEV;
+
 const menuItems = [
   ['moderators', 'Модераторы'],
   ['verificationReviews', 'Журнал верификаций'],
-  ['auctionReviews', 'Журнал лотов']
+  ['auctionReviews', 'Журнал лотов'],
+  ...(isDevBuild ? [['devTime', 'Dev-время']] : [])
+];
+
+const toLocalInputValue = (value) => {
+  if (!value) {
+    return '';
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+
+  const timezoneOffsetMs = date.getTimezoneOffset() * 60 * 1000;
+  return new Date(date.getTime() - timezoneOffsetMs).toISOString().slice(0, 16);
+};
+
+const offsetLabels = [
+  ['15 минут', 15 * 60 * 1000],
+  ['1 час', 60 * 60 * 1000],
+  ['1 день', 24 * 60 * 60 * 1000],
+  ['1 неделя', 7 * 24 * 60 * 60 * 1000]
 ];
 
 function AdminPanel() {
@@ -22,17 +47,30 @@ function AdminPanel() {
   const [verificationReviews, setVerificationReviews] = useState([]);
   const [auctionReviews, setAuctionReviews] = useState([]);
   const [moderatorForm, setModeratorForm] = useState({ email: '', password: '' });
+  const [devTime, setDevTime] = useState(null);
+  const [timeForm, setTimeForm] = useState('');
   const [message, setMessage] = useState('');
 
   const loadPanel = async () => {
-    const [moderatorData, verificationReviewData, auctionReviewData] = await Promise.all([
+    const requests = [
       staffRequest('/admin/moderators'),
       staffRequest('/admin/reviews'),
       staffRequest('/admin/auction-reviews')
-    ]);
+    ];
+
+    if (isDevBuild) {
+      requests.push(staffRequest('/admin/dev-time'));
+    }
+
+    const [moderatorData, verificationReviewData, auctionReviewData, devTimeData] = await Promise.all(requests);
     setModerators(moderatorData.moderators);
     setVerificationReviews(verificationReviewData.reviews);
     setAuctionReviews(auctionReviewData.reviews);
+
+    if (devTimeData?.time) {
+      setDevTime(devTimeData.time);
+      setTimeForm(toLocalInputValue(devTimeData.time.currentTime));
+    }
   };
 
   useEffect(() => {
@@ -60,6 +98,33 @@ function AdminPanel() {
     } catch (error) {
       setMessage(error.message);
     }
+  };
+
+  const updateDevTime = async (path, body = {}) => {
+    try {
+      const data = await staffRequest(path, {
+        method: 'POST',
+        body: JSON.stringify(body)
+      });
+      setDevTime(data.time);
+      setTimeForm(toLocalInputValue(data.time.currentTime));
+      setMessage('');
+    } catch (error) {
+      setMessage(error.message);
+    }
+  };
+
+  const adjustDevTime = (deltaMs) => updateDevTime('/admin/dev-time/advance', { deltaMs });
+
+  const submitExactTime = (event) => {
+    event.preventDefault();
+
+    if (!timeForm) {
+      setMessage('Укажите дату и время');
+      return;
+    }
+
+    updateDevTime('/admin/dev-time/set', { currentTime: new Date(timeForm).toISOString() });
   };
 
   const renderModerators = () => (
@@ -99,6 +164,64 @@ function AdminPanel() {
     </section>
   );
 
+  const renderDevTime = () => (
+    <section className={styles.staffSection}>
+      <div className={styles.devTimePanel}>
+        <div>
+          <h2 className={styles.sectionTitle}>Виртуальное время</h2>
+          <p className={styles.panel__text}>
+            Инструмент доступен только в dev-сборке. После изменения времени backend сразу пересчитывает статусы лотов и просроченные заявки.
+          </p>
+        </div>
+
+        <div className={styles.devTimeGrid}>
+          <article className={styles.devTimeCard}>
+            <span>Текущее время Auction.by</span>
+            <strong>{devTime ? formatDateTime(devTime.currentTime) : 'Загрузка...'}</strong>
+          </article>
+          <article className={styles.devTimeCard}>
+            <span>Реальное время</span>
+            <strong>{devTime ? formatDateTime(devTime.realTime) : 'Загрузка...'}</strong>
+          </article>
+          <article className={styles.devTimeCard}>
+            <span>Оффсет</span>
+            <strong>{devTime ? `${devTime.offsetHours} ч` : 'Загрузка...'}</strong>
+          </article>
+        </div>
+
+        <div className={styles.devTimeActions}>
+          {offsetLabels.map(([label, value]) => (
+            <div className={styles.devTimeActionGroup} key={label}>
+              <span>{label}</span>
+              <button className={styles.backButton} type="button" onClick={() => adjustDevTime(value)}>
+                + добавить
+              </button>
+              <button className={styles.backButton} type="button" onClick={() => adjustDevTime(-value)}>
+                - отнять
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <form className={styles.devTimeExact} onSubmit={submitExactTime}>
+          <label className={styles.field}>
+            <span className={styles.field__label}>Задать точное виртуальное время</span>
+            <input
+              className={styles.field__control}
+              type="datetime-local"
+              value={timeForm}
+              onChange={(event) => setTimeForm(event.target.value)}
+            />
+          </label>
+          <button className={styles.button} type="submit">Применить</button>
+          <button className={styles.backButton} type="button" onClick={() => updateDevTime('/admin/dev-time/reset')}>
+            Сбросить
+          </button>
+        </form>
+      </div>
+    </section>
+  );
+
   const renderSection = () => {
     if (activeSection === 'verificationReviews') {
       return <ReviewList reviews={verificationReviews} title="Журнал решений всех модераторов по верификациям" />;
@@ -106,6 +229,10 @@ function AdminPanel() {
 
     if (activeSection === 'auctionReviews') {
       return <AuctionReviewList reviews={auctionReviews} title="Журнал решений всех модераторов по лотам" />;
+    }
+
+    if (activeSection === 'devTime' && isDevBuild) {
+      return renderDevTime();
     }
 
     return renderModerators();

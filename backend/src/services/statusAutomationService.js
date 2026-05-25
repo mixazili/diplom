@@ -4,35 +4,41 @@ const User = require('../models/User');
 const VerificationRequest = require('../models/VerificationRequest');
 const VerificationReview = require('../models/VerificationReview');
 const { formatAuction } = require('../utils/auctionFormatters');
+const { getCurrentTime } = require('./timeService');
 
 const dayMs = 24 * 60 * 60 * 1000;
 const staleVerificationComment = 'Модератор не рассмотрел заявку в течение суток';
 const staleAuctionComment = 'Модератор не рассмотрел заявку в течение суток';
 
-const updateAuctionStatuses = async (now = new Date()) => {
+const resolveNow = async (now) => now || getCurrentTime();
+
+const updateAuctionStatuses = async (now = null) => {
+  const currentTime = await resolveNow(now);
+
   await Auction.updateMany(
-    { status: 'application_waiting', 'schedule.applicationStartAt': { $lte: now } },
+    { status: 'application_waiting', 'schedule.applicationStartAt': { $lte: currentTime } },
     { $set: { status: 'applications_open' } }
   );
 
   await Auction.updateMany(
-    { status: 'applications_open', 'schedule.applicationEndAt': { $lte: now } },
+    { status: 'applications_open', 'schedule.applicationEndAt': { $lte: currentTime } },
     { $set: { status: 'bidding_waiting' } }
   );
 
   await Auction.updateMany(
-    { status: 'bidding_waiting', 'schedule.biddingStartAt': { $lte: now } },
+    { status: 'bidding_waiting', 'schedule.biddingStartAt': { $lte: currentTime } },
     { $set: { status: 'bidding_active' } }
   );
 
   await Auction.updateMany(
-    { status: 'bidding_active', 'schedule.biddingEndAt': { $lte: now } },
+    { status: 'bidding_active', 'schedule.biddingEndAt': { $lte: currentTime } },
     { $set: { status: 'finished_failed' } }
   );
 };
 
-const expirePendingVerifications = async (now = new Date()) => {
-  const deadline = new Date(now.getTime() - dayMs);
+const expirePendingVerifications = async (now = null) => {
+  const currentTime = await resolveNow(now);
+  const deadline = new Date(currentTime.getTime() - dayMs);
   const requests = await VerificationRequest.find({
     status: 'pending',
     submittedAt: { $lte: deadline }
@@ -47,7 +53,7 @@ const expirePendingVerifications = async (now = new Date()) => {
       request.status = 'rejected';
       request.moderationComment = staleVerificationComment;
       request.reviewedBy = null;
-      request.reviewedAt = now;
+      request.reviewedAt = currentTime;
       await request.save();
 
       await User.findByIdAndUpdate(request.user, { verificationStatus: 'rejected' });
@@ -63,8 +69,9 @@ const expirePendingVerifications = async (now = new Date()) => {
   );
 };
 
-const expirePendingAuctions = async (now = new Date()) => {
-  const deadline = new Date(now.getTime() - dayMs);
+const expirePendingAuctions = async (now = null) => {
+  const currentTime = await resolveNow(now);
+  const deadline = new Date(currentTime.getTime() - dayMs);
   const auctions = await Auction.find({
     status: 'pending',
     submittedAt: { $lte: deadline }
@@ -81,7 +88,7 @@ const expirePendingAuctions = async (now = new Date()) => {
       auction.status = 'returned';
       auction.moderationComment = staleAuctionComment;
       auction.reviewedBy = null;
-      auction.reviewedAt = now;
+      auction.reviewedAt = currentTime;
       auction.lotNumber = undefined;
       await auction.save();
 
@@ -97,10 +104,11 @@ const expirePendingAuctions = async (now = new Date()) => {
   );
 };
 
-const runStatusAutomation = async () => {
-  await updateAuctionStatuses();
-  await expirePendingVerifications();
-  await expirePendingAuctions();
+const runStatusAutomation = async (now = null) => {
+  const currentTime = await resolveNow(now);
+  await updateAuctionStatuses(currentTime);
+  await expirePendingVerifications(currentTime);
+  await expirePendingAuctions(currentTime);
 };
 
 const startStatusAutomation = () => {

@@ -4,10 +4,12 @@ const VerificationRequest = require('../models/VerificationRequest');
 const VerificationReview = require('../models/VerificationReview');
 const AuctionReview = require('../models/AuctionReview');
 const asyncHandler = require('../utils/asyncHandler');
+const config = require('../config/env');
 const { validateRegisterPayload } = require('../utils/authValidation');
 const { formatModerator, formatReview, formatVerification } = require('../utils/staffFormatters');
 const { formatAuctionReview } = require('../utils/auctionFormatters');
-const { expirePendingAuctions, expirePendingVerifications, updateAuctionStatuses } = require('../services/statusAutomationService');
+const { expirePendingAuctions, expirePendingVerifications, runStatusAutomation, updateAuctionStatuses } = require('../services/statusAutomationService');
+const { advanceTimeByMs, getCurrentTime, getTimeOffsetMs, resetTimeOffset, setTimeOffsetMs } = require('../services/timeService');
 
 const listModerators = asyncHandler(async (req, res) => {
   const moderators = await User.find({ role: 'moderator', isActive: true }).sort({ createdAt: -1 });
@@ -111,11 +113,94 @@ const listAllAuctionReviews = asyncHandler(async (req, res) => {
   res.json({ reviews: reviews.map(formatAuctionReview) });
 });
 
+const ensureDevTimeEnabled = (res) => {
+  if (config.env === 'production') {
+    res.status(404);
+    res.json({ message: 'Инструмент виртуального времени доступен только в dev-среде' });
+    return false;
+  }
+
+  return true;
+};
+
+const formatVirtualTime = async () => {
+  const offsetMs = await getTimeOffsetMs();
+  const currentTime = await getCurrentTime();
+
+  return {
+    enabled: config.env !== 'production',
+    environment: config.env,
+    offsetMs,
+    offsetHours: Number((offsetMs / 60 / 60 / 1000).toFixed(2)),
+    realTime: new Date().toISOString(),
+    currentTime: currentTime.toISOString()
+  };
+};
+
+const getDevTime = asyncHandler(async (req, res) => {
+  if (!ensureDevTimeEnabled(res)) {
+    return;
+  }
+
+  res.json({ time: await formatVirtualTime() });
+});
+
+const advanceDevTime = asyncHandler(async (req, res) => {
+  if (!ensureDevTimeEnabled(res)) {
+    return;
+  }
+
+  const deltaMs = Number(req.body.deltaMs);
+
+  if (!Number.isFinite(deltaMs)) {
+    res.status(400);
+    return res.json({ message: 'Передайте deltaMs числом' });
+  }
+
+  await advanceTimeByMs(deltaMs);
+  await runStatusAutomation();
+
+  res.json({ time: await formatVirtualTime() });
+});
+
+const setDevTime = asyncHandler(async (req, res) => {
+  if (!ensureDevTimeEnabled(res)) {
+    return;
+  }
+
+  const targetTime = new Date(req.body.currentTime);
+
+  if (Number.isNaN(targetTime.getTime())) {
+    res.status(400);
+    return res.json({ message: 'Передайте currentTime в формате даты и времени' });
+  }
+
+  await setTimeOffsetMs(targetTime.getTime() - Date.now());
+  await runStatusAutomation();
+
+  res.json({ time: await formatVirtualTime() });
+});
+
+const resetDevTime = asyncHandler(async (req, res) => {
+  if (!ensureDevTimeEnabled(res)) {
+    return;
+  }
+
+  await resetTimeOffset();
+  await runStatusAutomation();
+
+  res.json({ time: await formatVirtualTime() });
+});
+
 module.exports = {
   listModerators,
   createModerator,
   deleteModerator,
   listAllReviews,
   getVerificationDetails,
-  listAllAuctionReviews
+  listAllAuctionReviews,
+  getDevTime,
+  advanceDevTime,
+  setDevTime,
+  resetDevTime
 };
