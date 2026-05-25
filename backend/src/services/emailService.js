@@ -72,16 +72,16 @@ const createFallbackResult = ({ code, error }) => {
   };
 };
 
-const sendEmailVerificationCode = async ({ email, code }) => {
+const sendCodeEmail = async ({ email, code, subject, intro }) => {
   try {
     const transporter = await getTransporter();
 
     const info = await transporter.sendMail({
       from: config.mail.from,
       to: email,
-      subject: 'Код подтверждения Auction.by',
-      text: `Ваш код подтверждения: ${code}. Код действует 15 минут.`,
-      html: `<p>Ваш код подтверждения Auction.by:</p><h2>${code}</h2><p>Код действует 15 минут.</p>`
+      subject,
+      text: `${intro}: ${code}. Код действует 15 минут.`,
+      html: `<p>${intro}:</p><h2>${code}</h2><p>Код действует 15 минут.</p>`
     });
 
     const previewUrl = nodemailer.getTestMessageUrl(info);
@@ -106,7 +106,24 @@ const sendEmailVerificationCode = async ({ email, code }) => {
   }
 };
 
+const sendEmailVerificationCode = ({ email, code }) =>
+  sendCodeEmail({
+    email,
+    code,
+    subject: 'Код подтверждения Auction.by',
+    intro: 'Ваш код подтверждения Auction.by'
+  });
+
+const sendPasswordResetCode = ({ email, code }) =>
+  sendCodeEmail({
+    email,
+    code,
+    subject: 'Восстановление доступа Auction.by',
+    intro: 'Код восстановления доступа Auction.by'
+  });
+
 module.exports = {
   sendEmailVerificationCode,
-  sendStaffLoginCode: sendEmailVerificationCode
+  sendStaffLoginCode: sendEmailVerificationCode,
+  sendPasswordResetCode
 };

@@ -1,170 +1,181 @@
 import React from 'react';
 import styles from '../../App.module.css';
-import {
-  accountTypeLabels,
-  directorBasisLabels,
-  documentTypeLabels,
-  verificationStatusLabels
-} from '../../constants/verificationLabels.js';
+import { accountTypeLabels, directorBasisLabels } from '../../constants/verificationLabels.js';
 
-const fieldLabels = {
-  email: 'Email',
-  role: 'Роль',
-  verificationStatus: 'Статус верификации',
-  accountType: 'Тип участника',
-  isResident: 'Резидентство',
-  firstName: 'Имя',
-  lastName: 'Фамилия',
-  middleName: 'Отчество',
-  fullName: 'ФИО',
-  phone: 'Телефон',
-  additionalPhone: 'Дополнительный телефон',
-  shortName: 'Краткое наименование',
-  unp: 'УНП',
-  contactPhone: 'Контактный телефон',
-  registrationDate: 'Дата регистрации',
-  directorFullName: 'ФИО руководителя',
-  directorPosition: 'Должность руководителя',
-  directorBasis: 'Основание полномочий',
-  directorPhone: 'Телефон руководителя',
-  powerOfAttorney: 'Доверенность',
-  chiefAccountantFullName: 'ФИО главного бухгалтера',
-  chiefAccountantPhone: 'Телефон главного бухгалтера',
-  documentType: 'Вид документа',
-  documentNumber: 'Номер документа',
-  personalNumber: 'Личный номер',
-  issuedBy: 'Кем выдан',
-  issuedAt: 'Когда выдан',
-  expiresAt: 'Срок действия',
-  region: 'Область',
-  district: 'Район',
-  locality: 'Населенный пункт',
-  postalCode: 'Индекс',
-  street: 'Улица',
-  house: 'Номер дома',
-  building: 'Корпус',
-  apartment: 'Квартира',
-  residentialAddress: 'Адрес проживания',
-  postalAddress: 'Почтовый адрес',
-  registrationAddress: 'Адрес регистрации',
-  legalAddress: 'Юридический адрес',
-  sameAsRegistration: 'Совпадает с адресом регистрации',
-  sameAsLegalAddress: 'Совпадает с юридическим адресом',
-  bankName: 'Название банка',
-  bankUnp: 'УНП банка',
-  bankBic: 'Код банка (BIC)',
-  iban: 'Номер карт-счета банка IBAN',
-  bankAddress: 'Адрес банка',
-  transitBankName: 'Название транзитного банка',
-  transitBankBic: 'Код транзитного банка (BIC)',
-  transitIban: 'Номер транзитного счета'
-};
+const addressHint = 'Например: г. Минск, ул. Октябрьская, д. 10, кв. 1118';
 
 const documentLabels = {
-  registrationCertificate: 'Свидетельство о регистрации',
+  registrationCertificate: 'Свидетельство о регистрации ИП',
   stateRegistrationCertificate: 'Свидетельство о государственной регистрации',
-  documentRegistration: 'Прописка / временная регистрация / 25 страница паспорта',
-  documentMain: 'Лицевая сторона ID-карты / страницы 32-33 паспорта',
-  documentBack: 'Обратная сторона ID-карты / 31 страница паспорта',
-  documentExtra: 'Дополнительный документ',
-  documentExtraSecond: 'Дополнительный документ 2',
-  documentPersonalNumberPage: 'Страница документа с личным номером',
-  residenceRegistration: 'Прописка / временная регистрация',
-  identityFront: 'Лицевая сторона ID-карты / страницы 32-33 паспорта',
-  identityBack: 'Обратная сторона ID-карты / страница 31 паспорта',
-  identityExtra: 'Дополнительный документ',
-  identityExtraTwo: 'Дополнительный документ 2',
-  personalNumberPage: 'Страница документа с личным номером',
+  documentRegistration: 'Прописка: временная регистрация или 25 страница паспорта',
+  documentMain: 'Лицевая сторона ID-карты или страницы 32-33 паспорта на одном фото',
+  documentBack: 'Обратная сторона ID-карты или 31 страница паспорта',
+  documentExtra: 'Селфи с разворотом 32-33 страниц паспорта или лицевой стороной ID-карты',
+  documentPersonalNumberPage: 'Копия страницы документа с личным номером',
   taxCertificate: 'Свидетельство о постановке на учет в налоговой',
-  charter: 'Устав',
-  appointmentOrder: 'Приказ о назначении руководителя',
-  appointmentOrderExtra: 'Дополнительный документ о назначении',
-  directorAppointmentOrder: 'Документ о назначении руководителя',
-  directorAppointmentReserve: 'Резервный документ о назначении руководителя',
-  powerOfAttorney: 'Доверенность',
-  organizationCertificate: 'Свидетельство о регистрации организации'
+  charter: 'Копия устава в полном объеме',
+  directorAppointmentOrder: 'Документ о назначении руководителя'
 };
 
-const formatValue = (key, value) => {
-  if (value === undefined || value === null || value === '') {
-    return '';
-  }
+const getValue = (source, path) => path.split('.').reduce((result, key) => result?.[key], source) || '';
 
-  if (typeof value === 'boolean') {
-    return value ? 'Да' : 'Нет';
-  }
-
-  if (key === 'documentType') {
-    return documentTypeLabels[value] || value;
-  }
-
-  if (key === 'directorBasis') {
-    return directorBasisLabels[value] || value;
-  }
-
-  if (key === 'accountType') {
-    return accountTypeLabels[value] || value;
-  }
-
-  if (key === 'verificationStatus') {
-    return verificationStatusLabels[value] || value;
-  }
-
-  return value;
-};
-
-const toPairs = (data = {}) =>
-  Object.entries(data)
-    .map(([key, value]) => [fieldLabels[key] || key, formatValue(key, value)])
-    .filter(([, value]) => value !== '');
-
-const filterAddressData = (addressData = {}, accountType) => {
-  const hiddenKeys =
-    accountType === 'legal_entity'
-      ? ['sameAsRegistration', 'residentialAddress']
-      : ['sameAsLegalAddress', 'postalAddress', 'legalAddress'];
-
-  return Object.fromEntries(Object.entries(addressData).filter(([key]) => !hiddenKeys.includes(key)));
-};
-
-function DetailSection({ title, data }) {
-  const pairs = toPairs(data);
-
-  if (pairs.length === 0) {
-    return null;
-  }
+function ReadField({ label, value, wide = false, as = 'input', hint = '' }) {
+  const Control = as;
 
   return (
-    <section className={styles.detailSection}>
-      <h3 className={styles.detailSection__title}>{title}</h3>
-      <dl className={styles.detailList}>
-        {pairs.map(([label, value]) => (
-          <div className={styles.detailItem} key={label}>
-            <dt>{label}</dt>
-            <dd>{value}</dd>
-          </div>
-        ))}
-      </dl>
+    <label className={`${styles.field} ${wide ? styles.fieldFull : ''}`}>
+      <span className={styles.field__label}>{label}</span>
+      <Control
+        className={`${styles.field__control} ${styles['field__control--readonly']}`}
+        value={value || 'Не указано'}
+        disabled
+        rows={as === 'textarea' ? 3 : undefined}
+      />
+      {hint && <span className={styles.field__hint}>{hint}</span>}
+    </label>
+  );
+}
+
+function ReadSection({ title, children }) {
+  return (
+    <section className={styles.auctionBlock}>
+      <h2 className={styles.sectionTitle}>{title}</h2>
+      <div className={styles.formGrid}>{children}</div>
     </section>
   );
 }
 
-function DocumentPreview({ document }) {
-  const fileUrl = document.url || '';
-  const isImage = document.mimeType?.startsWith('image/');
-  const title = documentLabels[document.fieldName] || document.fieldName || document.originalName;
+function AccountSelectorPreview({ verification }) {
+  return (
+    <div className={styles.verificationChoice}>
+      <div className={styles.segmentGroup}>
+        {Object.entries(accountTypeLabels).map(([value, label]) => (
+          <label key={value} className={styles.segmentOption}>
+            <input type="radio" checked={verification.accountType === value} disabled readOnly />
+            <span>{label}</span>
+          </label>
+        ))}
+      </div>
+      <label className={`${styles.checkRow} ${styles.checkRowCard}`}>
+        <input type="checkbox" checked={!verification.isResident} disabled readOnly />
+        <span>Нерезидент РБ</span>
+      </label>
+    </div>
+  );
+}
+
+function PersonPreview({ verification }) {
+  const data = verification.personalData || {};
+  const address = verification.addressData || {};
+  const isEntrepreneur = verification.accountType === 'entrepreneur';
 
   return (
-    <article className={styles.documentCard}>
-      <strong>{title}</strong>
-      <span>{document.originalName}</span>
-      {isImage && fileUrl && <img className={styles.documentPreview} src={fileUrl} alt={title} />}
-      {fileUrl && (
-        <a className={styles.documentLink} href={fileUrl} target="_blank" rel="noreferrer">
-          Открыть файл
-        </a>
+    <ReadSection title={isEntrepreneur ? 'Основные сведения ИП' : 'Основные сведения'}>
+      <ReadField label="Имя" value={data.firstName} />
+      <ReadField label="Фамилия" value={data.lastName} />
+      <ReadField label="Отчество" value={data.middleName} />
+      <ReadField label="Телефон" value={data.phone} />
+      <ReadField label="Дополнительный телефон" value={data.additionalPhone} />
+      <ReadField label="Адрес электронной почты для направления уведомлений, документов" value={data.notificationEmail} wide />
+      {!verification.isResident && <ReadField label="Страна" value={address.country} />}
+      <ReadField label="Почтовый адрес (адрес проживания)" value={data.postalAddress} as="textarea" wide hint={addressHint} />
+    </ReadSection>
+  );
+}
+
+function EntrepreneurPreview({ verification }) {
+  const data = verification.organizationData || {};
+
+  return (
+    <ReadSection title="Регистрационные данные ИП">
+      <ReadField label={verification.isResident ? 'УНП' : 'ИНН/БИН'} value={verification.isResident ? data.unp : data.taxId} />
+      {verification.isResident && <ReadField label="Дата регистрации в ЕГР" value={data.registrationDate} />}
+    </ReadSection>
+  );
+}
+
+function OrganizationPreview({ verification }) {
+  const data = verification.organizationData || {};
+  const address = verification.addressData || {};
+
+  return (
+    <>
+      <ReadSection title="Основные сведения организации">
+        <ReadField label="Краткое наименование организации" value={data.shortName} wide />
+        <ReadField label="Полное наименование организации" value={data.fullName} as="textarea" wide />
+        <ReadField label={verification.isResident ? 'УНП' : 'ИНН/БИН'} value={verification.isResident ? data.unp : data.taxId} />
+        {verification.isResident && <ReadField label="Дата регистрации в ЕГР" value={data.registrationDate} />}
+        <ReadField label="Адрес электронной почты для направления уведомлений, документов" value={getValue(verification, 'personalData.notificationEmail')} wide />
+      </ReadSection>
+      <ReadSection title="Руководитель">
+        <ReadField label="ФИО руководителя" value={data.directorFullName} />
+        <ReadField label="Должность руководителя" value={data.directorPosition} />
+        <ReadField label="Основание полномочий" value={directorBasisLabels[data.directorBasis] || data.directorBasis} />
+      </ReadSection>
+      {!verification.isResident && (
+        <ReadSection title="Главный бухгалтер">
+          <ReadField label="ФИО главного бухгалтера" value={data.chiefAccountantFullName} />
+          <ReadField label="Телефон главного бухгалтера" value={data.chiefAccountantPhone} />
+        </ReadSection>
       )}
-    </article>
+      <ReadSection title="Адреса организации">
+        {!verification.isResident && <ReadField label="Страна" value={address.country} />}
+        <ReadField label="Юридический адрес" value={address.legalAddress} as="textarea" wide hint={addressHint} />
+        <ReadField label="Почтовый адрес при отличии от юридического" value={address.postalAddress} as="textarea" wide hint={addressHint} />
+      </ReadSection>
+    </>
+  );
+}
+
+function BankPreview({ verification }) {
+  const data = verification.bankData || {};
+
+  return (
+    <ReadSection title="Банковские реквизиты">
+      <ReadField label="Номер расчетного счета IBAN" value={data.iban} />
+      <ReadField label="Название банка" value={data.bankName} />
+      <ReadField label="УНП банка" value={data.bankUnp} />
+      <ReadField label="Код банка (BIC)" value={data.bankBic} />
+      {!verification.isResident && (
+        <>
+          <div className={styles.bankDivider}>Транзитный банк</div>
+          <ReadField label="Номер транзитного счета" value={data.transitIban} />
+          <ReadField label="Название транзитного банка" value={data.transitBankName} />
+          <ReadField label="Код транзитного банка (BIC)" value={data.transitBankBic} />
+        </>
+      )}
+    </ReadSection>
+  );
+}
+
+function DocumentsPreview({ documents = [] }) {
+  const visibleDocuments = documents.filter((document) => !['documentExtraSecond', 'directorAppointmentReserve'].includes(document.fieldName));
+
+  if (visibleDocuments.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className={styles.auctionBlock}>
+      <h2 className={styles.sectionTitle}>Фотографии документов</h2>
+      <div className={styles.documentGrid}>
+        {visibleDocuments.map((document) => {
+          const title = documentLabels[document.fieldName] || document.fieldName;
+          const isImage = document.mimeType?.startsWith('image/');
+
+          return (
+            <a className={styles.documentCard} href={document.url} target="_blank" rel="noreferrer" key={`${document.fieldName}-${document.path}`}>
+              <strong>{title}</strong>
+              {isImage ? (
+                <img className={styles.documentPreview} src={document.url} alt={title} />
+              ) : (
+                <span className={styles.documentPlaceholder}>PDF-документ</span>
+              )}
+            </a>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
@@ -173,38 +184,22 @@ function VerificationDetails({ verification }) {
     return <p className={styles.panel__text}>Нет данных заявки.</p>;
   }
 
-  const userData = {
-    email: verification.user?.email,
-    role: verification.user?.role,
-    verificationStatus: verification.user?.verificationStatus,
-    accountType: verification.accountType,
-    isResident: verification.isResident ? 'Резидент РБ' : 'Нерезидент РБ'
-  };
-  const showOrganization = verification.accountType === 'legal_entity';
-  const showIdentityDocument = verification.accountType !== 'legal_entity';
-  const addressData = filterAddressData(verification.addressData, verification.accountType);
+  const isLegal = verification.accountType === 'legal_entity';
+  const isEntrepreneur = verification.accountType === 'entrepreneur';
 
   return (
-    <div className={styles.detailGrid}>
-      <DetailSection title="Пользователь" data={userData} />
-      <DetailSection title="Основные сведения" data={verification.personalData} />
-      {showOrganization && <DetailSection title="Организация" data={verification.organizationData} />}
-      {showIdentityDocument && (
-        <DetailSection title="Документ, удостоверяющий личность" data={verification.documentData} />
+    <div className={`${styles.auctionForm} ${styles.readonlyForm}`}>
+      <AccountSelectorPreview verification={verification} />
+      {isLegal ? (
+        <OrganizationPreview verification={verification} />
+      ) : (
+        <>
+          <PersonPreview verification={verification} />
+          {isEntrepreneur && <EntrepreneurPreview verification={verification} />}
+        </>
       )}
-      <DetailSection title={showOrganization ? 'Юридический адрес' : 'Адрес регистрации'} data={addressData} />
-      <DetailSection title="Банковские реквизиты" data={verification.bankData} />
-
-      {verification.documents?.length > 0 && (
-        <section className={styles.detailSection}>
-          <h3 className={styles.detailSection__title}>Копии документов</h3>
-          <div className={styles.documentGrid}>
-            {verification.documents.map((document) => (
-              <DocumentPreview key={`${document.fieldName}-${document.originalName}`} document={document} />
-            ))}
-          </div>
-        </section>
-      )}
+      <DocumentsPreview documents={verification.documents} />
+      <BankPreview verification={verification} />
     </div>
   );
 }

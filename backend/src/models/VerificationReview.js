@@ -17,7 +17,7 @@ const verificationReviewSchema = new mongoose.Schema(
     moderator: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: true,
+      default: null,
       index: true
     },
     action: {

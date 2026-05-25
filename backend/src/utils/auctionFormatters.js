@@ -26,7 +26,7 @@ const formatPhoto = (photo) => ({
 const formatAuction = (auction) => ({
   id: auction._id.toString(),
   owner: formatUserRef(auction.owner),
-  lotNumber: auction.lotNumber,
+  lotNumber: auction.lotNumber || null,
   status: auction.status,
   moderationComment: auction.moderationComment,
   pricing: auction.pricing,

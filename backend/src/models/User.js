@@ -60,6 +60,14 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null
     },
+    passwordResetCodeHash: {
+      type: String,
+      default: null
+    },
+    passwordResetCodeExpiresAt: {
+      type: Date,
+      default: null
+    },
     isActive: {
       type: Boolean,
       default: true

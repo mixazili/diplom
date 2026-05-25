@@ -7,7 +7,7 @@ const validateRegisterPayload = ({ email, password }) => {
     errors.email = 'Введите корректный email';
   }
 
-  if (!password || password.length < 8) {
+  if (!password || String(password).length < 8) {
     errors.password = 'Пароль должен быть не короче 8 символов';
   }
 
@@ -28,7 +28,18 @@ const validateVerificationCodePayload = ({ email, code }) => {
   return errors;
 };
 
+const validatePasswordPayload = ({ password }) => {
+  const errors = {};
+
+  if (!password || String(password).length < 8) {
+    errors.password = 'Пароль должен быть не короче 8 символов';
+  }
+
+  return errors;
+};
+
 module.exports = {
   validateRegisterPayload,
-  validateVerificationCodePayload
+  validateVerificationCodePayload,
+  validatePasswordPayload
 };

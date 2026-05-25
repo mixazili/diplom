@@ -1,5 +1,4 @@
 const {
-  DEPOSIT_RETURN_DAYS,
   ORGANIZATION_FEE_PERCENT,
   VAT_RATE,
   auctionCategories
@@ -66,7 +65,11 @@ const validateMoney = (errors, field, value, { required = true, min = 0 } = {}) 
   return Number(number.toFixed(2));
 };
 
-const validateInteger = (errors, field, value, min, max) => {
+const validateInteger = (errors, field, value, min, max, { required = true } = {}) => {
+  if ((value === null || value === undefined || value === '') && !required) {
+    return null;
+  }
+
   const number = toInteger(value);
 
   if (!Number.isFinite(number)) {
@@ -108,6 +111,29 @@ const normalizeCharacteristics = (rows = [], errors) => {
   return normalized;
 };
 
+const makeDateAtTime = (dateValue, timeValue, fallbackHour) => {
+  const date = toDate(dateValue);
+  if (!date) {
+    return null;
+  }
+
+  const [hour = fallbackHour, minute = 0] = String(timeValue || `${fallbackHour}:00`).split(':').map(Number);
+  const next = new Date(date);
+  next.setHours(hour, minute || 0, 0, 0);
+  return next;
+};
+
+const makeDateAtFixedTime = (dateValue, hour) => {
+  const date = toDate(dateValue);
+  if (!date) {
+    return null;
+  }
+
+  const next = new Date(date);
+  next.setHours(hour, 0, 0, 0);
+  return next;
+};
+
 const validateAuctionPayload = ({ payload, photos, user }) => {
   const errors = {};
   const pricing = payload.pricing || {};
@@ -115,23 +141,21 @@ const validateAuctionPayload = ({ payload, photos, user }) => {
   const item = payload.item || {};
   const inspection = payload.inspection || {};
   const vatApplies = ['legal_entity', 'entrepreneur'].includes(user.accountType);
+  const isDraft = Boolean(payload.isDraft);
+  const auctionType = pricing.auctionType === 'decrease' ? 'decrease' : 'increase';
 
-  const priceWithoutVat = validateMoney(errors, 'pricing.priceWithoutVat', pricing.priceWithoutVat, { min: 0.01 });
   const priceWithVat = validateMoney(errors, 'pricing.priceWithVat', pricing.priceWithVat, { min: 0.01 });
-
-  if (vatApplies && priceWithoutVat !== null && priceWithVat !== null) {
-    const expected = Number((priceWithoutVat * (1 + VAT_RATE)).toFixed(2));
-    if (Math.abs(expected - priceWithVat) > 0.05) {
-      addError(errors, 'pricing.priceWithVat', 'Цена с НДС должна соответствовать цене без НДС и ставке 20%');
-    }
-  }
-
-  if (!vatApplies && priceWithoutVat !== null && priceWithVat !== null && Math.abs(priceWithoutVat - priceWithVat) > 0.01) {
-    addError(errors, 'pricing.priceWithVat', 'Для физического лица цена без НДС и итоговая цена должны совпадать');
-  }
-
-  const depositAmount = validateMoney(errors, 'pricing.depositAmount', pricing.depositAmount, { min: 0.01 });
-  const minBidStep = validateMoney(errors, 'pricing.minBidStep', pricing.minBidStep, { min: 0.01 });
+  const priceWithoutVat = priceWithVat === null ? null : Number((vatApplies ? priceWithVat / (1 + VAT_RATE) : priceWithVat).toFixed(2));
+  const minPriceWithVat = auctionType === 'decrease'
+    ? validateMoney(errors, 'pricing.minPriceWithVat', pricing.minPriceWithVat, { min: 0.01, required: !isDraft })
+    : null;
+  const depositAmount = validateMoney(errors, 'pricing.depositAmount', pricing.depositAmount, { min: 0.01, required: !isDraft });
+  const minBidStep = auctionType === 'increase'
+    ? validateMoney(errors, 'pricing.minBidStep', pricing.minBidStep, { min: 0.01, required: !isDraft })
+    : null;
+  const bidStepsCount = auctionType === 'decrease'
+    ? validateInteger(errors, 'pricing.bidStepsCount', pricing.bidStepsCount, 5, 50, { required: !isDraft })
+    : null;
 
   if (priceWithVat && depositAmount) {
     const minDeposit = priceWithVat * 0.01;
@@ -141,7 +165,7 @@ const validateAuctionPayload = ({ payload, photos, user }) => {
     }
   }
 
-  if (priceWithVat && minBidStep) {
+  if (auctionType === 'increase' && priceWithVat && minBidStep) {
     const minStep = priceWithVat * 0.01;
     const maxStep = priceWithVat * 0.1;
     if (minBidStep < minStep || minBidStep > maxStep) {
@@ -149,16 +173,22 @@ const validateAuctionPayload = ({ payload, photos, user }) => {
     }
   }
 
+  if (auctionType === 'decrease' && priceWithVat && minPriceWithVat) {
+    if (minPriceWithVat >= priceWithVat) {
+      addError(errors, 'pricing.minPriceWithVat', 'Минимальная цена должна быть ниже начальной цены');
+    }
+  }
+
   const now = new Date();
-  const applicationStartAt = toDate(schedule.applicationStartAt);
-  const applicationEndAt = toDate(schedule.applicationEndAt);
-  const biddingStartAt = toDate(schedule.biddingStartAt);
-  const biddingEndAt = toDate(schedule.biddingEndAt);
+  const applicationStartAt = makeDateAtFixedTime(schedule.applicationStartAt, 9);
+  const applicationEndAt = makeDateAtFixedTime(schedule.applicationEndAt, 19);
+  const biddingStartAt = makeDateAtTime(schedule.biddingDate, schedule.biddingStartTime, 9);
+  const biddingEndAt = makeDateAtTime(schedule.biddingDate, schedule.biddingEndTime, 12);
 
   if (!applicationStartAt) {
     addError(errors, 'schedule.applicationStartAt');
-  } else if (applicationStartAt < now || applicationStartAt > new Date(now.getTime() + 90 * dayMs)) {
-    addError(errors, 'schedule.applicationStartAt', 'Начало приема заявок должно быть от текущего времени до 90 дней');
+  } else if (!isDraft && (applicationStartAt < now || applicationStartAt > new Date(now.getTime() + 90 * dayMs))) {
+    addError(errors, 'schedule.applicationStartAt', 'Начало приема заявок должно быть от текущей даты до 90 дней');
   }
 
   if (!applicationEndAt) {
@@ -171,36 +201,38 @@ const validateAuctionPayload = ({ payload, photos, user }) => {
     addError(errors, 'schedule.applicationEndAt', 'Конец приема заявок должен быть через 3-90 дней после начала приема');
   }
 
-  if (!biddingStartAt) {
-    addError(errors, 'schedule.biddingStartAt');
+  if (!isDraft) {
+    if (!biddingStartAt) {
+      addError(errors, 'schedule.biddingStartAt');
+    }
+
+    if (!biddingEndAt) {
+      addError(errors, 'schedule.biddingEndAt');
+    }
+
+    if (applicationEndAt && biddingStartAt && biddingEndAt) {
+      const expectedDateKey = nextDayKey(applicationEndAt);
+
+      if (localDateKey(biddingStartAt) !== expectedDateKey || localDateKey(biddingEndAt) !== expectedDateKey) {
+        addError(errors, 'schedule.biddingDate', 'Торги должны проходить на следующий день после конца приема заявок');
+      }
+
+      if (biddingStartAt.getHours() < 9) {
+        addError(errors, 'schedule.biddingStartTime', 'Начало торгов должно быть не раньше 09:00');
+      }
+
+      if (biddingEndAt.getHours() > 19 || (biddingEndAt.getHours() === 19 && biddingEndAt.getMinutes() > 0)) {
+        addError(errors, 'schedule.biddingEndTime', 'Конец торгов должен быть не позже 19:00');
+      }
+
+      if (biddingEndAt <= biddingStartAt || biddingEndAt.getTime() - biddingStartAt.getTime() < 3 * hourMs) {
+        addError(errors, 'schedule.biddingEndTime', 'Минимальный срок торгов должен быть 3 часа');
+      }
+    }
   }
 
-  if (!biddingEndAt) {
-    addError(errors, 'schedule.biddingEndAt');
-  }
-
-  if (applicationEndAt && biddingStartAt && biddingEndAt) {
-    const expectedDateKey = nextDayKey(applicationEndAt);
-
-    if (localDateKey(biddingStartAt) !== expectedDateKey || localDateKey(biddingEndAt) !== expectedDateKey) {
-      addError(errors, 'schedule.biddingStartAt', 'Торги должны проходить на следующий день после конца приема заявок');
-    }
-
-    if (biddingStartAt.getHours() < 9) {
-      addError(errors, 'schedule.biddingStartAt', 'Начало торгов должно быть не раньше 09:00');
-    }
-
-    if (biddingEndAt.getHours() > 19 || (biddingEndAt.getHours() === 19 && biddingEndAt.getMinutes() > 0)) {
-      addError(errors, 'schedule.biddingEndAt', 'Конец торгов должен быть не позже 19:00');
-    }
-
-    if (biddingEndAt <= biddingStartAt || biddingEndAt.getTime() - biddingStartAt.getTime() < 5 * hourMs) {
-      addError(errors, 'schedule.biddingEndAt', 'Минимальный срок торгов должен быть 5 часов');
-    }
-  }
-
-  const paymentDeadlineDays = validateInteger(errors, 'schedule.paymentDeadlineDays', schedule.paymentDeadlineDays, 5, 90);
-  const contractDeadlineDays = validateInteger(errors, 'schedule.contractDeadlineDays', schedule.contractDeadlineDays, 5, 90);
+  const paymentDeadlineDays = validateInteger(errors, 'schedule.paymentDeadlineDays', schedule.paymentDeadlineDays, 5, 90, { required: !isDraft }) ?? 10;
+  const contractDeadlineDays = validateInteger(errors, 'schedule.contractDeadlineDays', schedule.contractDeadlineDays, 5, 90, { required: !isDraft }) ?? 10;
 
   if (!hasText(item.title)) {
     addError(errors, 'item.title');
@@ -212,7 +244,7 @@ const validateAuctionPayload = ({ payload, photos, user }) => {
     addError(errors, 'item.category', 'Выберите категорию');
   }
 
-  if (!hasText(item.locationAddress)) {
+  if (!isDraft && !hasText(item.locationAddress)) {
     addError(errors, 'item.locationAddress');
   }
 
@@ -223,7 +255,7 @@ const validateAuctionPayload = ({ payload, photos, user }) => {
     addError(errors, 'item.geoLocation', 'Укажите корректные координаты');
   }
 
-  if (photos.length < 1) {
+  if (!isDraft && photos.length < 1) {
     addError(errors, 'photos', 'Загрузите хотя бы 1 фотографию');
   }
 
@@ -232,29 +264,42 @@ const validateAuctionPayload = ({ payload, photos, user }) => {
   }
 
   const mainPhotoIndex = toInteger(payload.mainPhotoIndex ?? 0);
-  if (!Number.isFinite(mainPhotoIndex) || mainPhotoIndex < 0 || mainPhotoIndex >= Math.max(photos.length, 1)) {
+  if (photos.length > 0 && (!Number.isFinite(mainPhotoIndex) || mainPhotoIndex < 0 || mainPhotoIndex >= photos.length)) {
     addError(errors, 'mainPhotoIndex', 'Выберите главную фотографию');
   }
 
-  if (!hasText(inspection.contactName)) {
+  if (!isDraft && !hasText(inspection.contactName)) {
     addError(errors, 'inspection.contactName');
   }
 
-  if (!hasText(inspection.contactPhone)) {
+  if (!isDraft && !hasText(inspection.contactPhone)) {
     addError(errors, 'inspection.contactPhone');
   }
+
+  if (!hasText(inspection.contactEmail)) {
+    addError(errors, 'inspection.contactEmail');
+  }
+
+  const calculatedBidStep =
+    auctionType === 'decrease' && priceWithVat && minPriceWithVat && bidStepsCount
+      ? Number(((priceWithVat - minPriceWithVat) / bidStepsCount).toFixed(2))
+      : null;
 
   return {
     errors,
     normalized: {
       pricing: {
+        auctionType,
         priceWithoutVat,
         priceWithVat,
+        minPriceWithVat,
         vatApplies,
         vatRate: vatApplies ? VAT_RATE : 0,
         vatLabel: vatApplies ? 'НДС включен в цену' : 'Не облагается налогом на добавочную стоимость',
         depositAmount,
         minBidStep,
+        bidStepsCount,
+        calculatedBidStep,
         organizationFeePercent: ORGANIZATION_FEE_PERCENT
       },
       schedule: {
@@ -263,7 +308,6 @@ const validateAuctionPayload = ({ payload, photos, user }) => {
         biddingStartAt,
         biddingEndAt,
         paymentDeadlineDays,
-        depositReturnDays: DEPOSIT_RETURN_DAYS,
         contractDeadlineDays
       },
       item: {
@@ -282,7 +326,8 @@ const validateAuctionPayload = ({ payload, photos, user }) => {
         contactPhone: String(inspection.contactPhone || '').trim(),
         contactEmail: String(inspection.contactEmail || '').trim()
       },
-      mainPhotoIndex
+      mainPhotoIndex,
+      isDraft
     }
   };
 };

@@ -2,14 +2,17 @@ const VerificationRequest = require('../models/VerificationRequest');
 const VerificationReview = require('../models/VerificationReview');
 const Auction = require('../models/Auction');
 const AuctionReview = require('../models/AuctionReview');
+const Counter = require('../models/Counter');
 const User = require('../models/User');
 const asyncHandler = require('../utils/asyncHandler');
 const { formatReview, formatVerification } = require('../utils/staffFormatters');
 const { formatAuction, formatAuctionReview } = require('../utils/auctionFormatters');
+const { expirePendingAuctions, expirePendingVerifications, updateAuctionStatuses } = require('../services/statusAutomationService');
 
 const populateVerification = (query) => query.populate('user').populate('reviewedBy');
 
 const listPendingVerifications = asyncHandler(async (req, res) => {
+  await expirePendingVerifications();
   const verifications = await populateVerification(
     VerificationRequest.find({ status: 'pending' }).sort({ submittedAt: 1 })
   );
@@ -105,7 +108,41 @@ const listMyReviews = asyncHandler(async (req, res) => {
 
 const populateAuction = (query) => query.populate('owner').populate('reviewedBy');
 
+const generateLotNumber = async () => {
+  const year = new Date().getFullYear();
+  const key = `lot-number:${year}`;
+  const matcher = new RegExp(`^(?:LOT-)?${year}-(\\d+)$`);
+  const existingNumbers = await Auction.find({
+    lotNumber: { $regex: matcher }
+  }).select('lotNumber').lean();
+  const maxExisting = existingNumbers.reduce((max, auction) => {
+    const match = String(auction.lotNumber || '').match(matcher);
+    const value = match ? Number(match[1]) : 0;
+    return Number.isFinite(value) ? Math.max(max, value) : max;
+  }, 0);
+
+  await Counter.findOneAndUpdate(
+    { key },
+    { $max: { value: maxExisting }, $setOnInsert: { key } },
+    { upsert: true, returnDocument: 'after' }
+  ).catch((error) => {
+    if (error?.code !== 11000) {
+      throw error;
+    }
+  });
+
+  const counter = await Counter.findOneAndUpdate(
+    { key },
+    { $inc: { value: 1 }, $setOnInsert: { key } },
+    { upsert: true, returnDocument: 'after' }
+  );
+
+  return `${year}-${String(counter.value).padStart(6, '0')}`;
+};
+
 const listPendingAuctions = asyncHandler(async (req, res) => {
+  await updateAuctionStatuses();
+  await expirePendingAuctions();
   const auctions = await populateAuction(Auction.find({ status: 'pending' }).sort({ submittedAt: 1 }));
 
   res.json({ auctions: auctions.map(formatAuction) });
@@ -125,11 +162,36 @@ const getAuctionDetails = asyncHandler(async (req, res) => {
 const createAuctionReview = async ({ auction, moderator, action, comment }) => {
   const snapshot = formatAuction(auction);
 
-  auction.status = action === 'approved' ? 'active' : 'returned';
+  auction.status = action === 'approved' ? 'application_waiting' : 'returned';
   auction.moderationComment = comment || '';
   auction.reviewedBy = moderator._id;
   auction.reviewedAt = new Date();
-  await auction.save();
+
+  if (action === 'approved') {
+    let saved = false;
+
+    for (let attempt = 0; attempt < 20 && !saved; attempt += 1) {
+      auction.lotNumber = await generateLotNumber();
+
+      try {
+        await auction.save();
+        saved = true;
+      } catch (error) {
+        if (error?.code !== 11000 || !String(error.message || '').includes('lotNumber')) {
+          throw error;
+        }
+
+        auction.lotNumber = undefined;
+      }
+    }
+
+    if (!saved) {
+      throw new Error('Не удалось выдать уникальный номер лота');
+    }
+  } else {
+    auction.lotNumber = undefined;
+    await auction.save();
+  }
 
   return AuctionReview.create({
     auction: auction._id,
@@ -184,6 +246,7 @@ const reviewAuction = (action) =>
   });
 
 const listMyAuctionReviews = asyncHandler(async (req, res) => {
+  await expirePendingAuctions();
   const reviews = await AuctionReview.find({ moderator: req.user._id })
     .sort({ createdAt: -1 })
     .populate('moderator')

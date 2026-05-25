@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import styles from '../../App.module.css';
 import { logout } from '../../features/auth/authSlice.js';
+import { formatDateTime } from '../../utils/formatters.js';
 import AuctionReviewList from './AuctionReviewList.jsx';
 import ReviewList from './ReviewList.jsx';
 import { createStaffRequest } from './useStaffRequest.js';
@@ -46,7 +47,6 @@ function AdminPanel() {
         body: JSON.stringify(moderatorForm)
       });
       setModeratorForm({ email: '', password: '' });
-      setMessage('Модератор создан');
       await loadPanel();
     } catch (error) {
       setMessage(error.message);
@@ -56,7 +56,6 @@ function AdminPanel() {
   const deleteModerator = async (id) => {
     try {
       await staffRequest(`/admin/moderators/${id}`, { method: 'DELETE' });
-      setMessage('Модератор удален');
       await loadPanel();
     } catch (error) {
       setMessage(error.message);
@@ -90,7 +89,7 @@ function AdminPanel() {
             <span className={moderator.onlineStatus === 'online' ? styles.online : styles.offline}>
               {moderator.onlineStatus === 'online' ? 'online' : 'offline'}
             </span>
-            <small>Последняя активность: {moderator.lastSeenAt ? new Date(moderator.lastSeenAt).toLocaleString() : 'нет'}</small>
+            <small>Последняя активность: {moderator.lastSeenAt ? formatDateTime(moderator.lastSeenAt) : 'нет'}</small>
             <button className={styles.buttonDanger} type="button" onClick={() => deleteModerator(moderator.id)}>
               Удалить
             </button>
@@ -140,7 +139,7 @@ function AdminPanel() {
           </div>
         </section>
 
-        {message && <p className={styles.message__success}>{message}</p>}
+        {message && <p className={styles.message__error}>{message}</p>}
         {renderSection()}
       </div>
     </div>

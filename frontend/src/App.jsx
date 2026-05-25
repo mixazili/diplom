@@ -12,7 +12,8 @@ let initialRefreshStarted = false;
 function App() {
   const dispatch = useDispatch();
   const { user, refreshToken } = useSelector((state) => state.auth);
-  let content = <AuthPanel />;
+  const isStaffRoute = window.location.pathname === '/staff';
+  let content = <AuthPanel staffOnly={isStaffRoute} />;
 
   useEffect(() => {
     if (refreshToken && !initialRefreshStarted) {
@@ -21,7 +22,9 @@ function App() {
     }
   }, [dispatch, refreshToken]);
 
-  if (user?.role === 'admin') {
+  if (isStaffRoute && user?.role === 'user') {
+    content = <AuthPanel staffOnly />;
+  } else if (user?.role === 'admin') {
     content = <AdminPanel />;
   } else if (user?.role === 'moderator') {
     content = <ModeratorPanel />;

@@ -1,32 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import styles from '../../../App.module.css';
+import { getYandexMaps } from '../../../utils/yandexMaps.js';
 
 const DEFAULT_CENTER = [53.9023, 27.5619];
 const DEFAULT_ZOOM = 11;
-let yandexMapsPromise;
-
-const getYandexMaps = (apiKey) => {
-  if (window.ymaps) {
-    return Promise.resolve(window.ymaps);
-  }
-
-  if (yandexMapsPromise) {
-    return yandexMapsPromise;
-  }
-
-  yandexMapsPromise = new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = `https://api-maps.yandex.ru/2.1/?apikey=${apiKey}&lang=ru_RU`;
-    script.async = true;
-    script.onload = () => {
-      window.ymaps.ready(() => resolve(window.ymaps));
-    };
-    script.onerror = () => reject(new Error('Не удалось загрузить Яндекс.Карты'));
-    document.head.appendChild(script);
-  });
-
-  return yandexMapsPromise;
-};
 
 const hasSelectedCoordinates = (value) =>
   value?.lat !== '' &&

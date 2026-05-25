@@ -1,6 +1,5 @@
 const VAT_RATE = 0.2;
 const ORGANIZATION_FEE_PERCENT = 1;
-const DEPOSIT_RETURN_DAYS = 10;
 
 const auctionCategories = [
   'passenger_cars',
@@ -11,6 +10,12 @@ const auctionCategories = [
   'real_estate',
   'machines_equipment',
   'special_equipment',
+  'art',
+  'antiques',
+  'books',
+  'jewelry',
+  'electronics',
+  'clothing',
   'other_property'
 ];
 
@@ -23,6 +28,12 @@ const auctionCategoryLabels = {
   real_estate: 'Недвижимость',
   machines_equipment: 'Станки и оборудование',
   special_equipment: 'Спецтехника',
+  art: 'Искусство',
+  antiques: 'Антиквариат',
+  books: 'Книги',
+  jewelry: 'Ювелирные изделия',
+  electronics: 'Электроника и техника',
+  clothing: 'Одежда',
   other_property: 'Другое имущество'
 };
 
@@ -30,6 +41,7 @@ const operatorInfo = {
   name: 'ЗАО "БасТорг"',
   contactPerson: 'Бас Михаил Андреевич',
   address: 'г. Минск, ул. Калиновского, 79',
+  phone: '+375292336767',
   email: 'miha@gmail.com',
   unp: '192822249'
 };
@@ -37,7 +49,6 @@ const operatorInfo = {
 module.exports = {
   VAT_RATE,
   ORGANIZATION_FEE_PERCENT,
-  DEPOSIT_RETURN_DAYS,
   auctionCategories,
   auctionCategoryLabels,
   operatorInfo

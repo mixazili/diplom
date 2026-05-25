@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import styles from '../../App.module.css';
 import { accountTypeLabels, verificationStatusLabels } from '../../constants/verificationLabels.js';
+import { formatDateTime, getVerificationTitle } from '../../utils/formatters.js';
 import StaffCard from './StaffCard.jsx';
 import VerificationDetails from './VerificationDetails.jsx';
 
@@ -19,8 +20,8 @@ function VerificationQueue({ verifications, onApprove, onReject }) {
         {verifications.map((verification) => (
           <StaffCard
             key={verification.id}
-            title={verification.user?.email || 'Пользователь'}
-            meta={`${accountTypeLabels[verification.accountType] || verification.accountType} · ${verification.isResident ? 'резидент РБ' : 'нерезидент РБ'} · ${new Date(verification.submittedAt).toLocaleString()}`}
+            title={getVerificationTitle(verification)}
+            meta={`${accountTypeLabels[verification.accountType] || verification.accountType} · ${verification.isResident ? 'резидент РБ' : 'нерезидент РБ'} · ${formatDateTime(verification.submittedAt)}`}
             status={verificationStatusLabels[verification.status] || verification.status}
             actions={(
               <div className={styles.staffActions}>

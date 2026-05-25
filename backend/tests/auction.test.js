@@ -73,7 +73,7 @@ const createValidPayload = () => {
 
   return {
     pricing: {
-      priceWithoutVat: 10000,
+      auctionType: 'increase',
       priceWithVat: 10000,
       depositAmount: 1000,
       minBidStep: 500
@@ -81,8 +81,9 @@ const createValidPayload = () => {
     schedule: {
       applicationStartAt: applicationStartAt.toISOString(),
       applicationEndAt: applicationEndAt.toISOString(),
-      biddingStartAt: biddingStartAt.toISOString(),
-      biddingEndAt: biddingEndAt.toISOString(),
+      biddingDate: biddingStartAt.toISOString(),
+      biddingStartTime: '09:00',
+      biddingEndTime: '14:00',
       paymentDeadlineDays: 10,
       contractDeadlineDays: 10
     },
@@ -100,7 +101,7 @@ const createValidPayload = () => {
     inspection: {
       contactName: 'Иванов Иван Иванович',
       contactPhone: '+375291112233',
-      contactEmail: ''
+      contactEmail: 'seller-notice@example.com'
     },
     mainPhotoIndex: 0
   };
@@ -122,12 +123,46 @@ describe('auction creation API', () => {
 
     expect(response.status).toBe(201);
     expect(response.body.auction.status).toBe('pending');
-    expect(response.body.auction.lotNumber).toMatch(/^LOT-/);
+    expect(response.body.auction.lotNumber).toBe(null);
     expect(response.body.auction.photos).toHaveLength(1);
     expect(response.body.auction.photos[0].isMain).toBe(true);
 
     const savedAuction = await Auction.findById(response.body.auction.id);
     expect(savedAuction.item.characteristics).toHaveLength(1);
+  });
+
+  it('allows multiple draft or pending auctions without lot numbers', async () => {
+    const user = await createApprovedUser({ email: 'multiple-drafts@example.com' });
+    const token = createAccessToken(user);
+    const firstPayload = { ...createValidPayload(), isDraft: true };
+    const secondPayload = { ...createValidPayload(), item: { ...createValidPayload().item, title: 'Второй лот' }, isDraft: true };
+
+    const firstResponse = await request(app)
+      .post('/api/auctions')
+      .set('Authorization', `Bearer ${token}`)
+      .field('payload', JSON.stringify(firstPayload))
+      .attach('photos', Buffer.from('photo'), {
+        filename: 'first.jpg',
+        contentType: 'image/jpeg'
+      });
+
+    const secondResponse = await request(app)
+      .post('/api/auctions')
+      .set('Authorization', `Bearer ${token}`)
+      .field('payload', JSON.stringify(secondPayload))
+      .attach('photos', Buffer.from('photo'), {
+        filename: 'second.jpg',
+        contentType: 'image/jpeg'
+      });
+
+    expect(firstResponse.status).toBe(201);
+    expect(secondResponse.status).toBe(201);
+    expect(firstResponse.body.auction.lotNumber).toBe(null);
+    expect(secondResponse.body.auction.lotNumber).toBe(null);
+
+    const savedAuctions = await Auction.find({ owner: user._id }).lean();
+    expect(savedAuctions).toHaveLength(2);
+    expect(savedAuctions.every((auction) => !Object.prototype.hasOwnProperty.call(auction, 'lotNumber'))).toBe(true);
   });
 
   it('rejects auction creation for unverified user', async () => {
@@ -198,7 +233,8 @@ describe('auction creation API', () => {
     expect(response.body.review.auctionSnapshot.status).toBe('pending');
 
     const savedAuction = await Auction.findById(createResponse.body.auction.id);
-    expect(savedAuction.status).toBe('active');
+    expect(savedAuction.status).toBe('application_waiting');
+    expect(savedAuction.lotNumber).toMatch(/^\d{4}-\d{6}$/);
 
     const savedReview = await AuctionReview.findOne({ auction: savedAuction._id });
     expect(savedReview.auctionSnapshot.item.title).toBe(createValidPayload().item.title);

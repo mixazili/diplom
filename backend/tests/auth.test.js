@@ -6,6 +6,10 @@ jest.mock('../src/services/emailService', () => ({
   sendStaffLoginCode: jest.fn().mockResolvedValue({
     messageId: 'staff-message',
     previewUrl: 'https://ethereal.email/message/staff-test'
+  }),
+  sendPasswordResetCode: jest.fn().mockResolvedValue({
+    messageId: 'reset-message',
+    previewUrl: 'https://ethereal.email/message/reset-test'
   })
 }));
 
@@ -148,5 +152,56 @@ describe('auth API', () => {
     expect(verifyResponse.status).toBe(200);
     expect(verifyResponse.body.user.role).toBe('moderator');
     expect(verifyResponse.body.accessToken).toBeTruthy();
+  });
+
+  it('resets user password by email code and logs in', async () => {
+    const code = '654321';
+    const user = await User.create({
+      email: 'reset@example.com',
+      passwordHash: await bcrypt.hash('Password123', 10),
+      isEmailVerified: true,
+      emailVerifiedAt: new Date()
+    });
+
+    const requestResponse = await request(app).post('/api/auth/password-reset/request').send({
+      email: user.email
+    });
+
+    expect(requestResponse.status).toBe(200);
+
+    user.passwordResetCodeHash = await bcrypt.hash(code, 10);
+    user.passwordResetCodeExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    await user.save();
+
+    const confirmResponse = await request(app).post('/api/auth/password-reset/confirm').send({
+      email: user.email,
+      code,
+      password: 'NewPassword123'
+    });
+
+    expect(confirmResponse.status).toBe(200);
+    expect(confirmResponse.body.accessToken).toBeTruthy();
+    expect(await bcrypt.compare('NewPassword123', (await User.findById(user._id)).passwordHash)).toBe(true);
+  });
+
+  it('changes password for authenticated user', async () => {
+    const user = await User.create({
+      email: 'change-password@example.com',
+      passwordHash: await bcrypt.hash('Password123', 10),
+      isEmailVerified: true,
+      emailVerifiedAt: new Date()
+    });
+    const token = jwt.sign({ sub: user._id.toString(), role: user.role, email: user.email }, config.jwt.accessSecret, {
+      expiresIn: '15m'
+    });
+
+    const response = await request(app)
+      .post('/api/auth/change-password')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ password: 'ChangedPassword123' });
+
+    expect(response.status).toBe(200);
+    expect(response.body.refreshToken).toBeTruthy();
+    expect(await bcrypt.compare('ChangedPassword123', (await User.findById(user._id)).passwordHash)).toBe(true);
   });
 });
