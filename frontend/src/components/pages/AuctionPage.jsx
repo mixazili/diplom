@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle,
   ChevronLeft,
@@ -574,6 +574,8 @@ function AuctionPage({ id, user, accessToken, onBack, onOpenAuction }) {
   const [bids, setBids] = useState([]);
   const [status, setStatus] = useState('loading');
   const [message, setMessage] = useState('');
+  const subjectInfoRef = useRef(null);
+  const [mapPanelHeight, setMapPanelHeight] = useState(null);
 
   useEffect(() => {
     setStatus('loading');
@@ -599,6 +601,35 @@ function AuctionPage({ id, user, accessToken, onBack, onOpenAuction }) {
     const main = source.find((photo) => photo.isMain);
     return main ? [main, ...source.filter((photo) => photo !== main)] : source;
   }, [auction]);
+
+  useLayoutEffect(() => {
+    if (!auction || !subjectInfoRef.current) {
+      return undefined;
+    }
+
+    const updateHeight = () => {
+      const shouldStack = window.matchMedia('(max-width: 980px)').matches;
+
+      if (shouldStack) {
+        setMapPanelHeight(null);
+        return;
+      }
+
+      setMapPanelHeight(subjectInfoRef.current.offsetHeight);
+    };
+
+    updateHeight();
+    const resizeObserver = new ResizeObserver(updateHeight);
+    resizeObserver.observe(subjectInfoRef.current);
+    window.addEventListener('resize', updateHeight);
+    const timerId = window.setTimeout(updateHeight, 120);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', updateHeight);
+      window.clearTimeout(timerId);
+    };
+  }, [auction, auction?.item?.description, auction?.item?.characteristics?.length]);
 
   if (status === 'loading') {
     return <p className={styles.panel__text}>Загрузка лота...</p>;
@@ -679,7 +710,7 @@ function AuctionPage({ id, user, accessToken, onBack, onOpenAuction }) {
       <TradingBlock auction={auction} user={user} viewer={viewer} bids={bids} />
 
       <section className={styles.auctionPageSubject} id="auction-instruction">
-        <div className={styles.auctionPageBlock}>
+        <div className={styles.auctionPageBlock} ref={subjectInfoRef}>
           <h2>Информация о предмете торгов</h2>
           {(item.characteristics || []).length > 0 && (
             <table className={styles.characteristicsTable}>
@@ -702,7 +733,7 @@ function AuctionPage({ id, user, accessToken, onBack, onOpenAuction }) {
           )}
         </div>
 
-        <aside className={styles.auctionPageMapPanel}>
+        <aside className={styles.auctionPageMapPanel} style={mapPanelHeight ? { height: `${mapPanelHeight}px` } : undefined}>
           <h3>Адрес местонахождения предмета торгов</h3>
           <p className={styles.auctionPage__location}><MapPin size={18} />{item.locationAddress || 'Местоположение не указано'}</p>
           <PublicAuctionMap geoLocation={item.geoLocation} />
