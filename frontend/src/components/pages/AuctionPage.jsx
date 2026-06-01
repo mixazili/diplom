@@ -201,6 +201,7 @@ function PublicAuctionMap({ geoLocation }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const resizeObserverRef = useRef(null);
+  const fitTimersRef = useRef([]);
   const [loadError, setLoadError] = useState('');
   const lat = Number(geoLocation?.lat);
   const lng = Number(geoLocation?.lng);
@@ -229,10 +230,24 @@ function PublicAuctionMap({ geoLocation }) {
         map.geoObjects.add(new ymaps.Placemark(coords, {}, { preset: 'islands#redIcon', draggable: false }));
         mapInstanceRef.current = map;
 
-        resizeObserverRef.current = new ResizeObserver(() => {
+        const fitMapToViewport = () => {
           map.container.fitToViewport();
-        });
+        };
+
+        const scheduleFit = () => {
+          window.requestAnimationFrame(fitMapToViewport);
+          fitTimersRef.current.forEach((timerId) => window.clearTimeout(timerId));
+          fitTimersRef.current = [
+            window.setTimeout(fitMapToViewport, 80),
+            window.setTimeout(fitMapToViewport, 250)
+          ];
+        };
+
+        resizeObserverRef.current = new ResizeObserver(scheduleFit);
         resizeObserverRef.current.observe(mapRef.current);
+        window.addEventListener('resize', scheduleFit);
+        mapInstanceRef.current.__scheduleFit = scheduleFit;
+        scheduleFit();
       })
       .catch((error) => {
         if (mounted) {
@@ -249,6 +264,9 @@ function PublicAuctionMap({ geoLocation }) {
     if (mapInstanceRef.current) {
       resizeObserverRef.current?.disconnect();
       resizeObserverRef.current = null;
+      fitTimersRef.current.forEach((timerId) => window.clearTimeout(timerId));
+      fitTimersRef.current = [];
+      window.removeEventListener('resize', mapInstanceRef.current.__scheduleFit);
       mapInstanceRef.current.destroy();
       mapInstanceRef.current = null;
     }
