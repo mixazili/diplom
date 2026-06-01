@@ -33,6 +33,11 @@ const auctionSchema = new mongoose.Schema(
       type: String,
       trim: true
     },
+    viewsCount: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
     status: {
       type: String,
       enum: [
@@ -82,6 +87,8 @@ const auctionSchema = new mongoose.Schema(
       characteristics: { type: [characteristicSchema], default: [] },
       description: { type: String, default: '', trim: true },
       locationAddress: { type: String, default: '', trim: true },
+      locationRegion: { type: String, default: '', trim: true, index: true },
+      locationCity: { type: String, default: '', trim: true, index: true },
       geoLocation: {
         lat: { type: Number, default: null },
         lng: { type: Number, default: null }

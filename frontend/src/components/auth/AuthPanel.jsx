@@ -61,19 +61,19 @@ function CodeNotice({ auth, label = 'Dev-код' }) {
   );
 }
 
-function AuthPanel({ staffOnly = false }) {
+function AuthPanel({ staffOnly = false, initialMode = 'register' }) {
   const dispatch = useDispatch();
   const auth = useSelector((state) => state.auth);
-  const [mode, setMode] = useState(staffOnly ? 'staff' : 'register');
+  const [mode, setMode] = useState(staffOnly ? 'staff' : initialMode);
   const [resetStep, setResetStep] = useState('email');
   const [credentials, setCredentials] = useState(initialCredentials);
 
   useEffect(() => {
-    setMode(staffOnly ? 'staff' : 'register');
+    setMode(staffOnly ? 'staff' : initialMode);
     setCredentials(initialCredentials);
     setResetStep('email');
     dispatch(clearAuthFlow());
-  }, [dispatch, staffOnly]);
+  }, [dispatch, initialMode, staffOnly]);
 
   const title = useMemo(() => {
     if (staffOnly) {

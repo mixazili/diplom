@@ -1,22 +1,60 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import styles from '../../App.module.css';
 import { verificationStatusLabels } from '../../constants/verificationLabels.js';
 import { formatDateTime, getVerificationTitle } from '../../utils/formatters.js';
 import StaffCard from './StaffCard.jsx';
+import StaffListControls, { StaffPagination, paginateItems, sortByDate } from './StaffListControls.jsx';
 import VerificationDetails from './VerificationDetails.jsx';
 
+const filterOptions = [
+  ['all', 'Все решения'],
+  ['approved', 'Одобренные'],
+  ['rejected', 'Отклоненные']
+];
+
 function ReviewList({ reviews, title, showModerator = true }) {
+  const [sort, setSort] = useState('newest');
+  const [filters, setFilters] = useState(['approved', 'rejected']);
+  const [limit, setLimit] = useState(20);
+  const [page, setPage] = useState(1);
+  const toggleFilter = (value) => {
+    setFilters((current) => {
+      const next = current.includes(value) ? current.filter((item) => item !== value) : [...current, value];
+      return next.length > 0 ? next : current;
+    });
+    setPage(1);
+  };
+  const filteredReviews = useMemo(
+    () => reviews.filter((review) => filters.includes(review.action)),
+    [filters, reviews]
+  );
+  const sortedReviews = useMemo(
+    () => sortByDate(filteredReviews, sort, (review) => review.createdAt),
+    [filteredReviews, sort]
+  );
+  const { pageItems, totalPages, safePage } = paginateItems(sortedReviews, page, limit);
+
   return (
     <section className={styles.staffSection}>
       <h2 className={styles.sectionTitle}>{title}</h2>
+      <StaffListControls
+        sort={sort}
+        onSortChange={(value) => { setSort(value); setPage(1); }}
+        filters={filters}
+        onFilterToggle={toggleFilter}
+        filterOptions={filterOptions}
+        limit={limit}
+        onLimitChange={(value) => { setLimit(value); setPage(1); }}
+      />
       <div className={styles.staffList}>
-        {reviews.length === 0 && <p className={styles.panel__text}>Журнал пока пуст.</p>}
-        {reviews.map((review) => (
+        {pageItems.length === 0 && <p className={styles.panel__text}>Журнал пока пуст.</p>}
+        {pageItems.map((review) => (
           <StaffCard
             key={review.id}
             title={getVerificationTitle(review.verificationRequest)}
             meta={`${formatDateTime(review.createdAt)}${showModerator ? ` · модератор: ${review.moderator?.email || 'не указан'}` : ''}`}
             status={verificationStatusLabels[review.action] || review.action}
+            statusTone={review.action === 'approved' ? 'approved' : review.action === 'rejected' ? 'rejected' : ''}
           >
             {review.action === 'rejected' && (
               <div className={styles.decisionNotice}>
@@ -29,6 +67,7 @@ function ReviewList({ reviews, title, showModerator = true }) {
           </StaffCard>
         ))}
       </div>
+      <StaffPagination page={safePage} totalPages={totalPages} onPageChange={setPage} />
     </section>
   );
 }

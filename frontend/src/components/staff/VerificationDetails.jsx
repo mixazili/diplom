@@ -1,8 +1,9 @@
 import React from 'react';
 import styles from '../../App.module.css';
 import { accountTypeLabels, directorBasisLabels } from '../../constants/verificationLabels.js';
+import { formatPhoneDisplay } from '../../utils/inputFormatters.js';
 
-const addressHint = 'Например: г. Минск, ул. Октябрьская, д. 10, кв. 1118';
+const addressHint = 'Например: Минская область, г. Минск, ул. Октябрьская, д. 10, кв. 1118';
 
 const documentLabels = {
   registrationCertificate: 'Свидетельство о регистрации ИП',
@@ -21,13 +22,14 @@ const getValue = (source, path) => path.split('.').reduce((result, key) => resul
 
 function ReadField({ label, value, wide = false, as = 'input', hint = '' }) {
   const Control = as;
+  const displayValue = /телефон/i.test(label) ? formatPhoneDisplay(value) : value;
 
   return (
     <label className={`${styles.field} ${wide ? styles.fieldFull : ''}`}>
       <span className={styles.field__label}>{label}</span>
       <Control
         className={`${styles.field__control} ${styles['field__control--readonly']}`}
-        value={value || 'Не указано'}
+        value={displayValue || 'Не указано'}
         disabled
         rows={as === 'textarea' ? 3 : undefined}
       />

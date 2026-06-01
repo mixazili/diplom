@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Clock, Eye, MapPin } from 'lucide-react';
+import { Clock, Eye, Heart, MapPin } from 'lucide-react';
 import styles from '../../App.module.css';
+import { formatCardLocation } from '../../utils/location.js';
 import { getYandexMaps } from '../../utils/yandexMaps.js';
 
 export const auctionStatusLabels = {
@@ -46,10 +47,7 @@ const formatDate = (value) => {
   return new Intl.DateTimeFormat('ru-RU', {
     day: '2-digit',
     month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false
+    year: 'numeric'
   }).format(date);
 };
 
@@ -76,7 +74,7 @@ const formatDuration = (target) => {
   return `${minutes} мин.`;
 };
 
-const normalizeAddress = (address = '') => address.trim() || 'Местоположение не указано';
+const normalizeAddress = (address = '', item = {}) => formatCardLocation(address, item);
 
 const getAddressFromGeoObject = (geoObject) =>
   geoObject?.properties?.get('metaDataProperty.GeocoderMetaData.text') ||
@@ -86,6 +84,7 @@ const getAddressFromGeoObject = (geoObject) =>
 function useAuctionAddress(auction) {
   const geoLocation = auction?.item?.geoLocation || {};
   const address = auction?.item?.locationAddress || '';
+  const item = auction?.item || {};
   const lat = Number(geoLocation.lat);
   const lng = Number(geoLocation.lng);
   const cacheKey = Number.isFinite(lat) && Number.isFinite(lng) ? `${lat.toFixed(6)},${lng.toFixed(6)}` : '';
@@ -93,7 +92,7 @@ function useAuctionAddress(auction) {
 
   useEffect(() => {
     if (!cacheKey) {
-      setResolvedAddress(normalizeAddress(address));
+      setResolvedAddress(normalizeAddress(address, item));
       return undefined;
     }
 
@@ -107,7 +106,7 @@ function useAuctionAddress(auction) {
       .then((ymaps) => ymaps.geocode([lat, lng], { results: 1 }))
       .then((result) => {
         const geoObject = result.geoObjects.get(0);
-        const nextAddress = getAddressFromGeoObject(geoObject) || normalizeAddress(address);
+        const nextAddress = normalizeAddress(getAddressFromGeoObject(geoObject) || address, item);
         addressCache.set(cacheKey, nextAddress);
 
         if (mounted) {
@@ -116,14 +115,14 @@ function useAuctionAddress(auction) {
       })
       .catch(() => {
         if (mounted) {
-          setResolvedAddress(normalizeAddress(address));
+          setResolvedAddress(normalizeAddress(address, item));
         }
       });
 
     return () => {
       mounted = false;
     };
-  }, [address, cacheKey, lat, lng]);
+  }, [address, cacheKey, item.locationCity, item.locationRegion, lat, lng]);
 
   return resolvedAddress;
 }
@@ -157,7 +156,7 @@ const getTimeInfo = (auction) => {
 const getDisplayPrice = (auction) =>
   auction.currentPrice || auction.lastBidPrice || auction.pricing?.priceWithVat || 0;
 
-function PhotoCarousel({ auction, showStatus, showLike, showViews, timeInfo }) {
+function PhotoCarousel({ auction, showStatus, showLike, showViews, timeInfo, statusDanger = false, mediaMeta = '' }) {
   const photos = useMemo(() => {
     const source = auction.photos?.length > 0 ? auction.photos : [];
     const mainPhoto = source.find((item) => item.isMain);
@@ -191,16 +190,26 @@ function PhotoCarousel({ auction, showStatus, showLike, showViews, timeInfo }) {
         <div className={styles.auctionCard__placeholder}>Фото не загружено</div>
       )}
 
-      {showStatus && <span className={styles.auctionCard__status}>{auctionStatusLabels[auction.status] || auction.status}</span>}
-      {timeInfo && (
-        <span className={styles.auctionCard__time} title={timeInfo[0]}>
+      {showStatus && (
+        <span className={`${styles.auctionCard__status} ${statusDanger ? styles['auctionCard__status--danger'] : ''}`}>
+          {auctionStatusLabels[auction.status] || auction.status}
+        </span>
+      )}
+      {(timeInfo || mediaMeta) && (
+        <span className={styles.auctionCard__time} title={timeInfo?.[0] || mediaMeta}>
           <Clock className={styles.auctionCard__icon} aria-hidden="true" size={16} strokeWidth={2.4} />
-          <strong>{timeInfo[1]}</strong>
+          {mediaMeta ? (
+            <span className={styles.auctionCard__mediaMeta}>
+              {mediaMeta.split('\n').map((line) => <span key={line}>{line}</span>)}
+            </span>
+          ) : (
+            <strong>{timeInfo[1]}</strong>
+          )}
         </span>
       )}
       {showLike && (
         <button className={styles.auctionCard__like} type="button" aria-label="Добавить в избранное">
-          ♥
+          <Heart size={22} strokeWidth={2.1} />
         </button>
       )}
       {showViews && (
@@ -263,6 +272,7 @@ function ParticipationBlock({ auction, isVerified, participant }) {
 function AuctionCard({
   auction,
   mode = 'owner',
+  isAuthenticated = false,
   isVerified = false,
   participant = null,
   onEdit,
@@ -276,25 +286,18 @@ function AuctionCard({
   const isPublished = publishedStatuses.has(auction.status);
   const isOwner = mode === 'owner';
   const showStatus = mode !== 'journal' || Boolean(statusOverride);
-  const showLike = !isOwner && isPublished;
+  const showLike = Boolean(isAuthenticated) && !isOwner && isPublished;
   const showViews = isPublished;
   const timeInfo = getTimeInfo(auction);
+  const statusDanger = auction.status === 'returned' || statusOverride === auctionStatusLabels.returned;
   const editable = ['draft', 'pending', 'returned'].includes(auction.status);
   const canReturnToDraft = auction.status === 'application_waiting';
   const deletable = ['draft', 'pending', 'returned', 'application_waiting'].includes(auction.status);
   const cardTitle = auction.item?.title || 'Лот без названия';
-  const clickableCard = mode === 'journal' && Boolean(onOpen);
+  const clickableCard = ['journal', 'public', 'catalog', 'moderation'].includes(mode) && Boolean(onOpen);
   const [priceValue, priceCurrency] = formatMoneyParts(getDisplayPrice(auction));
 
   const cardActions = useMemo(() => {
-    if (mode === 'moderation') {
-      return (
-        <button className={styles.button} type="button" onClick={onOpen}>
-          Рассмотреть
-        </button>
-      );
-    }
-
     if (mode !== 'owner') {
       return null;
     }
@@ -343,6 +346,8 @@ function AuctionCard({
         showLike={showLike}
         showViews={showViews}
         timeInfo={timeInfo}
+        statusDanger={statusDanger}
+        mediaMeta={mode === 'journal' ? footerMeta : ''}
       />
 
       <div className={styles.auctionCard__body}>
@@ -353,20 +358,19 @@ function AuctionCard({
             <MapPin className={styles.auctionCard__locationIcon} aria-hidden="true" size={17} strokeWidth={2.2} />
             <span>{address}</span>
           </span>
+          {auction.status === 'returned' && auction.moderationComment && (
+            <div className={styles.lotCard__comment}>
+              <strong>Причина отклонения</strong>
+              <p>{auction.moderationComment}</p>
+            </div>
+          )}
           <span className={styles.auctionCard__price}>
             <strong>{priceValue}</strong> <span>{priceCurrency}</span>
           </span>
         </div>
 
-        {auction.status === 'returned' && auction.moderationComment && (
-          <div className={styles.lotCard__comment}>
-            <strong>Причина отклонения</strong>
-            <p>{auction.moderationComment}</p>
-          </div>
-        )}
-
         {!isOwner && <ParticipationBlock auction={auction} isVerified={isVerified} participant={participant} />}
-        {footerMeta && <span className={styles.auctionCard__footerMeta}>{footerMeta}</span>}
+        {footerMeta && mode !== 'journal' && <span className={styles.auctionCard__footerMeta}>{footerMeta}</span>}
 
         {cardActions && <div className={styles.auctionCard__actions}>{cardActions}</div>}
       </div>

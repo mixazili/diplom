@@ -43,6 +43,52 @@ const nextDayKey = (date) => {
 
 const hasText = (value) => String(value || '').trim().length > 0;
 
+const locationRegions = [
+  ['minsk_city', 'г. Минск', ['г минск', 'город минск']],
+  ['minsk_region', 'Минская область', ['минская область', 'минская обл', 'минская о']],
+  ['brest_region', 'Брестская область', ['брестская область', 'брестская обл', 'брестская о']],
+  ['vitebsk_region', 'Витебская область', ['витебская область', 'витебская обл', 'витебская о']],
+  ['gomel_region', 'Гомельская область', ['гомельская область', 'гомельская обл', 'гомельская о']],
+  ['grodno_region', 'Гродненская область', ['гродненская область', 'гродненская обл', 'гродненская о']],
+  ['mogilev_region', 'Могилевская область', ['могилевская область', 'могилевская обл', 'могилевская о']]
+];
+
+const citiesByRegion = {
+  minsk_city: ['Минск'],
+  minsk_region: ['Минск', 'Борисов', 'Солигорск', 'Молодечно', 'Жодино', 'Слуцк', 'Дзержинск', 'Вилейка', 'Марьина Горка', 'Смолевичи'],
+  brest_region: ['Брест', 'Барановичи', 'Пинск', 'Кобрин', 'Береза', 'Ивацевичи', 'Лунинец', 'Пружаны', 'Иваново', 'Дрогичин'],
+  vitebsk_region: ['Витебск', 'Орша', 'Новополоцк', 'Полоцк', 'Поставы', 'Глубокое', 'Лепель', 'Новолукомль', 'Толочин', 'Браслав'],
+  gomel_region: ['Гомель', 'Мозырь', 'Жлобин', 'Речица', 'Светлогорск', 'Калинковичи', 'Рогачев', 'Добруш', 'Житковичи', 'Хойники'],
+  grodno_region: ['Гродно', 'Лида', 'Слоним', 'Волковыск', 'Сморгонь', 'Новогрудок', 'Ошмяны', 'Мосты', 'Щучин', 'Ивье'],
+  mogilev_region: ['Могилев', 'Бобруйск', 'Горки', 'Осиповичи', 'Кричев', 'Быхов', 'Климовичи', 'Шклов', 'Мстиславль', 'Чаусы']
+};
+
+const normalizeLocationText = (value = '') =>
+  String(value)
+    .toLowerCase()
+    .replace(/ё/g, 'е')
+    .replace(/[.,;:()]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const resolveLocation = (address = '') => {
+  const normalizedAddress = normalizeLocationText(address);
+  const region = locationRegions.find(([, , aliases]) => aliases.some((alias) => normalizedAddress.includes(normalizeLocationText(alias))));
+  const regionKey = region?.[0] || '';
+  const cityPool = regionKey ? citiesByRegion[regionKey] || [] : Object.values(citiesByRegion).flat();
+  const city = cityPool.find((itemCity) => {
+    const normalizedCity = normalizeLocationText(itemCity);
+    return normalizedAddress.includes(`г ${normalizedCity}`) ||
+      normalizedAddress.includes(`город ${normalizedCity}`) ||
+      normalizedAddress.split(' ').includes(normalizedCity);
+  }) || '';
+
+  return {
+    locationRegion: region?.[1] || '',
+    locationCity: city
+  };
+};
+
 const addError = (errors, field, message = requiredMessage) => {
   errors[field] = message;
 };
@@ -247,6 +293,7 @@ const validateAuctionPayload = ({ payload, photos, user }) => {
   if (!isDraft && !hasText(item.locationAddress)) {
     addError(errors, 'item.locationAddress');
   }
+  const normalizedLocation = resolveLocation(item.locationAddress);
 
   const latValue = item.geoLocation?.lat === '' || item.geoLocation?.lat === undefined ? null : Number(item.geoLocation.lat);
   const lngValue = item.geoLocation?.lng === '' || item.geoLocation?.lng === undefined ? null : Number(item.geoLocation.lng);
@@ -316,6 +363,8 @@ const validateAuctionPayload = ({ payload, photos, user }) => {
         characteristics: normalizeCharacteristics(item.characteristics || [], errors),
         description: String(item.description || '').trim(),
         locationAddress: String(item.locationAddress || '').trim(),
+        locationRegion: normalizedLocation.locationRegion,
+        locationCity: normalizedLocation.locationCity,
         geoLocation: {
           lat: latValue,
           lng: lngValue

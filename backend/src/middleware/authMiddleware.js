@@ -36,6 +36,30 @@ const authenticate = asyncHandler(async (req, res, next) => {
   next();
 });
 
+const optionalAuthenticate = asyncHandler(async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    next();
+    return;
+  }
+
+  try {
+    const payload = verifyAccessToken(authHeader.split(' ')[1]);
+    const user = await User.findById(payload.sub).select(
+      '-passwordHash -refreshTokenHash -emailVerificationCodeHash -loginCodeHash'
+    );
+
+    if (user?.isActive) {
+      req.user = user;
+    }
+  } catch (error) {
+    // Public endpoints keep working for guests if an optional token is stale.
+  }
+
+  next();
+});
+
 const requireRoles = (...roles) => (req, res, next) => {
   if (!req.user || !roles.includes(req.user.role)) {
     res.status(403);
@@ -48,5 +72,6 @@ const requireRoles = (...roles) => (req, res, next) => {
 
 module.exports = {
   authenticate,
+  optionalAuthenticate,
   requireRoles
 };

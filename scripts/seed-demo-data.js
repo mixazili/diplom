@@ -320,6 +320,10 @@ const statusCycle = [
   'returned',
   'application_waiting',
   'applications_open',
+  'application_waiting',
+  'applications_open',
+  'application_waiting',
+  'applications_open',
   'bidding_waiting',
   'bidding_active',
   'finished_success',
@@ -906,9 +910,14 @@ const seed = async () => {
       password
     }))
   ];
+  const statusStats = createdAuctions.reduce((stats, auction) => {
+    stats[auction.status] = (stats[auction.status] || 0) + 1;
+    return stats;
+  }, {});
 
   console.log(`Seeded ${process.env.NODE_ENV} database.`);
   console.log(`Created ${createdUsers.length} users, ${createdModerators.length} moderators, ${createdAuctions.length} auctions.`);
+  console.table(statusStats);
   console.log('Verification histories include rejected -> approved cases for 5 users.');
   console.log('Auction histories include current returned lots and returned -> approved publication cases.');
   console.table(accounts);
