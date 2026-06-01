@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import styles from '../../App.module.css';
 
-function StaffCard({ title, meta, status, children, actions }) {
+function StaffCard({ title, meta, status, statusTone = '', children, actions }) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -11,7 +11,11 @@ function StaffCard({ title, meta, status, children, actions }) {
           <strong>{title}</strong>
           <small>{meta}</small>
         </span>
-        {status && <span className={styles.staffCard__badge}>{status}</span>}
+        {status && (
+          <span className={`${styles.staffCard__badge} ${statusTone ? styles[`staffCard__badge--${statusTone}`] : ''}`}>
+            {status}
+          </span>
+        )}
       </button>
       {open && (
         <div className={styles.staffCard__body}>

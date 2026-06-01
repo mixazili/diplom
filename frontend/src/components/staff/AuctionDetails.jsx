@@ -3,6 +3,7 @@ import styles from '../../App.module.css';
 import { ORGANIZATION_FEE_PERCENT, VAT_RATE, auctionCategoryLabels, buyerTerms, operatorInfo } from '../../constants/auctionConstants.js';
 import { accountTypeLabels } from '../../constants/verificationLabels.js';
 import { formatDateTime } from '../../utils/formatters.js';
+import { formatPhoneDisplay } from '../../utils/inputFormatters.js';
 import CollapsibleSection from '../auction/CollapsibleSection.jsx';
 import AuctionMapPreview from './AuctionMapPreview.jsx';
 
@@ -27,6 +28,9 @@ function TimeRangePreview({ startAt, endAt, min = 540, max = 1140 }) {
   const startMinutes = timeToMinutes(startAt) ?? 720;
   const endMinutes = timeToMinutes(endAt) ?? 1020;
   const durationHours = Math.max(0, (endMinutes - startMinutes) / 60);
+  const rangeSize = max - min;
+  const fillLeft = Math.max(0, Math.min(100, ((startMinutes - min) / rangeSize) * 100));
+  const fillRight = 100 - Math.max(0, Math.min(100, ((endMinutes - min) / rangeSize) * 100));
 
   return (
     <div className={styles.fieldFull}>
@@ -42,8 +46,11 @@ function TimeRangePreview({ startAt, endAt, min = 540, max = 1140 }) {
         </label>
       </div>
       <div className={styles.timeRangeSliders}>
-        <input type="range" min={min} max={max - 180} step="30" value={startMinutes} disabled readOnly />
-        <input type="range" min={min + 180} max={max} step="30" value={endMinutes} disabled readOnly />
+        <div className={styles.rangeTrack}>
+          <span className={styles.rangeTrack__fill} style={{ left: `${fillLeft}%`, right: `${fillRight}%` }} />
+        </div>
+        <input type="range" min={min} max={max} step="30" value={startMinutes} disabled readOnly />
+        <input type="range" min={min} max={max} step="30" value={endMinutes} disabled readOnly />
       </div>
       <div className={styles.timeMarks}>
         <span>{minutesToTime(min)}</span>
@@ -63,13 +70,14 @@ const auctionTypeLabels = {
 
 function ReadField({ label, value, wide = false, as = 'input', hint = '' }) {
   const Control = as;
+  const displayValue = /телефон/i.test(label) ? formatPhoneDisplay(value) : value;
 
   return (
     <label className={`${styles.field} ${wide ? styles.fieldFull : ''}`}>
       <span className={styles.field__label}>{label}</span>
       <Control
         className={`${styles.field__control} ${styles['field__control--readonly']}`}
-        value={value || 'Не указано'}
+        value={displayValue || 'Не указано'}
         disabled
         rows={as === 'textarea' ? 3 : undefined}
       />
@@ -114,7 +122,7 @@ function ReadOnlyGrid({ items }) {
       {items.filter(([, value]) => value).map(([label, value]) => (
         <div className={styles.readonlyItem} key={label}>
           <span>{label}</span>
-          <strong>{value}</strong>
+          <strong>{/телефон/i.test(label) ? formatPhoneDisplay(value) : value}</strong>
         </div>
       ))}
     </div>

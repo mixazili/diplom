@@ -3,10 +3,12 @@ import { useDispatch, useSelector } from 'react-redux';
 import { updateCurrentUser } from '../../features/auth/authSlice.js';
 import { submitVerification } from '../../features/verification/verificationSlice.js';
 import { accountTypeLabels, directorBasisLabels } from '../../constants/verificationLabels.js';
+import { formatPhoneDisplay, phoneDigits } from '../../utils/inputFormatters.js';
+import CustomSelect from '../ui/CustomSelect.jsx';
 import styles from '../../App.module.css';
 
-const addressHint = 'Например: г. Минск, ул. Октябрьская, д. 10, кв. 1118';
-const phoneHint = 'Телефон вводится цифрами, например 375123456789';
+const addressHint = 'Например: Минская область, г. Минск, ул. Октябрьская, д. 10, кв. 1118';
+const phoneHint = 'Например: +375 (29) 123-45-67';
 const agreementText =
   'Ознакомлен с Пользовательским соглашением интернет-сайта Auction.by и согласен с обработкой информации о пользователе, в том числе персональных данных, а также их передачей, в том числе трансграничной, в соответствии с ним';
 
@@ -88,6 +90,8 @@ function setNestedValue(source, path, value) {
 
 function Field({ label, path, payload, setPayload, errors, required = false, type = 'text', placeholder = '', as = 'input', wide = false }) {
   const Control = as;
+  const isPhone = path.toLowerCase().includes('phone');
+  const value = getNestedValue(payload, path);
 
   return (
     <label className={`${styles.field} ${wide ? styles.fieldFull : ''}`}>
@@ -97,9 +101,12 @@ function Field({ label, path, payload, setPayload, errors, required = false, typ
       <Control
         className={`${styles.field__control} ${errors[path] ? styles['field__control--error'] : ''}`}
         type={as === 'input' ? type : undefined}
-        value={getNestedValue(payload, path)}
-        onChange={(event) => setPayload((current) => setNestedValue(current, path, event.target.value))}
+        value={isPhone ? formatPhoneDisplay(value) : value}
+        onChange={(event) =>
+          setPayload((current) => setNestedValue(current, path, isPhone ? phoneDigits(event.target.value) : event.target.value))
+        }
         placeholder={placeholder}
+        inputMode={isPhone ? 'tel' : undefined}
       />
       {errors[path] && <span className={styles.field__error}>{errors[path]}</span>}
     </label>
@@ -112,15 +119,12 @@ function SelectField({ label, path, payload, setPayload, errors, options, requir
       <span className={styles.field__label}>
         {label}{required && <span className={styles.requiredMark}>*</span>}
       </span>
-      <select
-        className={`${styles.field__control} ${errors[path] ? styles['field__control--error'] : ''}`}
+      <CustomSelect
         value={getNestedValue(payload, path)}
-        onChange={(event) => setPayload((current) => setNestedValue(current, path, event.target.value))}
-      >
-        {options.map(([value, text]) => (
-          <option key={value} value={value}>{text}</option>
-        ))}
-      </select>
+        options={options.map(([value, text]) => ({ value, label: text }))}
+        onChange={(value) => setPayload((current) => setNestedValue(current, path, value))}
+        className={errors[path] ? styles['customSelect--error'] : ''}
+      />
       {errors[path] && <span className={styles.field__error}>{errors[path]}</span>}
     </label>
   );

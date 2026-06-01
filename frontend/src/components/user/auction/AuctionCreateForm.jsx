@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Star, X } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import styles from '../../../App.module.css';
 import {
@@ -10,7 +11,9 @@ import {
   operatorInfo
 } from '../../../constants/auctionConstants.js';
 import { submitAuction, updateAuction } from '../../../features/auction/auctionSlice.js';
+import { formatPhoneDisplay, phoneDigits } from '../../../utils/inputFormatters.js';
 import CollapsibleSection from '../../auction/CollapsibleSection.jsx';
+import CustomSelect from '../../ui/CustomSelect.jsx';
 import YandexMapPicker from './YandexMapPicker.jsx';
 
 const moneyPattern = /^\d+([,.]\d{1,2})?$/;
@@ -217,6 +220,8 @@ const createInitialForm = (user, verification, initialAuction) => {
 
 function Field({ label, value, onChange, error, required = false, type = 'text', as = 'input', disabled = false, hint = '', placeholder = '', className = '', min, max, step }) {
   const Control = as;
+  const isPhone = type === 'tel' || /телефон/i.test(label);
+  const displayValue = isPhone && !disabled ? formatPhoneDisplay(value) : value;
 
   return (
     <label className={`${styles.field} ${className}`}>
@@ -226,13 +231,14 @@ function Field({ label, value, onChange, error, required = false, type = 'text',
       <Control
         className={`${styles.field__control} ${error ? styles['field__control--error'] : ''} ${disabled ? styles['field__control--readonly'] : ''}`}
         type={as === 'input' ? type : undefined}
-        value={value}
+        value={displayValue}
         disabled={disabled}
         min={min}
         max={max}
         step={step}
         placeholder={placeholder}
-        onChange={(event) => onChange(event.target.value)}
+        inputMode={isPhone ? 'tel' : undefined}
+        onChange={(event) => onChange(isPhone ? phoneDigits(event.target.value) : event.target.value)}
       />
       {hint && <span className={styles.field__hint}>{hint}</span>}
       {error && <span className={styles.field__error}>{error}</span>}
@@ -267,7 +273,7 @@ function ReadOnlyGrid({ items }) {
       {items.filter(([, value]) => value).map(([label, value]) => (
         <div className={styles.readonlyItem} key={label}>
           <span>{label}</span>
-          <strong>{value}</strong>
+          <strong>{/телефон/i.test(label) ? formatPhoneDisplay(value) : value}</strong>
         </div>
       ))}
     </div>
@@ -278,6 +284,12 @@ function TimeRangePicker({ startValue, endValue, onStartChange, onEndChange, err
   const startMinutes = timeToMinutes(startValue, '09:00');
   const endMinutes = timeToMinutes(endValue, '12:00');
   const durationMinutes = endMinutes - startMinutes;
+  const minGap = 180;
+  const rangeSize = max - min;
+  const fillLeft = Math.max(0, Math.min(100, ((startMinutes - min) / rangeSize) * 100));
+  const fillRight = 100 - Math.max(0, Math.min(100, ((endMinutes - min) / rangeSize) * 100));
+  const updateStart = (minutes) => onStartChange(minutesToTime(Math.min(Math.max(minutes, min), endMinutes - minGap)));
+  const updateEnd = (minutes) => onEndChange(minutesToTime(Math.max(Math.min(minutes, max), startMinutes + minGap)));
 
   return (
     <div className={`${styles.field} ${styles.fieldFull}`}>
@@ -292,7 +304,7 @@ function TimeRangePicker({ startValue, endValue, onStartChange, onEndChange, err
             max="16:00"
             step="1800"
             value={startValue}
-            onChange={(event) => onStartChange(normalizeTimeToStep(event.target.value, startValue, min, max - 180))}
+            onChange={(event) => updateStart(timeToMinutes(normalizeTimeToStep(event.target.value, startValue, min, max - minGap), startValue))}
           />
         </label>
         <label>
@@ -304,26 +316,29 @@ function TimeRangePicker({ startValue, endValue, onStartChange, onEndChange, err
             max="19:00"
             step="1800"
             value={endValue}
-            onChange={(event) => onEndChange(normalizeTimeToStep(event.target.value, endValue, min + 180, max))}
+            onChange={(event) => updateEnd(timeToMinutes(normalizeTimeToStep(event.target.value, endValue, min + minGap, max), endValue))}
           />
         </label>
       </div>
       <div className={styles.timeRangeSliders}>
+        <div className={styles.rangeTrack}>
+          <span className={styles.rangeTrack__fill} style={{ left: `${fillLeft}%`, right: `${fillRight}%` }} />
+        </div>
         <input
           type="range"
           min={min}
-          max={max - 180}
+          max={max}
           step="30"
           value={startMinutes}
-          onChange={(event) => onStartChange(minutesToTime(Number(event.target.value)))}
+          onChange={(event) => updateStart(Number(event.target.value))}
         />
         <input
           type="range"
-          min={min + 180}
+          min={min}
           max={max}
           step="30"
           value={endMinutes}
-          onChange={(event) => onEndChange(minutesToTime(Number(event.target.value)))}
+          onChange={(event) => updateEnd(Number(event.target.value))}
         />
       </div>
       <div className={styles.timeMarks}>
@@ -375,14 +390,18 @@ function PhotoUploader({ photos, mainPhotoIndex, onAdd, onMainChange, onRemove, 
             return (
               <article className={`${styles.photoCard} ${mainPhotoIndex === index ? styles['photoCard--main'] : ''}`} key={photo.id}>
                 <img src={photo.previewUrl || photo.url} alt="Фото лота" />
-                <div className={styles.photoCard__actions}>
-                  <button className={mainPhotoIndex === index ? styles.button : styles.buttonSecondary} type="button" onClick={() => onMainChange(index)}>
-                    {mainPhotoIndex === index ? 'Главная' : 'Сделать главной'}
-                  </button>
-                  <button className={styles.buttonSecondary} type="button" onClick={() => onRemove(index)}>
-                    Удалить
-                  </button>
-                </div>
+                <button
+                  className={styles.photoCard__mainButton}
+                  type="button"
+                  onClick={() => onMainChange(index)}
+                  aria-label={mainPhotoIndex === index ? 'Главная фотография' : 'Сделать главной'}
+                  title={mainPhotoIndex === index ? 'Главная фотография' : 'Сделать главной'}
+                >
+                  <Star size={26} fill={mainPhotoIndex === index ? 'currentColor' : 'none'} />
+                </button>
+                <button className={styles.photoCard__removeButton} type="button" onClick={() => onRemove(index)} aria-label="Удалить фото" title="Удалить фото">
+                  <X size={18} />
+                </button>
               </article>
             );
           })}
@@ -857,11 +876,12 @@ function AuctionCreateForm({ verification, initialAuction = null, onSaved, onCan
             />
             <label className={styles.field}>
               <span className={styles.field__label}>Категория<span className={styles.requiredMark}>*</span></span>
-              <select className={styles.field__control} value={form.item.category} onChange={(event) => changeCategory(event.target.value)}>
-                {Object.entries(auctionCategoryLabels).map(([value, label]) => (
-                  <option value={value} key={value}>{label}</option>
-                ))}
-              </select>
+              <CustomSelect
+                value={form.item.category}
+                options={Object.entries(auctionCategoryLabels).map(([value, label]) => ({ value, label }))}
+                onChange={changeCategory}
+                className={errors['item.category'] ? styles['customSelect--error'] : ''}
+              />
               {errors['item.category'] && <span className={styles.field__error}>{errors['item.category']}</span>}
             </label>
           </div>
@@ -904,7 +924,7 @@ function AuctionCreateForm({ verification, initialAuction = null, onSaved, onCan
               error={errors['item.locationAddress']}
               required
               as="textarea"
-              placeholder="Например: г. Минск, ул. Октябрьская, д. 10"
+              placeholder="Например: Минская область, г. Минск, ул. Октябрьская, д. 10, кв. 1118"
             />
             <div className={styles.fieldFull}>
               <YandexMapPicker value={form.item.geoLocation} onChange={updateGeoLocation} error={errors['item.geoLocation']} />
@@ -916,7 +936,7 @@ function AuctionCreateForm({ verification, initialAuction = null, onSaved, onCan
           <h2 className={styles.sectionTitle}>Осмотр предмета торгов</h2>
           <div className={styles.formGrid}>
             <Field label="ФИО контактного лица" value={form.inspection.contactName} onChange={(value) => updateSection('inspection', 'contactName', value)} error={errors['inspection.contactName']} required />
-            <Field label="Телефон контактного лица" value={form.inspection.contactPhone} onChange={(value) => updateSection('inspection', 'contactPhone', value)} error={errors['inspection.contactPhone']} required />
+            <Field label="Телефон контактного лица" value={form.inspection.contactPhone} onChange={(value) => updateSection('inspection', 'contactPhone', value)} error={errors['inspection.contactPhone']} required type="tel" placeholder="+375 (29) 123-45-67" />
             <Field label="Email контактного лица" value={form.inspection.contactEmail} onChange={(value) => updateSection('inspection', 'contactEmail', value)} error={errors['inspection.contactEmail']} required type="email" />
           </div>
         </section>
@@ -954,7 +974,7 @@ function AuctionCreateForm({ verification, initialAuction = null, onSaved, onCan
 
         {auction.message && auction.createStatus === 'failed' && <p className={styles.message__error}>{auction.message}</p>}
 
-        <div className={styles.formActions}>
+        <div className={`${styles.formActions} ${styles.auctionFormActions}`}>
           <button className={styles.buttonSecondary} type="button" onClick={resetForm}>Стереть все</button>
           <button className={styles.buttonSecondary} type="button" onClick={() => save(true)} disabled={auction.createStatus === 'loading'}>
             Сохранить черновой вариант
@@ -965,7 +985,7 @@ function AuctionCreateForm({ verification, initialAuction = null, onSaved, onCan
         </div>
       </form>
       <div className={styles.formBackActions}>
-        <button className={styles.backButton} type="button" onClick={onCancel}>Назад</button>
+        <button className={styles.backButton} type="button" onClick={onCancel}>← Назад</button>
       </div>
     </section>
   );

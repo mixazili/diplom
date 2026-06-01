@@ -52,14 +52,14 @@ function MyAuctions({ canCreateLot, onCreate, onEdit }) {
 
   return (
     <section className={styles.panel}>
-      <div className={styles.panel__header}>
+      <div className={`${styles.panel__header} ${styles['panel__header--row']}`}>
         <h1 className={styles.panel__title}>Мои лоты</h1>
+        <button className={`${styles.button} ${styles.panel__headerAction}`} type="button" onClick={onCreate} disabled={!canCreateLot}>
+          Создать лот
+        </button>
       </div>
 
       <div className={styles.lotToolbar}>
-        <button className={styles.button} type="button" onClick={onCreate} disabled={!canCreateLot}>
-          Создать лот
-        </button>
         {!canCreateLot && <p className={styles.message__error}>Создание лота доступно только после одобрения верификации.</p>}
       </div>
 

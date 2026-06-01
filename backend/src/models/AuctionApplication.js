@@ -17,6 +17,10 @@ const auctionApplicationSchema = new mongoose.Schema(
       enum: ['pending', 'deposit_required', 'approved', 'rejected'],
       default: 'pending'
     },
+    participantNumber: {
+      type: Number,
+      default: null
+    },
     rejectionReason: {
       type: String,
       default: null
