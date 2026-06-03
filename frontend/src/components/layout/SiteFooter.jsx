@@ -1,6 +1,6 @@
 import React from 'react';
 import { Camera, Play, Send } from 'lucide-react';
-import styles from '../../App.module.css';
+import styles from './Layout.module.css';
 
 const linkGroups = [
   ['Информация', ['Как продать/купить?', 'Пользовательское соглашение', 'Политика обработки персональных данных', 'Оплата']],

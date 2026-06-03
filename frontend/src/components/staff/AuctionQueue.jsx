@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from 'react';
-import styles from '../../App.module.css';
 import AuctionCard from '../auction/AuctionCard.jsx';
 import AuctionDetails from './AuctionDetails.jsx';
 import StaffListControls, { StaffPagination, paginateItems, sortByDate } from './StaffListControls.jsx';
+import styles from './AuctionQueue.module.css';
 
 function AuctionQueue({ auctions, onApprove, onReturn }) {
   const [comments, setComments] = useState({});

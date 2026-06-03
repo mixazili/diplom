@@ -5,7 +5,7 @@ import { submitVerification } from '../../features/verification/verificationSlic
 import { accountTypeLabels, directorBasisLabels } from '../../constants/verificationLabels.js';
 import { formatPhoneDisplay, phoneDigits } from '../../utils/inputFormatters.js';
 import CustomSelect from '../ui/CustomSelect.jsx';
-import styles from '../../App.module.css';
+import styles from './VerificationForm.module.css';
 
 const addressHint = 'Например: Минская область, г. Минск, ул. Октябрьская, д. 10, кв. 1118';
 const phoneHint = 'Например: +375 (29) 123-45-67';
@@ -123,7 +123,7 @@ function SelectField({ label, path, payload, setPayload, errors, options, requir
         value={getNestedValue(payload, path)}
         options={options.map(([value, text]) => ({ value, label: text }))}
         onChange={(value) => setPayload((current) => setNestedValue(current, path, value))}
-        className={errors[path] ? styles['customSelect--error'] : ''}
+        error={Boolean(errors[path])}
       />
       {errors[path] && <span className={styles.field__error}>{errors[path]}</span>}
     </label>

@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
-import styles from '../../App.module.css';
 import CustomSelect from '../ui/CustomSelect.jsx';
+import styles from './StaffListControls.module.css';
 
 export const pageSizeOptions = [20, 40, 60];
 

@@ -229,6 +229,63 @@ const buildAddressRegex = (tokens) => new RegExp(tokens.map(escapeRegExp).join('
 
 const buildCityRegex = (city) => new RegExp(`(^|[\\s,.;])(?:г\\.?|город)?\\s*${escapeRegExp(city)}([\\s,.;]|$)`, 'i');
 
+const formatViewerParticipation = ({ application, deposit, auction }) => {
+  if (!application) {
+    return null;
+  }
+
+  return {
+    status: application.status,
+    participantNumber: application.participantNumber || null,
+    rejectionReason: application.rejectionReason || null,
+    depositStatus: deposit?.status || null,
+    depositPaidAt: deposit?.paidAt || null,
+    lotPaymentStatus: application.lotPaymentStatus,
+    lotPaidAt: application.lotPaidAt || null,
+    isWinner: Boolean(
+      application.participantNumber &&
+      auction?.winnerParticipantNumber &&
+      application.participantNumber === auction.winnerParticipantNumber
+    )
+  };
+};
+
+const getAuctionParticipantStats = async (auctionId) => ({
+  admittedCount: await AuctionApplication.countDocuments({
+    auction: auctionId,
+    status: 'approved',
+    participantNumber: { $ne: null }
+  })
+});
+
+const attachViewerParticipation = async (auctions, userId) => {
+  if (!userId || auctions.length === 0) {
+    return auctions.map(formatAuction);
+  }
+
+  const auctionIds = auctions.map((auction) => auction._id);
+  const [applications, deposits] = await Promise.all([
+    AuctionApplication.find({ auction: { $in: auctionIds }, participant: userId }),
+    Deposit.find({ auction: { $in: auctionIds }, payer: userId })
+  ]);
+  const applicationByAuction = new Map(applications.map((application) => [application.auction.toString(), application]));
+  const depositByAuction = new Map(deposits.map((deposit) => [deposit.auction.toString(), deposit]));
+
+  return auctions.map((auction) => {
+    const auctionId = auction._id.toString();
+    const application = applicationByAuction.get(auctionId);
+
+    return {
+      ...formatAuction(auction),
+      viewerParticipation: formatViewerParticipation({
+        application,
+        deposit: depositByAuction.get(auctionId),
+        auction
+      })
+    };
+  });
+};
+
 const listPublicAuctions = asyncHandler(async (req, res) => {
   await updateAuctionStatuses();
 
@@ -245,6 +302,7 @@ const listPublicAuctions = asyncHandler(async (req, res) => {
   const minPrice = Number(req.query.minPrice);
   const maxPrice = Number(req.query.maxPrice);
   const onlyOwn = String(req.query.onlyOwn || '') === 'true';
+  const onlyParticipating = String(req.query.onlyParticipating || '') === 'true';
   const search = String(req.query.search || '').trim();
   const region = String(req.query.region || '').trim();
   const city = String(req.query.city || '').trim();
@@ -296,6 +354,17 @@ const listPublicAuctions = asyncHandler(async (req, res) => {
     query.owner = req.user?._id || null;
   }
 
+  if (onlyParticipating) {
+    if (!req.user?._id) {
+      query._id = { $in: [] };
+    } else {
+      const applicationAuctionIds = await AuctionApplication.distinct('auction', {
+        participant: req.user._id
+      });
+      query._id = { $in: applicationAuctionIds };
+    }
+  }
+
   andConditions.push({
     $or: [
       { status: { $ne: 'cancelled' } },
@@ -344,7 +413,8 @@ const listPublicAuctions = asyncHandler(async (req, res) => {
       return ((left.viewsCount || 0) - (right.viewsCount || 0)) * direction;
     }
 
-    const statusDiff = (catalogStatusOrder[left.status] || 99) - (catalogStatusOrder[right.status] || 99);
+    const statusDirection = sortMode === 'oldest' ? -1 : 1;
+    const statusDiff = ((catalogStatusOrder[left.status] || 99) - (catalogStatusOrder[right.status] || 99)) * statusDirection;
     if (statusDiff !== 0) {
       return statusDiff;
     }
@@ -357,7 +427,7 @@ const listPublicAuctions = asyncHandler(async (req, res) => {
   const priceBounds = priceBoundsResult[0] || { min: 0, max: 0 };
 
   res.json({
-    auctions: auctions.map(formatAuction),
+    auctions: await attachViewerParticipation(auctions, req.user?._id),
     total,
     page,
     limit,
@@ -412,13 +482,17 @@ const getPublicAuction = asyncHandler(async (req, res) => {
   const formattedBids = bids.map((bid, index) => ({
     id: bid._id.toString(),
     amount: bid.amount,
+    increment: bid.increment || 0,
     createdAt: bid.createdAt,
-    participantNumber: bid.participantNumber || bid.bidder?.participantNumber || index + 1,
+    participantNumber: bid.participantNumber || index + 1,
     bidder: bid.bidder ? { id: bid.bidder._id.toString() } : null
   }));
 
   res.json({
-    auction: formatAuction(auction),
+    auction: {
+      ...formatAuction(auction),
+      participantStats: await getAuctionParticipantStats(auction._id)
+    },
     viewer: {
       isOwner: Boolean(isOwner),
       participation: application
@@ -427,7 +501,9 @@ const getPublicAuction = asyncHandler(async (req, res) => {
             participantNumber: application.participantNumber || null,
             rejectionReason: application.rejectionReason || null,
             depositStatus: deposit?.status || null,
-            depositPaidAt: deposit?.paidAt || null
+            depositPaidAt: deposit?.paidAt || null,
+            lotPaymentStatus: application.lotPaymentStatus,
+            lotPaidAt: application.lotPaidAt || null
           }
         : null
     },
@@ -462,7 +538,7 @@ const listSimilarAuctions = asyncHandler(async (req, res) => {
   ]);
 
   res.json({
-    auctions: auctions.map(formatAuction),
+    auctions: await attachViewerParticipation(auctions, req.user?._id),
     page,
     limit,
     total

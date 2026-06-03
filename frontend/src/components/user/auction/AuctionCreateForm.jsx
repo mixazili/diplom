@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Star, X } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
-import styles from '../../../App.module.css';
 import {
   ORGANIZATION_FEE_PERCENT,
   VAT_RATE,
@@ -15,6 +14,7 @@ import { formatPhoneDisplay, phoneDigits } from '../../../utils/inputFormatters.
 import CollapsibleSection from '../../auction/CollapsibleSection.jsx';
 import CustomSelect from '../../ui/CustomSelect.jsx';
 import YandexMapPicker from './YandexMapPicker.jsx';
+import styles from './AuctionCreateForm.module.css';
 
 const moneyPattern = /^\d+([,.]\d{1,2})?$/;
 const pad = (value) => String(value).padStart(2, '0');
@@ -880,7 +880,7 @@ function AuctionCreateForm({ verification, initialAuction = null, onSaved, onCan
                 value={form.item.category}
                 options={Object.entries(auctionCategoryLabels).map(([value, label]) => ({ value, label }))}
                 onChange={changeCategory}
-                className={errors['item.category'] ? styles['customSelect--error'] : ''}
+                error={Boolean(errors['item.category'])}
               />
               {errors['item.category'] && <span className={styles.field__error}>{errors['item.category']}</span>}
             </label>

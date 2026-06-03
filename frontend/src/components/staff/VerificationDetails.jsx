@@ -1,7 +1,7 @@
 import React from 'react';
-import styles from '../../App.module.css';
 import { accountTypeLabels, directorBasisLabels } from '../../constants/verificationLabels.js';
 import { formatPhoneDisplay } from '../../utils/inputFormatters.js';
+import styles from './VerificationDetails.module.css';
 
 const addressHint = 'Например: Минская область, г. Минск, ул. Октябрьская, д. 10, кв. 1118';
 

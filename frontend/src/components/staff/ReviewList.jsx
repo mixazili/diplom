@@ -1,10 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import styles from '../../App.module.css';
 import { verificationStatusLabels } from '../../constants/verificationLabels.js';
 import { formatDateTime, getVerificationTitle } from '../../utils/formatters.js';
 import StaffCard from './StaffCard.jsx';
 import StaffListControls, { StaffPagination, paginateItems, sortByDate } from './StaffListControls.jsx';
 import VerificationDetails from './VerificationDetails.jsx';
+import styles from './ReviewList.module.css';
 
 const filterOptions = [
   ['all', 'Все решения'],

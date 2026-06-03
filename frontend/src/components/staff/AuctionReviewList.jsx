@@ -1,9 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import styles from '../../App.module.css';
 import AuctionCard from '../auction/AuctionCard.jsx';
 import { formatDateTime } from '../../utils/formatters.js';
 import AuctionDetails from './AuctionDetails.jsx';
 import StaffListControls, { StaffPagination, paginateItems, sortByDate } from './StaffListControls.jsx';
+import styles from './AuctionReviewList.module.css';
 
 const actionLabels = {
   approved: 'Одобрен',

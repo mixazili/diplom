@@ -1,28 +1,75 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import styles from '../../../App.module.css';
 import AuctionCard from '../../auction/AuctionCard.jsx';
 import { deleteAuction, fetchMyAuctions, returnAuctionToDraft } from '../../../features/auction/auctionSlice.js';
+import {
+  CabinetFilterPanel,
+  CompactFilterGroup,
+  Pagination
+} from './CabinetAuctionControls.jsx';
+import LoadingState from '../../ui/LoadingState.jsx';
+import styles from './MyAuctions.module.css';
 
-const filterLabels = {
-  unpublished: 'Неопубликованные',
-  applications: 'Прием заявок',
-  bidding: 'Торги',
-  finished: 'Завершенные торги'
-};
+const statusGroups = [
+  {
+    label: 'Неопубликованные',
+    values: ['draft', 'pending', 'returned'],
+    options: [
+      ['returned', 'Отклонен'],
+      ['pending', 'Проверка'],
+      ['draft', 'Черновик']
+    ]
+  },
+  {
+    label: 'Прием заявок',
+    values: ['application_waiting', 'applications_open'],
+    options: [
+      ['application_waiting', 'Ожидание приема заявок'],
+      ['applications_open', 'Прием заявок']
+    ]
+  },
+  {
+    label: 'Торги',
+    values: ['bidding_waiting', 'bidding_active'],
+    options: [
+      ['bidding_waiting', 'Ожидание торгов'],
+      ['bidding_active', 'Идут торги']
+    ]
+  },
+  {
+    label: 'Завершенные торги',
+    values: ['finished_success', 'finished_failed', 'cancelled'],
+    options: [
+      ['finished_success', 'Торги состоялись'],
+      ['finished_failed', 'Торги не состоялись'],
+      ['cancelled', 'Отменен']
+    ]
+  }
+];
+const defaultStatuses = ['draft', 'pending', 'returned', 'application_waiting', 'applications_open'];
 
-const statusGroups = {
-  unpublished: ['draft', 'pending', 'returned'],
-  applications: ['application_waiting', 'applications_open'],
-  bidding: ['bidding_waiting', 'bidding_active'],
-  finished: ['finished_success', 'finished_failed']
-};
+const publicLikeStatuses = new Set([
+  'pending',
+  'returned',
+  'application_waiting',
+  'applications_open',
+  'bidding_waiting',
+  'bidding_active',
+  'finished_success',
+  'finished_failed',
+  'cancelled'
+]);
 
-function MyAuctions({ canCreateLot, onCreate, onEdit }) {
+const getAuctionDate = (auction) => new Date(auction.reviewedAt || auction.updatedAt || auction.createdAt || 0).getTime();
+
+function MyAuctions({ canCreateLot, onCreate, onEdit, onOpenAuction, timeOffsetMs = 0 }) {
   const dispatch = useDispatch();
   const { accessToken } = useSelector((state) => state.auth);
   const { items, status, message } = useSelector((state) => state.auction);
-  const [activeFilter, setActiveFilter] = useState('unpublished');
+  const [selectedStatuses, setSelectedStatuses] = useState(defaultStatuses);
+  const [sort, setSort] = useState('newest');
+  const [limit, setLimit] = useState(20);
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     if (!accessToken) {
@@ -37,10 +84,23 @@ function MyAuctions({ canCreateLot, onCreate, onEdit }) {
     return () => window.clearInterval(intervalId);
   }, [accessToken, dispatch]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [limit, selectedStatuses.join('|'), sort]);
+
   const filteredItems = useMemo(
-    () => items.filter((auction) => statusGroups[activeFilter].includes(auction.status)),
-    [activeFilter, items]
+    () => items
+      .filter((auction) => selectedStatuses.includes(auction.status))
+      .sort((left, right) => {
+        const diff = getAuctionDate(left) - getAuctionDate(right);
+        return sort === 'newest' ? -diff : diff;
+      }),
+    [items, selectedStatuses, sort]
   );
+
+  const totalPages = Math.max(1, Math.ceil(filteredItems.length / limit));
+  const safePage = Math.min(page, totalPages);
+  const visibleItems = filteredItems.slice((safePage - 1) * limit, safePage * limit);
 
   const removeLot = async (id) => {
     await dispatch(deleteAuction({ id, token: accessToken }));
@@ -63,38 +123,35 @@ function MyAuctions({ canCreateLot, onCreate, onEdit }) {
         {!canCreateLot && <p className={styles.message__error}>Создание лота доступно только после одобрения верификации.</p>}
       </div>
 
-      <div className={styles.filterTabs}>
-        {Object.entries(filterLabels).map(([key, label]) => (
-          <button
-            className={`${styles.filterTabs__button} ${activeFilter === key ? styles['filterTabs__button--active'] : ''}`}
-            key={key}
-            type="button"
-            onClick={() => setActiveFilter(key)}
-          >
-            {label}
-          </button>
+      <CabinetFilterPanel sort={sort} onSortChange={setSort} limit={limit} onLimitChange={setLimit}>
+        {statusGroups.map((group) => (
+          <CompactFilterGroup group={group} key={group.label} selectedValues={selectedStatuses} onChange={setSelectedStatuses} />
         ))}
-      </div>
+      </CabinetFilterPanel>
 
-      {status === 'loading' && <p className={styles.panel__text}>Загрузка лотов...</p>}
+      {status === 'loading' && items.length === 0 && <LoadingState text="Загрузка лотов" />}
       {status === 'failed' && <p className={styles.message__error}>{message}</p>}
       {status !== 'loading' && filteredItems.length === 0 && (
-        <p className={styles.panel__text}>В этом разделе лотов пока нет.</p>
+        <p className={styles.panel__text}>В выбранных статусах лотов пока нет.</p>
       )}
 
       <div className={styles.lotGrid}>
-        {filteredItems.map((auction) => (
+        {visibleItems.map((auction) => (
           <AuctionCard
             auction={auction}
             isVerified={canCreateLot}
             key={auction.id}
             mode="owner"
+            timeOffsetMs={timeOffsetMs}
             onDelete={removeLot}
             onEdit={onEdit}
+            onOpen={publicLikeStatuses.has(auction.status) ? () => onOpenAuction?.(auction.id) : undefined}
             onReturnToDraft={moveToDraft}
           />
         ))}
       </div>
+
+      <Pagination page={safePage} totalPages={totalPages} onPageChange={setPage} />
     </section>
   );
 }

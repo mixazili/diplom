@@ -1,5 +1,8 @@
 const Auction = require('../models/Auction');
+const AuctionApplication = require('../models/AuctionApplication');
 const AuctionReview = require('../models/AuctionReview');
+const Bid = require('../models/Bid');
+const Deposit = require('../models/Deposit');
 const User = require('../models/User');
 const VerificationRequest = require('../models/VerificationRequest');
 const VerificationReview = require('../models/VerificationReview');
@@ -20,9 +23,26 @@ const updateAuctionStatuses = async (now = null) => {
     { $set: { status: 'applications_open' } }
   );
 
-  await Auction.updateMany(
-    { status: 'applications_open', 'schedule.applicationEndAt': { $lte: currentTime } },
-    { $set: { status: 'bidding_waiting' } }
+  const auctionsWithClosedApplications = await Auction.find({
+    status: 'applications_open',
+    'schedule.applicationEndAt': { $lte: currentTime }
+  });
+
+  await Promise.all(
+    auctionsWithClosedApplications.map(async (auction) => {
+      await AuctionApplication.updateMany(
+        { auction: auction._id, status: 'deposit_required' },
+        {
+          $set: {
+            status: 'rejected',
+            rejectionReason: 'Задаток не оплачен до окончания приема заявок'
+          }
+        }
+      );
+
+      auction.status = 'bidding_waiting';
+      await auction.save();
+    })
   );
 
   await Auction.updateMany(
@@ -30,9 +50,59 @@ const updateAuctionStatuses = async (now = null) => {
     { $set: { status: 'bidding_active' } }
   );
 
-  await Auction.updateMany(
-    { status: 'bidding_active', 'schedule.biddingEndAt': { $lte: currentTime } },
-    { $set: { status: 'finished_failed' } }
+  const finishedAuctions = await Auction.find({
+    status: 'bidding_active',
+    'schedule.biddingEndAt': { $lte: currentTime }
+  });
+
+  await Promise.all(
+    finishedAuctions.map(async (auction) => {
+      const [participantsCount, latestBid] = await Promise.all([
+        AuctionApplication.countDocuments({
+          auction: auction._id,
+          status: 'approved',
+          participantNumber: { $ne: null }
+        }),
+        Bid.findOne({ auction: auction._id }).sort({ createdAt: -1 })
+      ]);
+
+      if (participantsCount === 0) {
+        auction.status = 'finished_failed';
+        auction.resultReason = 'Нет участников с оплаченным задатком';
+        await auction.save();
+        return;
+      }
+
+      if (!latestBid) {
+        auction.status = 'finished_failed';
+        auction.resultReason = 'За время торгов не было сделано ни одной ставки';
+        await auction.save();
+        await Deposit.updateMany({ auction: auction._id, status: 'paid' }, { $set: { status: 'refunded' } });
+        return;
+      }
+
+      auction.status = 'finished_success';
+      auction.resultReason = null;
+      auction.winner = latestBid.bidder;
+      auction.winnerParticipantNumber = latestBid.participantNumber;
+      auction.winningBidAmount = latestBid.amount;
+      auction.winningBidAt = latestBid.createdAt;
+      await auction.save();
+
+      await AuctionApplication.updateOne(
+        {
+          auction: auction._id,
+          participant: latestBid.bidder,
+          participantNumber: latestBid.participantNumber
+        },
+        { $set: { lotPaymentStatus: 'pending' } }
+      );
+
+      await Deposit.updateMany(
+        { auction: auction._id, payer: { $ne: latestBid.bidder }, status: 'paid' },
+        { $set: { status: 'refunded' } }
+      );
+    })
   );
 };
 

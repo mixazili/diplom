@@ -1,0 +1,311 @@
+.form,
+.verification {
+  display: grid;
+  gap: 16px;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 18px;
+  margin-bottom: 8px;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+}
+
+.field__label {
+  color: var(--color-heading);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.field__control {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  padding: 10px 12px;
+  outline: none;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+}
+
+textarea.field__control {
+  min-height: 92px;
+  resize: vertical;
+}
+
+.field__control:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-soft);
+}
+
+.field__control--error {
+  border-color: var(--color-danger);
+}
+
+.fileUpload {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  min-height: 46px;
+  overflow: hidden;
+  border: 1px dashed var(--color-border);
+  border-radius: 8px;
+  background: linear-gradient(180deg, var(--color-surface), var(--color-background));
+  color: var(--color-text);
+  cursor: pointer;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+}
+
+.fileUpload:hover,
+.fileUpload:focus-within {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-soft);
+}
+
+.fileUpload--error {
+  border-color: var(--color-danger);
+}
+
+.fileUpload input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.fileUpload__button {
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 132px;
+  background: var(--color-heading);
+  color: var(--color-on-accent);
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.fileUpload__name {
+  display: grid;
+  gap: 2px;
+  overflow: hidden;
+  color: var(--color-muted);
+  padding: 0 14px;
+  font-size: 13px;
+  text-overflow: ellipsis;
+}
+
+.fileUpload__name small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.field__error,
+.message__error {
+  color: var(--color-danger);
+  font-size: 13px;
+}
+
+.button,
+.buttonSecondary {
+  justify-self: start;
+  min-height: 42px;
+  border: 0;
+  border-radius: 6px;
+  padding: 10px 18px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.button {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  box-shadow: 0 8px 18px rgba(185, 28, 28, 0.18);
+}
+
+.buttonSecondary {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-heading);
+}
+
+.button:disabled,
+.buttonSecondary:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+
+.button:hover:not(:disabled),
+.buttonSecondary:hover:not(:disabled),
+.buttonDanger:hover:not(:disabled) {
+  border-color: rgba(185, 28, 28, 0.34);
+}
+
+.staffDecisionFilter__options .checkRow input {
+  width: 20px;
+  height: 20px;
+  margin-top: 0;
+}
+
+.staffDecisionFilter__options .checkRow input:checked::after {
+  font-size: 14px;
+}
+
+select.field__control {
+  appearance: none;
+  border-color: rgba(148, 163, 184, 0.65);
+  background-color: var(--color-surface);
+  background-image: url("data:image/svg+xml,%3Csvg width='18' height='18' viewBox='0 0 20 20' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M5 7.5L10 12.5L15 7.5' stroke='%23B91C1C' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-position: calc(100% - 14px) 50%;
+  background-repeat: no-repeat;
+  background-size: 18px 18px;
+  padding-right: 44px;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.04);
+  cursor: pointer;
+}
+
+select.field__control:hover {
+  border-color: rgba(185, 28, 28, 0.34);
+}
+
+select.field__control:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-soft);
+}
+
+select.field__control:disabled {
+  opacity: 0.7;
+}
+
+.fieldFull {
+  grid-column: 1 / -1;
+}
+
+.formActions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.verificationSummary .button {
+  align-self: end;
+}
+
+.requiredMark {
+  color: var(--color-danger);
+  margin-left: 2px;
+}
+
+.panel__head {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.verification {
+  display: grid;
+  gap: 20px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  padding: 26px;
+}
+
+.verificationChoice {
+  display: grid;
+  gap: 12px;
+}
+
+.segmentGroup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.segmentOption {
+  align-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-background);
+  padding: 10px 12px;
+  font-weight: 700;
+}
+
+.checkRowCard {
+  justify-self: start;
+  align-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-background);
+  padding: 10px 12px;
+  font-weight: 700;
+}
+
+.formSection {
+  display: grid;
+  gap: 14px;
+  border-top: 1px solid var(--color-border);
+  padding-top: 18px;
+}
+
+.formSection h3 {
+  margin: 0;
+  font-size: 21px;
+}
+
+.formSection--wide .formGrid {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.bankDivider {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin: 4px 0;
+  color: var(--color-accent);
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.bankDivider::before,
+.bankDivider::after {
+  flex: 1;
+  height: 1px;
+  background: var(--color-border);
+  content: "";
+}
+
+@media (max-width: 720px) {
+
+  .formGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.checkRow,
+.segmentOption {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: var(--color-text);
+  line-height: 1.45;
+}
+
+.checkRow a {
+  color: var(--color-accent);
+  font-weight: 700;
+  text-decoration: none;
+}

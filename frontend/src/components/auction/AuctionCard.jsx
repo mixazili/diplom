@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Clock, Eye, Heart, MapPin } from 'lucide-react';
-import styles from '../../App.module.css';
+import { AlertCircle, BadgeCheck, Clock, CreditCard, Eye, Heart, MapPin, Trophy } from 'lucide-react';
 import { formatCardLocation } from '../../utils/location.js';
+import { getClientNow } from '../../utils/time.js';
 import { getYandexMaps } from '../../utils/yandexMaps.js';
+import styles from './AuctionCard.module.css';
 
 export const auctionStatusLabels = {
   draft: 'Черновик',
@@ -23,7 +24,8 @@ const publishedStatuses = new Set([
   'bidding_waiting',
   'bidding_active',
   'finished_success',
-  'finished_failed'
+  'finished_failed',
+  'cancelled'
 ]);
 
 const addressCache = new Map();
@@ -51,14 +53,14 @@ const formatDate = (value) => {
   }).format(date);
 };
 
-const formatDuration = (target) => {
+const formatDuration = (target, timeOffsetMs = 0) => {
   const date = target ? new Date(target) : null;
 
   if (!date || Number.isNaN(date.getTime())) {
     return 'Срок не указан';
   }
 
-  const diff = Math.max(0, date.getTime() - Date.now());
+  const diff = Math.max(0, date.getTime() - getClientNow(timeOffsetMs));
   const days = Math.floor(diff / 86400000);
   const hours = Math.floor((diff % 86400000) / 3600000);
   const minutes = Math.floor((diff % 3600000) / 60000);
@@ -127,34 +129,66 @@ function useAuctionAddress(auction) {
   return resolvedAddress;
 }
 
-const getTimeInfo = (auction) => {
+const getTimeInfo = (auction, timeOffsetMs = 0) => {
   const schedule = auction.schedule || {};
 
   if (auction.status === 'application_waiting') {
-    return ['До начала приема заявок', formatDuration(schedule.applicationStartAt)];
+    return ['До начала приема заявок', formatDuration(schedule.applicationStartAt, timeOffsetMs)];
   }
 
   if (auction.status === 'applications_open') {
-    return ['До конца приема заявок', formatDuration(schedule.applicationEndAt)];
+    return ['До конца приема заявок', formatDuration(schedule.applicationEndAt, timeOffsetMs)];
   }
 
   if (auction.status === 'bidding_waiting') {
-    return ['До начала торгов', formatDuration(schedule.biddingStartAt)];
+    return ['До начала торгов', formatDuration(schedule.biddingStartAt, timeOffsetMs)];
   }
 
   if (auction.status === 'bidding_active') {
-    return ['До конца торгов', formatDuration(schedule.biddingEndAt)];
+    return ['До конца торгов', formatDuration(schedule.biddingEndAt, timeOffsetMs)];
   }
 
-  if (['finished_success', 'finished_failed'].includes(auction.status)) {
+  if (['finished_success', 'finished_failed', 'cancelled'].includes(auction.status)) {
     return ['Дата окончания торгов', formatDate(schedule.biddingEndAt)];
   }
 
   return null;
 };
 
-const getDisplayPrice = (auction) =>
-  auction.currentPrice || auction.lastBidPrice || auction.pricing?.priceWithVat || 0;
+const getDecreaseCurrentPrice = (auction, timeOffsetMs = 0) => {
+  const pricing = auction.pricing || {};
+  const schedule = auction.schedule || {};
+  const startPrice = Number(pricing.priceWithVat || 0);
+  const minPrice = Number(pricing.minPriceWithVat || startPrice);
+  const stepsCount = Math.max(Number(pricing.bidStepsCount || 0), 1);
+  const step = Number(pricing.calculatedBidStep || ((startPrice - minPrice) / stepsCount));
+  const start = new Date(schedule.biddingStartAt).getTime();
+  const end = new Date(schedule.biddingEndAt).getTime();
+  const now = getClientNow(timeOffsetMs);
+
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start || now <= start) {
+    return startPrice;
+  }
+
+  if (now >= end) {
+    return minPrice;
+  }
+
+  const elapsedSteps = Math.floor((now - start) / ((end - start) / stepsCount));
+  return Math.max(minPrice, startPrice - elapsedSteps * step);
+};
+
+const getDisplayPrice = (auction, timeOffsetMs = 0) => {
+  if (auction.status === 'finished_success') {
+    return auction.winningBidAmount || auction.lastBidPrice || auction.currentPrice || auction.pricing?.priceWithVat || 0;
+  }
+
+  if (auction.status === 'bidding_active' && auction.pricing?.auctionType === 'decrease') {
+    return getDecreaseCurrentPrice(auction, timeOffsetMs);
+  }
+
+  return auction.currentPrice || auction.lastBidPrice || auction.pricing?.priceWithVat || 0;
+};
 
 function PhotoCarousel({ auction, showStatus, showLike, showViews, timeInfo, statusDanger = false, mediaMeta = '' }) {
   const photos = useMemo(() => {
@@ -222,53 +256,91 @@ function PhotoCarousel({ auction, showStatus, showLike, showViews, timeInfo, sta
   );
 }
 
-function ParticipationBlock({ auction, isVerified, participant }) {
+function ParticipationMessage({ icon: Icon, title, text, tone = 'default', children }) {
+  return (
+    <div className={`${styles.auctionCard__participation} ${styles[`auctionCard__participation--${tone}`] || ''}`}>
+      <div className={styles.auctionCard__participationHeader}>
+        {Icon && <Icon size={18} />}
+        <strong>{title}</strong>
+      </div>
+      {text && <p>{text}</p>}
+      {children}
+    </div>
+  );
+}
+
+function ParticipationBlock({ auction, isVerified, participant, onApply, onPayDeposit, onPayLot }) {
   if (!publishedStatuses.has(auction.status)) {
     return null;
   }
 
   if (!isVerified) {
-    return <div className={styles.auctionCard__participation}>Для участия нужна одобренная верификация.</div>;
-  }
-
-  if (auction.status === 'applications_open') {
-    if (participant?.number) {
-      return <div className={styles.auctionCard__participation}>Ваш номер участника: <strong>{participant.number}</strong></div>;
-    }
-
-    if (participant?.status === 'deposit_required') {
-      return <div className={styles.auctionCard__participation}>Статус заявки: ожидается оплата задатка</div>;
-    }
-
-    return <button className={styles.button} type="button" disabled>Подать заявку</button>;
-  }
-
-  if (['bidding_waiting', 'finished_failed'].includes(auction.status) && participant?.number) {
-    return <div className={styles.auctionCard__participation}>Вы участвовали под номером: <strong>{participant.number}</strong></div>;
-  }
-
-  if (auction.status === 'bidding_active') {
     return (
-      <div className={styles.auctionCard__participation}>
-        {participant?.number && <span>Ваш номер: <strong>{participant.number}</strong></span>}
-        {auction.leadingParticipantNumber && <span>Лидер торгов: <strong>{auction.leadingParticipantNumber}</strong></span>}
-        {auction.pricing?.auctionType === 'increase' && participant?.number && <button className={styles.button} type="button" disabled>Сделать ставку</button>}
-      </div>
+      <ParticipationMessage
+        icon={AlertCircle}
+        title="Участие недоступно"
+        text="Для участия нужна одобренная верификация."
+        tone="warning"
+      />
     );
   }
 
-  if (auction.status === 'finished_success' && participant?.number) {
+  const participantNumber = participant?.participantNumber || participant?.number || null;
+
+  if (auction.status === 'finished_failed' || auction.status === 'cancelled') {
+    return null;
+  }
+
+  if (auction.status === 'finished_success' && participantNumber) {
+    if (participant.isWinner) {
+      return (
+        <ParticipationMessage icon={Trophy} title="Вы победили в торгах" tone="success">
+          {participant.lotPaymentStatus === 'paid' && <span className={styles.auctionCard__paidMark}>Лот оплачен</span>}
+          {participant.lotPaymentStatus !== 'paid' && onPayLot && (
+            <button className={styles.button} type="button" onClick={(event) => { event.stopPropagation(); onPayLot(auction); }}>Оплатить лот</button>
+          )}
+        </ParticipationMessage>
+      );
+    }
+
     return (
-      <div className={styles.auctionCard__participation}>
-        <span>Вы участвовали под номером: <strong>{participant.number}</strong></span>
-        <span>{participant.isWinner ? 'Вы победили' : 'Вы проиграли'}</span>
-      </div>
+      <ParticipationMessage icon={AlertCircle} title="Вы проиграли в торгах" tone="muted" />
+    );
+  }
+
+  if (participantNumber) {
+    return (
+      <ParticipationMessage icon={BadgeCheck} title="Участие в торгах одобрено" tone="success" />
+    );
+  }
+
+  if (auction.status === 'applications_open') {
+    if (participant?.status === 'deposit_required') {
+      return (
+        <ParticipationMessage
+          icon={CreditCard}
+          title="Требуется задаток"
+          text="Для участия в торгах необходимо внести задаток."
+          tone="warning"
+        >
+          {onPayDeposit && <button className={styles.button} type="button" onClick={(event) => { event.stopPropagation(); onPayDeposit(auction); }}>Оплатить задаток</button>}
+        </ParticipationMessage>
+      );
+    }
+
+    return (
+      <ParticipationMessage
+        icon={BadgeCheck}
+        title="Вы можете участвовать в торгах"
+        tone="default"
+      >
+        <button className={styles.button} type="button" onClick={(event) => { event.stopPropagation(); onApply?.(auction); }}>Подать заявку</button>
+      </ParticipationMessage>
     );
   }
 
   return null;
 }
-
 function AuctionCard({
   auction,
   mode = 'owner',
@@ -278,24 +350,34 @@ function AuctionCard({
   onEdit,
   onDelete,
   onReturnToDraft,
+  onApply,
   onOpen,
+  onPayDeposit,
+  onPayLot,
   footerMeta = '',
-  statusOverride = ''
+  statusOverride = '',
+  currentUserId = null,
+  timeOffsetMs = 0
 }) {
   const address = useAuctionAddress(auction);
   const isPublished = publishedStatuses.has(auction.status);
+  const isOwnAuction =
+    mode === 'owner' ||
+    (currentUserId && String(auction.owner?.id || auction.owner || '') === String(currentUserId));
   const isOwner = mode === 'owner';
   const showStatus = mode !== 'journal' || Boolean(statusOverride);
-  const showLike = Boolean(isAuthenticated) && !isOwner && isPublished;
+  const showLike = Boolean(isAuthenticated) && !isOwnAuction && isPublished;
   const showViews = isPublished;
-  const timeInfo = getTimeInfo(auction);
+  const timeInfo = getTimeInfo(auction, timeOffsetMs);
   const statusDanger = auction.status === 'returned' || statusOverride === auctionStatusLabels.returned;
   const editable = ['draft', 'pending', 'returned'].includes(auction.status);
   const canReturnToDraft = auction.status === 'application_waiting';
   const deletable = ['draft', 'pending', 'returned', 'application_waiting'].includes(auction.status);
   const cardTitle = auction.item?.title || 'Лот без названия';
-  const clickableCard = ['journal', 'public', 'catalog', 'moderation'].includes(mode) && Boolean(onOpen);
-  const [priceValue, priceCurrency] = formatMoneyParts(getDisplayPrice(auction));
+  const ownerCanOpen = mode !== 'owner' || !['draft', 'pending', 'returned'].includes(auction.status);
+  const clickableCard = (['journal', 'public', 'catalog', 'moderation'].includes(mode) || mode === 'owner') && ownerCanOpen && Boolean(onOpen);
+  const [priceValue, priceCurrency] = formatMoneyParts(getDisplayPrice(auction, timeOffsetMs));
+  const viewerParticipation = participant || auction.viewerParticipation || auction.participation || null;
 
   const cardActions = useMemo(() => {
     if (mode !== 'owner') {
@@ -309,23 +391,23 @@ function AuctionCard({
     return (
       <>
         {editable && (
-          <button className={styles.buttonSecondary} type="button" onClick={() => onEdit?.(auction)}>
+          <button className={styles.buttonSecondary} type="button" onClick={(event) => { event.stopPropagation(); onEdit?.(auction); }}>
             Редактировать
           </button>
         )}
         {canReturnToDraft && (
-          <button className={styles.buttonSecondary} type="button" onClick={() => onReturnToDraft?.(auction.id)}>
+          <button className={styles.buttonSecondary} type="button" onClick={(event) => { event.stopPropagation(); onReturnToDraft?.(auction.id); }}>
             Вернуть в черновик
           </button>
         )}
         {deletable && (
-          <button className={styles.buttonDanger} type="button" onClick={() => onDelete?.(auction.id)}>
+          <button className={styles.buttonDanger} type="button" onClick={(event) => { event.stopPropagation(); onDelete?.(auction.id); }}>
             Удалить
           </button>
         )}
       </>
     );
-  }, [auction, canReturnToDraft, deletable, editable, mode, onDelete, onEdit, onOpen, onReturnToDraft]);
+  }, [auction, canReturnToDraft, deletable, editable, mode, onDelete, onEdit, onReturnToDraft]);
 
   return (
     <article
@@ -369,7 +451,16 @@ function AuctionCard({
           </span>
         </div>
 
-        {!isOwner && <ParticipationBlock auction={auction} isVerified={isVerified} participant={participant} />}
+        {!isOwnAuction && (
+          <ParticipationBlock
+            auction={auction}
+            isVerified={isVerified}
+            participant={viewerParticipation}
+            onApply={onApply || onOpen}
+            onPayDeposit={onPayDeposit || onOpen}
+            onPayLot={onPayLot || onOpen}
+          />
+        )}
         {footerMeta && mode !== 'journal' && <span className={styles.auctionCard__footerMeta}>{footerMeta}</span>}
 
         {cardActions && <div className={styles.auctionCard__actions}>{cardActions}</div>}
