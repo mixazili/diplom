@@ -1,0 +1,120 @@
+.lotGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 18px;
+  align-items: stretch;
+}
+
+.showMoreButton {
+  justify-self: center;
+  min-height: 42px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-heading);
+  padding: 10px 22px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.showMoreButton:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  box-shadow: 0 10px 24px rgba(185, 28, 28, 0.12);
+}
+
+@media (max-width: 720px) {
+
+  .lotGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.panel__eyebrow,
+.summary__label {
+  margin: 0 0 8px;
+  color: var(--color-accent);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.field__error,
+.message__error {
+  color: var(--color-danger);
+  font-size: 13px;
+}
+
+.publicPage,
+.auctionPage {
+  display: grid;
+  gap: 28px;
+}
+
+.homeSections {
+  display: grid;
+  gap: 28px;
+}
+
+.homeHero {
+  display: grid;
+  min-height: 260px;
+  align-items: end;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background:
+    linear-gradient(90deg, rgba(17, 24, 39, 0.9), rgba(185, 28, 28, 0.72)),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1200' height='500' viewBox='0 0 1200 500'%3E%3Crect width='1200' height='500' fill='%23f8fafc'/%3E%3Cpath d='M0 390c240-170 420-120 620-240s340-140 580-60v410H0z' fill='%23e5e7eb'/%3E%3Ccircle cx='930' cy='130' r='80' fill='%23fee2e2'/%3E%3C/svg%3E");
+  background-size: cover;
+  box-shadow: 0 16px 40px var(--color-shadow);
+  color: var(--color-on-accent);
+  padding: 30px;
+}
+
+.homeHero h1 {
+  max-width: 760px;
+  margin: 0;
+  color: inherit;
+  font-size: 38px;
+  line-height: 1.15;
+}
+
+.homeHero p:not(.panel__eyebrow) {
+  max-width: 720px;
+  margin: 10px 0 0;
+  color: inherit;
+  line-height: 1.55;
+}
+
+.homeHero .panel__eyebrow {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.homeSection {
+  display: grid;
+  gap: 14px;
+}
+
+.homeSection__header {
+  display: grid;
+  gap: 4px;
+}
+
+.homeSection__header h2 {
+  margin: 0;
+  color: var(--color-heading);
+  font-size: 28px;
+}
+
+.homeSection__header p {
+  margin: 0;
+  color: var(--color-muted);
+}
+
+@media (max-width: 720px) {
+  .homeHero h1 {
+    font-size: 30px;
+  }
+}

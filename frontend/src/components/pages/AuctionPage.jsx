@@ -1,4 +1,5 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { io } from 'socket.io-client';
 import {
   AlertCircle,
   ChevronLeft,
@@ -8,18 +9,27 @@ import {
   Heart,
   MapPin,
   Maximize2,
+  BadgeCheck,
+  Banknote,
+  Gavel,
+  Users,
   Trophy,
   X
 } from 'lucide-react';
-import styles from '../../App.module.css';
-import { apiRequest, authHeader } from '../../api/client.js';
+import { apiRequest, authHeader, getApiBaseUrl } from '../../api/client.js';
 import { operatorInfo } from '../../constants/auctionConstants.js';
 import { formatPhoneDisplay } from '../../utils/inputFormatters.js';
+import { getClientNow } from '../../utils/time.js';
 import { getYandexMaps } from '../../utils/yandexMaps.js';
+import AuctionActionModals from '../auction/AuctionActionModals.jsx';
 import AuctionCard, { auctionStatusLabels } from '../auction/AuctionCard.jsx';
+import LoadingState from '../ui/LoadingState.jsx';
+import styles from './AuctionPage.module.css';
 
 const finishedStatuses = new Set(['finished_success', 'finished_failed', 'cancelled']);
 const tradingStatuses = new Set(['bidding_active', 'finished_success', 'finished_failed']);
+
+const getSocketBaseUrl = () => getApiBaseUrl().replace(/\/api\/?$/, '');
 
 const formatDateTime = (value, withMs = false) => {
   const date = value ? new Date(value) : null;
@@ -91,14 +101,14 @@ const formatDays = (value) => {
   return `${days} дней`;
 };
 
-const formatDuration = (target) => {
+const formatDuration = (target, timeOffsetMs = 0) => {
   const date = target ? new Date(target) : null;
 
   if (!date || Number.isNaN(date.getTime())) {
     return 'Срок не указан';
   }
 
-  const diff = Math.max(0, date.getTime() - Date.now());
+  const diff = Math.max(0, date.getTime() - getClientNow(timeOffsetMs));
   const days = Math.floor(diff / 86400000);
   const hours = Math.floor((diff % 86400000) / 3600000);
   const minutes = Math.floor((diff % 3600000) / 60000);
@@ -114,23 +124,23 @@ const formatDuration = (target) => {
   return `${minutes} мин.`;
 };
 
-const getTimeInfo = (auction) => {
+const getTimeInfo = (auction, timeOffsetMs = 0) => {
   const schedule = auction.schedule || {};
 
   if (auction.status === 'application_waiting') {
-    return ['До начала приема заявок', formatDuration(schedule.applicationStartAt)];
+    return ['До начала приема заявок', formatDuration(schedule.applicationStartAt, timeOffsetMs)];
   }
 
   if (auction.status === 'applications_open') {
-    return ['До окончания приема заявок', formatDuration(schedule.applicationEndAt)];
+    return ['До окончания приема заявок', formatDuration(schedule.applicationEndAt, timeOffsetMs)];
   }
 
   if (auction.status === 'bidding_waiting') {
-    return ['До начала торгов', formatDuration(schedule.biddingStartAt)];
+    return ['До начала торгов', formatDuration(schedule.biddingStartAt, timeOffsetMs)];
   }
 
   if (auction.status === 'bidding_active') {
-    return ['До окончания торгов', formatDuration(schedule.biddingEndAt)];
+    return ['До окончания торгов', formatDuration(schedule.biddingEndAt, timeOffsetMs)];
   }
 
   if (finishedStatuses.has(auction.status)) {
@@ -142,6 +152,38 @@ const getTimeInfo = (auction) => {
 
 const getAuctionTypeLabel = (type) => (type === 'decrease' ? 'Аукцион на понижение' : 'Аукцион на повышение');
 
+const getDecreasePriceState = (auction, timeOffsetMs = 0) => {
+  const pricing = auction.pricing || {};
+  const schedule = auction.schedule || {};
+  const startPrice = Number(pricing.priceWithVat || 0);
+  const minPrice = Number(pricing.minPriceWithVat || startPrice);
+  const stepsCount = Math.max(Number(pricing.bidStepsCount || 0), 1);
+  const step = Number(pricing.calculatedBidStep || ((startPrice - minPrice) / stepsCount));
+  const start = new Date(schedule.biddingStartAt).getTime();
+  const end = new Date(schedule.biddingEndAt).getTime();
+  const now = getClientNow(timeOffsetMs);
+
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start || now <= start) {
+    return {
+      currentPrice: startPrice,
+      nextDropAt: new Date(start),
+      reductions: []
+    };
+  }
+
+  const stepDuration = (end - start) / stepsCount;
+  const elapsedSteps = Math.min(stepsCount, Math.max(0, Math.floor((now - start) / stepDuration)));
+  const currentPrice = Math.max(minPrice, startPrice - elapsedSteps * step);
+  const nextDropAt = elapsedSteps < stepsCount ? new Date(start + (elapsedSteps + 1) * stepDuration) : null;
+  const reductions = Array.from({ length: stepsCount + 1 }, (_, index) => ({
+    at: new Date(start + Math.min(index, stepsCount) * stepDuration),
+    amount: Math.max(minPrice, startPrice - index * step),
+    active: index === elapsedSteps
+  }));
+
+  return { currentPrice, nextDropAt, reductions };
+};
+
 const getFailedReason = (auction, bids) => {
   if (auction.status === 'cancelled') {
     return auction.resultReason || auction.moderationComment || 'Аукцион отменен оператором торгов.';
@@ -152,6 +194,10 @@ const getFailedReason = (auction, bids) => {
   }
 
   if (auction.resultReason) {
+    if (auction.resultReason.toLowerCase().includes('не было')) {
+      return 'Не было сделано ни одной ставки.';
+    }
+
     return auction.resultReason;
   }
 
@@ -171,8 +217,41 @@ function InfoRow({ label, value }) {
   );
 }
 
-function AuctionStatusBanner({ auction, bids, variant = 'default' }) {
+function SellerInfoRows({ seller = {} }) {
+  const taxLabel = seller.isResident ? 'УНП' : 'ИНН/БИН';
+
+  if (seller.accountType === 'legal_entity') {
+    return (
+      <>
+        <InfoRow label="Краткое наименование" value={seller.organizationName} />
+        <InfoRow label={taxLabel} value={seller.unp} />
+        <InfoRow label="Юридический адрес" value={seller.legalAddress} />
+      </>
+    );
+  }
+
+  if (seller.accountType === 'entrepreneur') {
+    return (
+      <>
+        <InfoRow label="ФИО" value={seller.fullName} />
+        <InfoRow label={taxLabel} value={seller.unp} />
+        <InfoRow label="Телефон" value={seller.phone} />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <InfoRow label="ФИО" value={seller.fullName} />
+      <InfoRow label="Телефон" value={seller.phone} />
+      <InfoRow label="Дополнительный телефон" value={seller.additionalPhone} />
+    </>
+  );
+}
+
+function AuctionStatusBanner({ auction, bids, variant = 'default', timeInfo = null }) {
   const latestBid = bids[bids.length - 1];
+  const winningAmount = latestBid?.amount || auction.winningBidAmount;
   const statusText = auctionStatusLabels[auction.status] || auction.status;
   const failedReason = getFailedReason(auction, bids);
   const isFinal = finishedStatuses.has(auction.status);
@@ -180,14 +259,22 @@ function AuctionStatusBanner({ auction, bids, variant = 'default' }) {
 
   return (
     <div className={`${styles.auctionStatusBanner} ${variant === 'large' ? styles['auctionStatusBanner--large'] : ''}`}>
-      <strong className={styles.auctionStatusBanner__title}>
-        {isFinal && <StatusIcon size={22} />}
-        {statusText}
-      </strong>
+      <div className={styles.auctionStatusBanner__top}>
+        <strong className={styles.auctionStatusBanner__title}>
+          {isFinal && <StatusIcon size={22} />}
+          {statusText}
+        </strong>
+        {timeInfo && (
+          <span className={styles.auctionStatusBanner__time} title={timeInfo[0]}>
+            <Clock size={18} />
+            <strong>{timeInfo[1]}</strong>
+          </span>
+        )}
+      </div>
       {auction.status === 'finished_success' && (
         <span>
-          Победитель — участник №{latestBid?.participantNumber || 'не определен'}.
-          {latestBid ? ` Последняя ставка: ${formatMoney(latestBid.amount)}.` : ''}
+          Победитель — участник №{latestBid?.participantNumber || auction.winnerParticipantNumber || 'не определен'}.
+          {winningAmount ? ` Ставка: ${formatMoney(winningAmount)}.` : ''}
         </span>
       )}
       {['finished_failed', 'cancelled'].includes(auction.status) && (
@@ -375,7 +462,8 @@ function BidHistory({ auction, bids }) {
     return <p className={styles.panel__text}>Ставок пока нет.</p>;
   }
 
-  const visibleBids = expanded ? bids : bids.slice(-1);
+  const newestFirst = [...bids].reverse();
+  const visibleBids = expanded ? newestFirst : newestFirst.slice(0, 1);
 
   return (
     <div className={styles.bidHistory}>
@@ -385,8 +473,8 @@ function BidHistory({ auction, bids }) {
         <span>Время</span>
         <span>Ставка</span>
       </div>
-      {visibleBids.map((bid, index) => {
-        const sourceIndex = expanded ? index : bids.length - 1;
+      {visibleBids.map((bid) => {
+        const sourceIndex = bids.findIndex((item) => item.id === bid.id);
         const previous = bids[sourceIndex - 1]?.amount || auction.pricing?.priceWithVat || 0;
         const delta = Math.max(Number(bid.amount || 0) - Number(previous || 0), 0);
 
@@ -408,13 +496,34 @@ function BidHistory({ auction, bids }) {
   );
 }
 
-function TradingBlock({ auction, user, viewer, bids }) {
+function TradingBlock({ auction, user, viewer, bids, timeOffsetMs = 0, onApply, onPayDeposit, onPayLot, onPlaceBid, actionLoading }) {
   const participation = viewer?.participation;
+  const [bidAmount, setBidAmount] = useState('');
   const isLoggedIn = Boolean(user);
   const isVerified = user?.verificationStatus === 'approved';
   const isOwner = viewer?.isOwner;
   const hasPaidDeposit = participation?.depositStatus === 'paid' || participation?.status === 'approved';
   const latestBid = bids[bids.length - 1];
+  const isWinner = Boolean(participation?.participantNumber && auction.winnerParticipantNumber === participation.participantNumber);
+  const isLeader = Boolean(participation?.participantNumber && latestBid?.participantNumber === participation.participantNumber);
+  const isDecrease = auction.pricing?.auctionType === 'decrease';
+  const decreaseState = useMemo(() => getDecreasePriceState(auction, timeOffsetMs), [auction, timeOffsetMs]);
+  const currentPrice = isDecrease ? decreaseState.currentPrice : latestBid?.amount || auction.pricing?.priceWithVat || 0;
+  const bidStep = auction.pricing?.minBidStep || 0;
+  const nextBid = isDecrease ? currentPrice : Number(currentPrice || 0) + Number(bidStep || 0);
+  const admittedCount = auction.participantStats?.admittedCount || 0;
+  const bidDifference = Math.max(Number(bidAmount || 0) - Number(currentPrice || 0), 0);
+
+  useEffect(() => {
+    setBidAmount(nextBid ? String(nextBid) : '');
+  }, [nextBid]);
+
+  const changeBidByStep = (direction) => {
+    const step = Math.max(Number(bidStep || 0), 1);
+    const current = Number(bidAmount || nextBid || 0);
+    const next = Math.max(Number(nextBid || 0), current + direction * step);
+    setBidAmount(String(next));
+  };
 
   const restriction = useMemo(() => {
     if (!isLoggedIn) {
@@ -437,63 +546,156 @@ function TradingBlock({ auction, user, viewer, bids }) {
   }, [isLoggedIn, isOwner, isVerified, user?.role]);
 
   return (
-    <section className={styles.auctionPageBlock}>
+    <section className={`${styles.auctionPageBlock} ${styles.auctionPageTradingBlock}`}>
       <h2>Проведение торгов</h2>
-      <AuctionStatusBanner auction={auction} bids={bids} variant="large" />
 
-      <section className={styles.auctionPageTradeSection}>
-        <h3>Участие в торгах</h3>
-        {restriction ? (
-          <div className={styles.auctionPageNotice}>
-            <AlertCircle size={18} />
-            <p>{restriction} <a href="#" onClick={(event) => event.preventDefault()}>Открыть инструкцию по участию в торгах</a></p>
+      {!['finished_failed', 'cancelled'].includes(auction.status) && (
+        <section className={styles.auctionPageTradeSection}>
+          <div className={styles.tradeSectionHeader}>
+            <h3><Users size={20} />Участие в торгах</h3>
+            <span>Допущено участников: <strong>{admittedCount}</strong></span>
           </div>
-        ) : (
-          <div className={styles.auctionPageAction}>
-            <p>Для участия нужно подать заявку, оплатить задаток и получить уникальный номер участника для этого аукциона.</p>
-            {auction.status === 'applications_open' && !participation && (
-              <button className={styles.button} type="button" disabled>Подать заявку на участие</button>
-            )}
-          </div>
-        )}
+          {restriction ? (
+            <div className={styles.auctionPageNotice}>
+              <AlertCircle size={18} />
+              <p>{restriction} <a href="#" onClick={(event) => event.preventDefault()}>Открыть инструкцию по участию в торгах</a></p>
+            </div>
+          ) : !participation && auction.status === 'applications_open' ? (
+            <div className={styles.auctionPageAction}>
+              <p>Вы можете подать заявку и оплатить задаток до окончания приема заявок.</p>
+              <button className={styles.button} type="button" onClick={onApply} disabled={actionLoading}>Подать заявку на участие</button>
+            </div>
+          ) : !participation ? (
+            <div className={styles.auctionPageNotice}>
+              <AlertCircle size={18} />
+              <p>Подача заявки сейчас недоступна. <a href="#" onClick={(event) => event.preventDefault()}>Открыть инструкцию по участию в торгах</a></p>
+            </div>
+          ) : (
+            null
+          )}
 
-        {!restriction && participation && (
-          <div className={styles.auctionPageParticipation}>
-            <InfoRow label="Статус участия" value={hasPaidDeposit ? 'Задаток оплачен' : 'Ожидается оплата задатка'} />
-            <InfoRow label="Ваш номер участника" value={participation.participantNumber || 'Будет присвоен после оплаты задатка'} />
-          </div>
-        )}
-      </section>
-
-      {auction.status === 'bidding_active' && hasPaidDeposit && (
-        <section className={styles.bidPanel}>
-          <div>
-            <h3>Меню ставок</h3>
-            <p>Ставки будут подключены на следующем этапе разработки.</p>
-          </div>
-          <label className={styles.field}>
-            <span className={styles.field__label}>Следующая ставка</span>
-            <input className={styles.field__control} type="number" readOnly value={latestBid ? Number(latestBid.amount) + Number(auction.pricing?.minBidStep || 0) : auction.pricing?.priceWithVat || 0} />
-          </label>
-          <button className={styles.button} type="button" disabled>Сделать ставку</button>
+          {!restriction && participation && (
+            <div className={styles.auctionPageParticipation}>
+              <div className={styles.tradeStateLine}>
+                <span><BadgeCheck size={17} />Статус участия</span>
+                <strong>{hasPaidDeposit ? 'Участие одобрено' : 'Ожидается оплата задатка'}</strong>
+              </div>
+              {hasPaidDeposit && (
+                <div className={styles.tradeStateLine}>
+                  <span><Users size={17} />Ваш номер участника</span>
+                  <strong>№{participation.participantNumber}</strong>
+                </div>
+              )}
+              {participation.status === 'deposit_required' && auction.status === 'applications_open' && (
+                <button className={styles.button} type="button" onClick={onPayDeposit} disabled={actionLoading}>Оплатить задаток</button>
+              )}
+            </div>
+          )}
         </section>
       )}
 
-      {auction.status === 'finished_success' && participation?.participantNumber === latestBid?.participantNumber && (
-        <button className={styles.button} type="button" disabled>Оплатить лот</button>
+      {auction.status === 'bidding_active' && hasPaidDeposit && (
+        <section className={styles.bidPanel}>
+          <div className={styles.bidPanel__summary}>
+            <h3><Gavel size={20} />Меню ставок</h3>
+            <p>{isLeader ? 'Вы лидируете в торгах.' : isDecrease ? `Текущая цена приобретения: ${formatMoney(currentPrice)}.` : `Текущая цена: ${formatMoney(currentPrice)}. Минимальная следующая ставка: ${formatMoney(nextBid)}.`}</p>
+            {isDecrease && decreaseState.nextDropAt && <p>Следующее снижение цены: {formatDateTime(decreaseState.nextDropAt)}.</p>}
+            {auction.extendedAt && <p>Торги продлены до {formatDateTime(auction.schedule?.biddingEndAt)}.</p>}
+          </div>
+          {isDecrease ? (
+            <button
+              className={`${styles.button} ${styles.bidPanel__mainButton}`}
+              type="button"
+              disabled={actionLoading}
+              onClick={() => onPlaceBid(Number(currentPrice))}
+            >
+              Приобрести лот
+            </button>
+          ) : (
+            <>
+              <div className={styles.bidAmountControl}>
+                <button className={styles.bidAmountControl__step} type="button" onClick={() => changeBidByStep(-1)} disabled={isLeader || actionLoading}>
+                  -{formatMoney(bidStep)}
+                </button>
+                <label className={styles.field}>
+                  <span className={styles.field__label}>Следующая ставка</span>
+                  <input
+                    className={styles.field__control}
+                    type="number"
+                    min={nextBid}
+                    step={bidStep || 1}
+                    value={bidAmount}
+                    onChange={(event) => setBidAmount(event.target.value)}
+                    disabled={isLeader}
+                  />
+                </label>
+                <button className={styles.bidAmountControl__step} type="button" onClick={() => changeBidByStep(1)} disabled={isLeader || actionLoading}>
+                  +{formatMoney(bidStep)}
+                </button>
+              </div>
+              <div className={styles.bidPanel__delta}>
+                Разница с текущей ценой: <strong>+{formatMoney(bidDifference)}</strong>
+              </div>
+              <button
+                className={`${styles.button} ${styles.bidPanel__mainButton}`}
+                type="button"
+                disabled={isLeader || actionLoading}
+                onClick={() => onPlaceBid(Number(bidAmount))}
+              >
+                Сделать ставку
+              </button>
+            </>
+          )}
+        </section>
       )}
 
-      {tradingStatuses.has(auction.status) && bids.length > 0 && (
+      {auction.status === 'finished_success' && participation?.participantNumber && (
+        <section className={styles.auctionPageTradeSection}>
+          <h3><Trophy size={20} />Результат участия</h3>
+          {isWinner ? (
+            <>
+              <p>{participation.lotPaymentStatus === 'paid' ? 'Вы победили. Лот оплачен.' : 'Вы победили. Ожидается полная оплата лота.'}</p>
+              {participation.lotPaymentStatus !== 'paid' && (
+                <button className={styles.button} type="button" onClick={onPayLot} disabled={actionLoading}>Оплатить лот</button>
+              )}
+            </>
+          ) : (
+            <p>Победителем стал другой участник.</p>
+          )}
+        </section>
+      )}
+
+      {tradingStatuses.has(auction.status) && (bids.length > 0 || (isDecrease && auction.status === 'bidding_active')) && (
         <section className={styles.auctionPageTradeSection}>
           <h3>Ход торгов</h3>
-          <BidHistory auction={auction} bids={bids} />
+          {isDecrease && (
+            <div className={styles.decreaseTimeline}>
+              {decreaseState.reductions.map((row) => (
+                <div className={row.active ? styles['decreaseTimeline__row--active'] : ''} key={`${row.at.toISOString()}-${row.amount}`}>
+                  <span>{row.at.getTime() <= getClientNow(timeOffsetMs) ? formatDateTime(row.at) : `Снижение в ${formatDateTime(row.at)}`}</span>
+                  <strong>{formatMoney(row.amount)}</strong>
+                </div>
+              ))}
+            </div>
+          )}
+          {bids.length > 0 && !isDecrease && <BidHistory auction={auction} bids={bids} />}
         </section>
       )}
     </section>
   );
 }
 
-function SimilarAuctions({ auctionId, onOpenAuction, user }) {
+function SimilarAuctions({
+  auctionId,
+  actionVersion = 0,
+  onApplyAuction,
+  onOpenAuction,
+  onPayDepositAuction,
+  onPayLotAuction,
+  user,
+  accessToken,
+  timeOffsetMs = 0
+}) {
   const [items, setItems] = useState([]);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -504,7 +706,9 @@ function SimilarAuctions({ auctionId, onOpenAuction, user }) {
 
   const loadPage = (nextPage, append = true) => {
     setStatus('loading');
-    apiRequest(`/auctions/public/${auctionId}/similar?limit=3&page=${nextPage}`)
+    apiRequest(`/auctions/public/${auctionId}/similar?limit=3&page=${nextPage}`, {
+      headers: accessToken ? authHeader(accessToken) : undefined
+    })
       .then((data) => {
         setItems((current) => (append ? [...current, ...(data.auctions || [])] : data.auctions || []));
         setTotal(data.total || 0);
@@ -519,7 +723,7 @@ function SimilarAuctions({ auctionId, onOpenAuction, user }) {
     setPage(1);
     setTotal(0);
     loadPage(1, false);
-  }, [auctionId]);
+  }, [accessToken, actionVersion, auctionId]);
 
   const handleScroll = () => {
     const rail = scrollRef.current;
@@ -556,7 +760,18 @@ function SimilarAuctions({ auctionId, onOpenAuction, user }) {
         <div className={styles.similarAuctions__rail} ref={scrollRef} onScroll={handleScroll}>
           {items.map((item) => (
             <div className={styles.similarAuctions__item} key={item.id}>
-              <AuctionCard auction={item} isAuthenticated={Boolean(user)} isVerified={isVerified} mode="public" onOpen={() => onOpenAuction(item.id)} />
+              <AuctionCard
+                auction={item}
+                isAuthenticated={Boolean(user)}
+                isVerified={isVerified}
+                currentUserId={user?.id}
+                mode="public"
+                timeOffsetMs={timeOffsetMs}
+                onApply={onApplyAuction}
+                onOpen={() => onOpenAuction(item.id)}
+                onPayDeposit={onPayDepositAuction}
+                onPayLot={onPayLotAuction}
+              />
             </div>
           ))}
         </div>
@@ -568,12 +783,26 @@ function SimilarAuctions({ auctionId, onOpenAuction, user }) {
   );
 }
 
-function AuctionPage({ id, user, accessToken, onBack, onOpenAuction }) {
+function AuctionPage({
+  id,
+  user,
+  accessToken,
+  actionVersion = 0,
+  timeOffsetMs = 0,
+  onApplyAuction,
+  onBack,
+  onOpenAuction,
+  onPayDepositAuction,
+  onPayLotAuction
+}) {
   const [auction, setAuction] = useState(null);
   const [viewer, setViewer] = useState(null);
   const [bids, setBids] = useState([]);
   const [status, setStatus] = useState('loading');
   const [message, setMessage] = useState('');
+  const [actionError, setActionError] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
+  const [pageAction, setPageAction] = useState(null);
   const subjectInfoRef = useRef(null);
   const [mapPanelHeight, setMapPanelHeight] = useState(null);
 
@@ -594,7 +823,102 @@ function AuctionPage({ id, user, accessToken, onBack, onOpenAuction }) {
         setMessage(error.message);
         setStatus('failed');
       });
+  }, [accessToken, actionVersion, id]);
+
+  useEffect(() => {
+    if (!id) {
+      return undefined;
+    }
+
+    const socket = io(getSocketBaseUrl(), {
+      auth: accessToken ? { token: accessToken } : undefined
+    });
+
+    socket.emit('auction:join', id);
+    socket.on('auction:update', (payload) => {
+      if (payload.auction) {
+        setAuction(payload.auction);
+      }
+      if (Array.isArray(payload.bids)) {
+        setBids(payload.bids);
+      }
+    });
+
+    return () => {
+      socket.emit('auction:leave', id);
+      socket.disconnect();
+    };
   }, [accessToken, id]);
+
+  const applyPayload = (data) => {
+    if (data.auction) {
+      setAuction(data.auction);
+    }
+    if (data.viewer) {
+      setViewer(data.viewer);
+    }
+    if (Array.isArray(data.bids)) {
+      setBids(data.bids);
+    }
+  };
+
+  const runAuctionAction = async ({ path, method = 'POST', body }) => {
+    setActionLoading(true);
+    setActionError('');
+
+    try {
+      const data = await apiRequest(path, {
+        method,
+        headers: authHeader(accessToken),
+        body: body ? JSON.stringify(body) : JSON.stringify({})
+      });
+      applyPayload(data);
+      return true;
+    } catch (error) {
+      setActionError(error.message);
+      return false;
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const submitApplication = async () => {
+    const ok = await runAuctionAction({
+      path: `/auctions/${id}/applications`
+    });
+
+    if (ok) {
+      setPageAction(null);
+    }
+  };
+
+  const payDeposit = async (payload) => {
+    const ok = await runAuctionAction({
+      path: `/auctions/${id}/deposit/pay`,
+      body: payload
+    });
+
+    if (ok) {
+      setPageAction(null);
+    }
+  };
+
+  const payLot = async (payload) => {
+    const ok = await runAuctionAction({
+      path: `/auctions/${id}/lot/pay`,
+      body: payload
+    });
+
+    if (ok) {
+      setPageAction(null);
+    }
+  };
+
+  const placeBid = (amount) =>
+    runAuctionAction({
+      path: `/auctions/${id}/bids`,
+      body: { amount }
+    });
 
   const photos = useMemo(() => {
     const source = auction?.photos || [];
@@ -632,7 +956,7 @@ function AuctionPage({ id, user, accessToken, onBack, onOpenAuction }) {
   }, [auction, auction?.item?.description, auction?.item?.characteristics?.length]);
 
   if (status === 'loading') {
-    return <p className={styles.panel__text}>Загрузка лота...</p>;
+    return <LoadingState text="Загрузка лота" />;
   }
 
   if (status === 'failed' || !auction) {
@@ -649,8 +973,8 @@ function AuctionPage({ id, user, accessToken, onBack, onOpenAuction }) {
   const item = auction.item || {};
   const pricing = auction.pricing || {};
   const seller = auction.seller || {};
-  const timeInfo = getTimeInfo(auction);
   const isDecrease = pricing.auctionType === 'decrease';
+  const timeInfo = getTimeInfo(auction, timeOffsetMs);
 
   return (
     <div className={styles.auctionPage}>
@@ -671,24 +995,14 @@ function AuctionPage({ id, user, accessToken, onBack, onOpenAuction }) {
         <Gallery title={item.title} photos={photos} />
 
         <aside className={styles.auctionPageSummary}>
-          <AuctionStatusBanner auction={auction} bids={bids} variant="large" />
-
-          {timeInfo && (
-            <div className={styles.auctionPageTime}>
-              <Clock size={18} />
-              <span>{timeInfo[0]}:</span>
-              <strong>{timeInfo[1]}</strong>
-            </div>
-          )}
+          <AuctionStatusBanner auction={auction} bids={bids} variant="large" timeInfo={timeInfo} />
 
           <div className={styles.auctionPageInfoGroup}>
-            <h3>Основная информация</h3>
             <InfoRow label="Номер аукциона" value={auction.lotNumber ? `Лот №${auction.lotNumber}` : 'Не присвоен'} />
             <InfoRow label="Тип аукциона" value={getAuctionTypeLabel(pricing.auctionType)} />
           </div>
 
           <div className={styles.auctionPageInfoGroup}>
-            <h3>Цены</h3>
             <InfoRow label="Начальная цена" value={formatMoney(pricing.priceWithVat)} />
             {isDecrease && <InfoRow label="Минимальная цена" value={formatMoney(pricing.minPriceWithVat)} />}
             <InfoRow label="Задаток" value={formatMoney(pricing.depositAmount)} />
@@ -696,7 +1010,6 @@ function AuctionPage({ id, user, accessToken, onBack, onOpenAuction }) {
           </div>
 
           <div className={styles.auctionPageInfoGroup}>
-            <h3>Даты</h3>
             <InfoRow label="Начало приема заявок" value={formatDateTime(schedule.applicationStartAt)} />
             <InfoRow label="Окончание приема заявок" value={formatDateTime(schedule.applicationEndAt)} />
             <InfoRow label="Начало торгов" value={formatDateTime(schedule.biddingStartAt)} />
@@ -707,7 +1020,24 @@ function AuctionPage({ id, user, accessToken, onBack, onOpenAuction }) {
         </aside>
       </section>
 
-      <TradingBlock auction={auction} user={user} viewer={viewer} bids={bids} />
+      {actionError && (
+        <div className={styles.auctionPageFlash}>
+          <p className={styles.message__error}>{actionError}</p>
+        </div>
+      )}
+
+      <TradingBlock
+        auction={auction}
+        user={user}
+        viewer={viewer}
+        bids={bids}
+        actionLoading={actionLoading}
+        onApply={() => setPageAction({ type: 'apply', auction })}
+        onPayDeposit={() => setPageAction({ type: 'deposit', auction })}
+        onPayLot={() => setPageAction({ type: 'lot', auction })}
+        onPlaceBid={placeBid}
+        timeOffsetMs={timeOffsetMs}
+      />
 
       <section className={styles.auctionPageSubject} id="auction-instruction">
         <div className={styles.auctionPageBlock} ref={subjectInfoRef}>
@@ -750,11 +1080,7 @@ function AuctionPage({ id, user, accessToken, onBack, onOpenAuction }) {
 
         <div className={styles.auctionPageBlock}>
           <h2>Информация о продавце</h2>
-          <InfoRow label="Продавец" value={seller.organizationName || seller.fullName} />
-          <InfoRow label={seller.isResident ? 'УНП' : 'ИНН/БИН'} value={seller.unp} />
-          <InfoRow label="Телефон" value={seller.phone} />
-          <InfoRow label="Дополнительный телефон" value={seller.additionalPhone} />
-          <InfoRow label="Юридический адрес" value={seller.legalAddress} />
+          <SellerInfoRows seller={seller} />
         </div>
 
         <div className={styles.auctionPageBlock}>
@@ -784,7 +1110,30 @@ function AuctionPage({ id, user, accessToken, onBack, onOpenAuction }) {
         </div>
       </section>
 
-      <SimilarAuctions auctionId={auction.id} user={user} onOpenAuction={onOpenAuction} />
+      <SimilarAuctions
+        auctionId={auction.id}
+        actionVersion={actionVersion}
+        user={user}
+        accessToken={accessToken}
+        timeOffsetMs={timeOffsetMs}
+        onApplyAuction={onApplyAuction}
+        onOpenAuction={onOpenAuction}
+        onPayDepositAuction={onPayDepositAuction}
+        onPayLotAuction={onPayLotAuction}
+      />
+
+      <AuctionActionModals
+        action={pageAction}
+        error=""
+        loading={actionLoading}
+        onCancel={() => {
+          setPageAction(null);
+          setActionError('');
+        }}
+        onConfirmApply={submitApplication}
+        onPayDeposit={payDeposit}
+        onPayLot={payLot}
+      />
     </div>
   );
 }

@@ -1,11 +1,11 @@
 import React from 'react';
-import styles from '../../App.module.css';
 import { ORGANIZATION_FEE_PERCENT, VAT_RATE, auctionCategoryLabels, buyerTerms, operatorInfo } from '../../constants/auctionConstants.js';
 import { accountTypeLabels } from '../../constants/verificationLabels.js';
 import { formatDateTime } from '../../utils/formatters.js';
 import { formatPhoneDisplay } from '../../utils/inputFormatters.js';
 import CollapsibleSection from '../auction/CollapsibleSection.jsx';
 import AuctionMapPreview from './AuctionMapPreview.jsx';
+import styles from './AuctionDetails.module.css';
 
 const formatMoney = (value) =>
   new Intl.NumberFormat('ru-BY', { style: 'currency', currency: 'BYN' }).format(Number(value || 0));

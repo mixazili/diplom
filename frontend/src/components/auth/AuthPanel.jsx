@@ -10,7 +10,7 @@ import {
   verifyEmail,
   verifyStaffLogin
 } from '../../features/auth/authSlice.js';
-import styles from '../../App.module.css';
+import styles from './AuthPanel.module.css';
 
 const initialCredentials = {
   email: '',

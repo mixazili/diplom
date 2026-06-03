@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import styles from '../../App.module.css';
 import { apiRequest, authHeader } from '../../api/client.js';
 import AuctionSections from './AuctionSections.jsx';
+import styles from './HomePage.module.css';
 
 const publishedOwnStatuses = new Set([
   'application_waiting',
@@ -10,22 +10,41 @@ const publishedOwnStatuses = new Set([
   'bidding_active'
 ]);
 
-function HomePage({ user, accessToken, onOpenAuction }) {
+const activeParticipationStatuses = new Set([
+  'application_waiting',
+  'applications_open',
+  'bidding_waiting',
+  'bidding_active'
+]);
+
+function HomePage({
+  user,
+  accessToken,
+  actionVersion = 0,
+  timeOffsetMs = 0,
+  onApplyAuction,
+  onOpenAuction,
+  onPayDepositAuction,
+  onPayLotAuction
+}) {
   const [popularAuctions, setPopularAuctions] = useState({ items: [], total: 0, page: 1 });
   const [newAuctions, setNewAuctions] = useState({ items: [], total: 0, page: 1 });
   const [myAuctions, setMyAuctions] = useState({ items: [], visibleCount: 12 });
+  const [myParticipations, setMyParticipations] = useState({ items: [], visibleCount: 12 });
   const [message, setMessage] = useState('');
   const isVerified = user?.verificationStatus === 'approved';
 
-  const loadAuctionSection = (scope, page = 1) =>
-    apiRequest(`/auctions?scope=${scope}&limit=12&page=${page}`);
+  const loadAuctionSection = (scope, page = 1, limit = 12) =>
+    apiRequest(`/auctions?scope=${scope}&limit=${limit}&page=${page}`, {
+      headers: accessToken ? authHeader(accessToken) : undefined
+    });
 
   useEffect(() => {
     let mounted = true;
 
     Promise.all([
-      loadAuctionSection('popular', 1),
-      loadAuctionSection('home', 1)
+      loadAuctionSection('popular', 1, 6),
+      loadAuctionSection('home', 1, 6)
     ])
       .then(([popularData, newData]) => {
         if (!mounted) {
@@ -44,40 +63,53 @@ function HomePage({ user, accessToken, onOpenAuction }) {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [accessToken, actionVersion]);
 
   useEffect(() => {
     if (!accessToken || !isVerified) {
       setMyAuctions({ items: [], visibleCount: 12 });
+      setMyParticipations({ items: [], visibleCount: 12 });
       return undefined;
     }
 
     let mounted = true;
-    apiRequest('/auctions/my', {
-      headers: authHeader(accessToken)
-    })
-      .then((data) => {
-        if (mounted) {
-          setMyAuctions({
-            items: (data.auctions || []).filter((auction) => publishedOwnStatuses.has(auction.status)),
-            visibleCount: 12
-          });
+    Promise.all([
+      apiRequest('/auctions/my', {
+        headers: authHeader(accessToken)
+      }),
+      apiRequest('/auctions/participations/my', {
+        headers: authHeader(accessToken)
+      })
+    ])
+      .then(([ownData, participationData]) => {
+        if (!mounted) {
+          return;
         }
+
+        setMyAuctions({
+          items: (ownData.auctions || []).filter((auction) => publishedOwnStatuses.has(auction.status)),
+          visibleCount: 12
+        });
+        setMyParticipations({
+          items: (participationData.participations || []).filter((item) => activeParticipationStatuses.has(item.auction?.status)),
+          visibleCount: 12
+        });
       })
       .catch(() => {
         if (mounted) {
           setMyAuctions({ items: [], visibleCount: 12 });
+          setMyParticipations({ items: [], visibleCount: 12 });
         }
       });
 
     return () => {
       mounted = false;
     };
-  }, [accessToken, isVerified]);
+  }, [accessToken, actionVersion, isVerified]);
 
   const showMoreRemote = (setter, scope, currentPage) => {
     const nextPage = currentPage + 1;
-    loadAuctionSection(scope, nextPage)
+    loadAuctionSection(scope, nextPage, scope === 'popular' || scope === 'home' ? 6 : 12)
       .then((data) => {
         setter((latest) => ({
           items: [...latest.items, ...(data.auctions || [])],
@@ -98,6 +130,15 @@ function HomePage({ user, accessToken, onOpenAuction }) {
       onShowMore: () => setMyAuctions((current) => ({ ...current, visibleCount: current.visibleCount + 12 }))
     },
     {
+      title: 'Участие в аукционах',
+      description: 'Аукционы, где у вас уже есть заявка или номер участника.',
+      items: myParticipations.items.slice(0, myParticipations.visibleCount),
+      getAuction: (item) => item.auction,
+      getParticipant: (item) => item,
+      hasMore: myParticipations.items.length > myParticipations.visibleCount,
+      onShowMore: () => setMyParticipations((current) => ({ ...current, visibleCount: current.visibleCount + 12 }))
+    },
+    {
       title: 'Популярные аукционы',
       description: 'Лоты на этапе ожидания и приема заявок.',
       items: popularAuctions.items,
@@ -111,7 +152,7 @@ function HomePage({ user, accessToken, onOpenAuction }) {
       hasMore: newAuctions.items.length < newAuctions.total,
       onShowMore: () => showMoreRemote(setNewAuctions, 'home', newAuctions.page)
     }
-  ], [myAuctions, newAuctions, popularAuctions]);
+  ], [myAuctions, myParticipations, newAuctions, popularAuctions]);
 
   return (
     <div className={styles.publicPage}>
@@ -126,7 +167,16 @@ function HomePage({ user, accessToken, onOpenAuction }) {
       </section>
 
       {message && <p className={styles.message__error}>{message}</p>}
-      <AuctionSections sections={sections} user={user} isVerified={isVerified} onOpenAuction={onOpenAuction} />
+      <AuctionSections
+        sections={sections}
+        user={user}
+        isVerified={isVerified}
+        timeOffsetMs={timeOffsetMs}
+        onApplyAuction={onApplyAuction}
+        onOpenAuction={onOpenAuction}
+        onPayDepositAuction={onPayDepositAuction}
+        onPayLotAuction={onPayLotAuction}
+      />
     </div>
   );
 }

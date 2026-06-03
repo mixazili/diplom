@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import styles from '../../App.module.css';
+import styles from './CustomSelect.module.css';
 
-function CustomSelect({ value, options, onChange, disabled = false, ariaLabel = '', className = '' }) {
+function CustomSelect({ value, options, onChange, disabled = false, ariaLabel = '', className = '', error = false }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
   const current = options.find((option) => option.value === value) || options[0];
@@ -18,7 +18,10 @@ function CustomSelect({ value, options, onChange, disabled = false, ariaLabel = 
   }, []);
 
   return (
-    <div className={`${styles.customSelect} ${open ? styles['customSelect--open'] : ''} ${className}`} ref={rootRef}>
+    <div
+      className={`${styles.customSelect} ${open ? styles['customSelect--open'] : ''} ${error ? styles['customSelect--error'] : ''} ${className}`}
+      ref={rootRef}
+    >
       <button
         className={styles.customSelect__button}
         type="button"

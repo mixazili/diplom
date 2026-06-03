@@ -1,0 +1,55 @@
+.staffCard {
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+}
+
+.staffCard__head {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border: 0;
+  background: transparent;
+  color: var(--color-heading);
+  padding: 16px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.staffCard__head span:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.staffCard__head small {
+  color: var(--color-muted);
+}
+
+.staffCard__badge {
+  border-radius: 999px;
+  background: var(--color-accent-muted);
+  color: var(--color-accent);
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.staffCard__badge--approved {
+  background: #eef0f3;
+  color: var(--color-heading);
+}
+
+.staffCard__badge--rejected {
+  background: var(--color-accent-muted);
+  color: var(--color-accent);
+}
+
+.staffCard__body {
+  display: grid;
+  gap: 14px;
+  border-top: 1px solid var(--color-border);
+  padding: 16px;
+}

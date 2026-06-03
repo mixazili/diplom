@@ -24,11 +24,27 @@ const auctionApplicationSchema = new mongoose.Schema(
     rejectionReason: {
       type: String,
       default: null
+    },
+    lotPaymentStatus: {
+      type: String,
+      enum: ['not_required', 'pending', 'paid'],
+      default: 'not_required'
+    },
+    lotPaidAt: {
+      type: Date,
+      default: null
     }
   },
   { timestamps: true }
 );
 
 auctionApplicationSchema.index({ auction: 1, participant: 1 }, { unique: true });
+auctionApplicationSchema.index(
+  { auction: 1, participantNumber: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { participantNumber: { $type: 'number' } }
+  }
+);
 
 module.exports = mongoose.model('AuctionApplication', auctionApplicationSchema);

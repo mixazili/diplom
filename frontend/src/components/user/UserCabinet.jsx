@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import styles from '../../App.module.css';
 import { changePassword, logout } from '../../features/auth/authSlice.js';
 import { fetchMyVerification } from '../../features/verification/verificationSlice.js';
 import AuctionCreateForm from './auction/AuctionCreateForm.jsx';
 import MyAuctions from './auction/MyAuctions.jsx';
+import MyParticipations from './auction/MyParticipations.jsx';
+import MyWins from './auction/MyWins.jsx';
 import VerificationForm from './VerificationForm.jsx';
+import styles from './UserCabinet.module.css';
 
 const verificationStatus = {
   draft: {
@@ -45,7 +47,14 @@ function ConfirmModal({ onClose, onConfirm }) {
   );
 }
 
-function UserCabinet() {
+function UserCabinet({
+  actionVersion = 0,
+  timeOffsetMs = 0,
+  onApplyAuction,
+  onOpenAuction,
+  onPayDepositAuction,
+  onPayLotAuction
+}) {
   const dispatch = useDispatch();
   const { accessToken, user, status: authStatus, errors: authErrors } = useSelector((state) => state.auth);
   const { request } = useSelector((state) => state.verification);
@@ -172,6 +181,8 @@ function UserCabinet() {
       canCreateLot={canCreateLot}
       onCreate={openCreateLot}
       onEdit={openEditLot}
+      onOpenAuction={onOpenAuction}
+      timeOffsetMs={timeOffsetMs}
     />
   );
 
@@ -193,6 +204,25 @@ function UserCabinet() {
       />
     );
   };
+
+  const renderParticipations = () => (
+    <MyParticipations
+      actionVersion={actionVersion}
+      timeOffsetMs={timeOffsetMs}
+      onApplyAuction={onApplyAuction}
+      onOpenAuction={onOpenAuction}
+      onPayDepositAuction={onPayDepositAuction}
+      onPayLotAuction={onPayLotAuction}
+    />
+  );
+  const renderWins = () => (
+    <MyWins
+      actionVersion={actionVersion}
+      timeOffsetMs={timeOffsetMs}
+      onOpenAuction={onOpenAuction}
+      onPayLotAuction={onPayLotAuction}
+    />
+  );
 
   const renderVerificationForm = () => {
     if (!canShowVerificationForm) {
@@ -233,6 +263,20 @@ function UserCabinet() {
         >
           Мои лоты
         </button>
+        <button
+          className={`${styles.cabinetSidebar__button} ${activeSection === 'participations' ? styles['cabinetSidebar__button--active'] : ''}`}
+          type="button"
+          onClick={() => setActiveSection('participations')}
+        >
+          Участие в аукционах
+        </button>
+        <button
+          className={`${styles.cabinetSidebar__button} ${activeSection === 'wins' ? styles['cabinetSidebar__button--active'] : ''}`}
+          type="button"
+          onClick={() => setActiveSection('wins')}
+        >
+          Победы в торгах
+        </button>
         <button className={styles.cabinetSidebar__button} type="button" onClick={() => setShowLogoutModal(true)}>
           Выйти
         </button>
@@ -241,6 +285,8 @@ function UserCabinet() {
       <div className={styles.cabinetMain}>
         {activeSection === 'profile' && renderProfile()}
         {activeSection === 'lots' && renderLots()}
+        {activeSection === 'participations' && renderParticipations()}
+        {activeSection === 'wins' && renderWins()}
         {activeSection === 'create-lot' && renderCreateLot()}
         {activeSection === 'verification-form' && renderVerificationForm()}
       </div>

@@ -12,7 +12,18 @@ const bidSchema = new mongoose.Schema(
       ref: 'User',
       required: true
     },
+    participantNumber: {
+      type: Number,
+      required: true,
+      min: 10000000,
+      max: 99999999
+    },
     amount: {
+      type: Number,
+      required: true,
+      min: 0
+    },
+    increment: {
       type: Number,
       required: true,
       min: 0
@@ -22,5 +33,6 @@ const bidSchema = new mongoose.Schema(
 );
 
 bidSchema.index({ auction: 1, amount: -1 });
+bidSchema.index({ auction: 1, createdAt: 1 });
 
 module.exports = mongoose.model('Bid', bidSchema);

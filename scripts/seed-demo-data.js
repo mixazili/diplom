@@ -736,15 +736,23 @@ const seedParticipation = async ({ auction, users, index }) => {
 
   const participantCount = auction.status === 'applications_open' ? 2 : 3;
   const participants = Array.from({ length: participantCount }, (_, offset) => users[(index + offset + 1) % users.length].user);
+  let lastBid = auction.pricing.priceWithVat;
+  let winnerApplication = null;
+  let winnerBid = null;
 
   for (let participantIndex = 0; participantIndex < participants.length; participantIndex += 1) {
     const participant = participants[participantIndex];
     const applicationStatus = auction.status === 'applications_open' && participantIndex === 0 ? 'deposit_required' : 'approved';
+    const participantNumber = applicationStatus === 'approved'
+      ? 10000000 + index * 100 + participantIndex + 1
+      : null;
 
-    await AuctionApplication.create({
+    const application = await AuctionApplication.create({
       auction: auction._id,
       participant: participant._id,
-      status: applicationStatus
+      status: applicationStatus,
+      participantNumber,
+      lotPaymentStatus: 'not_required'
     });
 
     await Deposit.create({
@@ -756,12 +764,41 @@ const seedParticipation = async ({ auction, users, index }) => {
     });
 
     if (['bidding_active', 'finished_success'].includes(auction.status)) {
-      await Bid.create({
+      const step = auction.pricing.minBidStep || auction.pricing.calculatedBidStep || 100;
+      const amount = auction.pricing.priceWithVat + step * (participantIndex + 1);
+      const bid = await Bid.create({
         auction: auction._id,
         bidder: participant._id,
-        amount: auction.pricing.priceWithVat + auction.pricing.minBidStep * (participantIndex + 1)
+        participantNumber,
+        amount,
+        increment: amount - lastBid,
+        createdAt: auction.status === 'finished_success' ? makeDate(-7, 10 + participantIndex) : makeDate(0, 9 + participantIndex)
       });
+      lastBid = amount;
+      winnerApplication = application;
+      winnerBid = bid;
     }
+  }
+
+  if (auction.status === 'finished_success' && winnerApplication && winnerBid) {
+    winnerApplication.lotPaymentStatus = index % 2 === 0 ? 'paid' : 'pending';
+    winnerApplication.lotPaidAt = winnerApplication.lotPaymentStatus === 'paid' ? makeDate(-6, 12) : null;
+    await winnerApplication.save();
+
+    auction.winner = winnerApplication.participant;
+    auction.winnerParticipantNumber = winnerApplication.participantNumber;
+    auction.winningBidAmount = winnerBid.amount;
+    auction.winningBidAt = winnerBid.createdAt;
+    await auction.save();
+    await Deposit.updateOne(
+      { auction: auction._id, payer: winnerApplication.participant },
+      { $set: { status: 'paid' } }
+    );
+  }
+
+  if (auction.status === 'finished_failed') {
+    auction.resultReason = 'За время торгов не было сделано ни одной ставки';
+    await auction.save();
   }
 };
 

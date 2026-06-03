@@ -10,7 +10,9 @@ import SiteFooter from './components/layout/SiteFooter.jsx';
 import HomePage from './components/pages/HomePage.jsx';
 import AuctionsPage from './components/pages/AuctionsPage.jsx';
 import AuctionPage from './components/pages/AuctionPage.jsx';
-import styles from './App.module.css';
+import AuctionActionModals from './components/auction/AuctionActionModals.jsx';
+import { apiRequest, authHeader } from './api/client.js';
+import styles from './AppShell.module.css';
 
 let initialRefreshStarted = false;
 
@@ -87,6 +89,12 @@ function App() {
   const dispatch = useDispatch();
   const { user, refreshToken, accessToken } = useSelector((state) => state.auth);
   const [route, setRoute] = useState(routeFromLocation);
+  const [timeOffsetMs, setTimeOffsetMs] = useState(0);
+  const [actionModal, setActionModal] = useState(null);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [actionError, setActionError] = useState('');
+  const [actionVersion, setActionVersion] = useState(0);
+  const [clockTick, setClockTick] = useState(0);
 
   useEffect(() => {
     if (refreshToken && !initialRefreshStarted) {
@@ -99,6 +107,38 @@ function App() {
     const handlePopState = () => setRoute(routeFromLocation());
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadTime = () => {
+      apiRequest('/system/time')
+        .then((data) => {
+          if (mounted) {
+            const nextOffset = Number(data.time?.offsetMs || 0);
+            setTimeOffsetMs((current) => {
+              if (current !== nextOffset) {
+                setActionVersion((value) => value + 1);
+              }
+              return nextOffset;
+            });
+          }
+        })
+        .catch(() => {});
+    };
+
+    loadTime();
+    const intervalId = window.setInterval(loadTime, 10000);
+    const tickId = window.setInterval(() => setClockTick((value) => value + 1), 30000);
+    window.addEventListener('auction:dev-time-changed', loadTime);
+
+    return () => {
+      mounted = false;
+      window.clearInterval(intervalId);
+      window.clearInterval(tickId);
+      window.removeEventListener('auction:dev-time-changed', loadTime);
+    };
   }, []);
 
   useEffect(() => {
@@ -121,6 +161,44 @@ function App() {
 
   const openAuthMode = (authMode) => navigate('auth', { authMode });
   const openAuction = (id) => navigate('auction', { id });
+
+  const requireUserAction = (auction, type) => {
+    if (!user || !accessToken) {
+      openAuthMode('login');
+      return;
+    }
+
+    setActionError('');
+    setActionModal({ type, auction });
+  };
+
+  const openAuctionApplication = (auction) => requireUserAction(auction, 'apply');
+  const openDepositPayment = (auction) => requireUserAction(auction, 'deposit');
+  const openLotPayment = (auction) => requireUserAction(auction, 'lot');
+
+  const runCardAction = async ({ path, body }) => {
+    if (!accessToken) {
+      openAuthMode('login');
+      return;
+    }
+
+    setActionLoading(true);
+    setActionError('');
+
+    try {
+      await apiRequest(path, {
+        method: 'POST',
+        headers: authHeader(accessToken),
+        body: JSON.stringify(body || {})
+      });
+      setActionModal(null);
+      setActionVersion((value) => value + 1);
+    } catch (error) {
+      setActionError(error.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   const content = useMemo(() => {
     if (route.name === 'staff') {
@@ -148,7 +226,16 @@ function App() {
         return <ModeratorPanel />;
       }
 
-      return <UserCabinet />;
+      return (
+        <UserCabinet
+          actionVersion={actionVersion}
+          timeOffsetMs={timeOffsetMs}
+          onApplyAuction={openAuctionApplication}
+          onOpenAuction={openAuction}
+          onPayDepositAuction={openDepositPayment}
+          onPayLotAuction={openLotPayment}
+        />
+      );
     }
 
     if (route.name === 'auth') {
@@ -161,18 +248,47 @@ function App() {
           accessToken={accessToken}
           categories={route.categories || []}
           search={route.search}
+          timeOffsetMs={timeOffsetMs}
           user={user}
+          actionVersion={actionVersion}
+          onApplyAuction={openAuctionApplication}
           onOpenAuction={openAuction}
+          onPayDepositAuction={openDepositPayment}
+          onPayLotAuction={openLotPayment}
         />
       );
     }
 
     if (route.name === 'auction') {
-      return <AuctionPage accessToken={accessToken} id={route.id} user={user} onBack={() => navigate('auctions')} onOpenAuction={openAuction} />;
+      return (
+        <AuctionPage
+          accessToken={accessToken}
+          actionVersion={actionVersion}
+          id={route.id}
+          timeOffsetMs={timeOffsetMs}
+          user={user}
+          onApplyAuction={openAuctionApplication}
+          onBack={() => navigate('auctions')}
+          onOpenAuction={openAuction}
+          onPayDepositAuction={openDepositPayment}
+          onPayLotAuction={openLotPayment}
+        />
+      );
     }
 
-    return <HomePage accessToken={accessToken} user={user} onOpenAuction={openAuction} />;
-  }, [accessToken, route, user]);
+    return (
+      <HomePage
+        accessToken={accessToken}
+        actionVersion={actionVersion}
+        timeOffsetMs={timeOffsetMs}
+        user={user}
+        onApplyAuction={openAuctionApplication}
+        onOpenAuction={openAuction}
+        onPayDepositAuction={openDepositPayment}
+        onPayLotAuction={openLotPayment}
+      />
+    );
+  }, [accessToken, actionVersion, clockTick, route, timeOffsetMs, user]);
 
   return (
     <main className={styles.app}>
@@ -184,6 +300,18 @@ function App() {
       />
       <div className={styles.app__shell}>{content}</div>
       <SiteFooter onAuthMode={openAuthMode} onNavigate={navigate} />
+      <AuctionActionModals
+        action={actionModal}
+        error={actionError}
+        loading={actionLoading}
+        onCancel={() => {
+          setActionModal(null);
+          setActionError('');
+        }}
+        onConfirmApply={() => runCardAction({ path: `/auctions/${actionModal.auction.id}/applications` })}
+        onPayDeposit={(payload) => runCardAction({ path: `/auctions/${actionModal.auction.id}/deposit/pay`, body: payload })}
+        onPayLot={(payload) => runCardAction({ path: `/auctions/${actionModal.auction.id}/lot/pay`, body: payload })}
+      />
     </main>
   );
 }

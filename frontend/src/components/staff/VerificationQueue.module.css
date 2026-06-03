@@ -1,0 +1,148 @@
+.panel__text,
+.summary__text {
+  margin: 8px 0 0;
+  color: var(--color-muted);
+}
+
+.field__control {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  padding: 10px 12px;
+  outline: none;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+}
+
+textarea.field__control {
+  min-height: 92px;
+  resize: vertical;
+}
+
+.field__control:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-soft);
+}
+
+.button,
+.buttonSecondary {
+  justify-self: start;
+  min-height: 42px;
+  border: 0;
+  border-radius: 6px;
+  padding: 10px 18px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.buttonSecondary {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-heading);
+}
+
+.buttonDanger {
+  justify-self: start;
+  min-height: 42px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--color-danger);
+  color: var(--color-on-accent);
+  padding: 10px 18px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.button:disabled,
+.buttonSecondary:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+
+.button:hover:not(:disabled),
+.buttonSecondary:hover:not(:disabled),
+.buttonDanger:hover:not(:disabled) {
+  border-color: rgba(185, 28, 28, 0.34);
+}
+
+select.field__control {
+  appearance: none;
+  border-color: rgba(148, 163, 184, 0.65);
+  background-color: var(--color-surface);
+  background-image: url("data:image/svg+xml,%3Csvg width='18' height='18' viewBox='0 0 20 20' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M5 7.5L10 12.5L15 7.5' stroke='%23B91C1C' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-position: calc(100% - 14px) 50%;
+  background-repeat: no-repeat;
+  background-size: 18px 18px;
+  padding-right: 44px;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.04);
+  cursor: pointer;
+}
+
+select.field__control:hover {
+  border-color: rgba(185, 28, 28, 0.34);
+}
+
+select.field__control:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-soft);
+}
+
+select.field__control:disabled {
+  opacity: 0.7;
+}
+
+.sectionTitle {
+  margin: 18px 0 2px;
+  color: var(--color-heading);
+  font-size: 24px;
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+.staffSection {
+  display: grid;
+  gap: 16px;
+}
+
+.staffActions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 170px;
+  gap: 10px;
+  align-items: start;
+}
+
+.staffList {
+  display: grid;
+  gap: 12px;
+}
+
+.staffDecisionButtons {
+  display: grid;
+  gap: 10px;
+}
+
+.staffDecisionButtons .buttonSecondary,
+.staffDecisionButtons .buttonDanger {
+  width: 100%;
+  justify-self: stretch;
+  justify-content: center;
+}
+
+@media (max-width: 720px) {
+
+  .staffActions,
+  .staffForm,
+  .devTimeGrid,
+  .devTimeActions,
+  .devTimeExact,
+  .auctionDetailHero,
+  .photoUploader__header,
+  .characteristicRow,
+  .termsGrid,
+  .verificationSummary,
+  .cabinetLayout {
+    grid-template-columns: 1fr;
+  }
+}

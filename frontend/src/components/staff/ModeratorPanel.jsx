@@ -1,12 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import styles from '../../App.module.css';
 import { logout } from '../../features/auth/authSlice.js';
 import AuctionQueue from './AuctionQueue.jsx';
 import AuctionReviewList from './AuctionReviewList.jsx';
 import ReviewList from './ReviewList.jsx';
 import VerificationQueue from './VerificationQueue.jsx';
 import { createStaffRequest } from './useStaffRequest.js';
+import LoadingState from '../ui/LoadingState.jsx';
+import styles from './ModeratorPanel.module.css';
 
 const menuItems = [
   ['verifications', 'Заявки на верификацию'],
@@ -25,8 +26,10 @@ function ModeratorPanel() {
   const [auctions, setAuctions] = useState([]);
   const [auctionReviews, setAuctionReviews] = useState([]);
   const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(true);
 
   const loadPanel = async () => {
+    setLoading((current) => current && true);
     const [verificationData, verificationReviewData, auctionData, auctionReviewData] = await Promise.all([
       staffRequest('/moderation/verifications'),
       staffRequest('/moderation/reviews'),
@@ -37,10 +40,14 @@ function ModeratorPanel() {
     setVerificationReviews(verificationReviewData.reviews);
     setAuctions(auctionData.auctions);
     setAuctionReviews(auctionReviewData.reviews);
+    setLoading(false);
   };
 
   useEffect(() => {
-    loadPanel().catch((error) => setMessage(error.message));
+    loadPanel().catch((error) => {
+      setMessage(error.message);
+      setLoading(false);
+    });
   }, [staffRequest]);
 
   const reviewVerification = async (id, action, comment) => {
@@ -123,7 +130,7 @@ function ModeratorPanel() {
           </div>
         </section>
         {message && <p className={styles.message__error}>{message}</p>}
-        {renderSection()}
+        {loading ? <LoadingState text="Загрузка панели" /> : renderSection()}
       </div>
     </div>
   );

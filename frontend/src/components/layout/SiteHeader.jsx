@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Bell, Heart, Search, UserCircle } from 'lucide-react';
-import styles from '../../App.module.css';
 import { auctionCategoryGroups, auctionCategoryLabels } from '../../constants/auctionCategories.js';
+import styles from './Layout.module.css';
 
 function SiteHeader({ user, onNavigate, onAuthMode, activeCategories = [] }) {
   const [query, setQuery] = useState('');

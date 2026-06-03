@@ -1,0 +1,87 @@
+.panel__text,
+.summary__text {
+  margin: 8px 0 0;
+  color: var(--color-muted);
+}
+
+.sectionTitle {
+  margin: 18px 0 2px;
+  color: var(--color-heading);
+  font-size: 24px;
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+.staffSection {
+  display: grid;
+  gap: 16px;
+}
+
+.staffCancelActions {
+  display: flex;
+  justify-content: flex-start;
+  border-top: 1px solid var(--color-border);
+  margin-top: 18px;
+  padding-top: 16px;
+}
+
+.lotGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 18px;
+  align-items: stretch;
+}
+
+.backButton {
+  justify-self: start;
+  min-height: 36px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+  color: var(--color-heading);
+  margin-bottom: 16px;
+  padding: 8px 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.backButton:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.formBackActions .backButton,
+.staffCancelActions .backButton {
+  margin-bottom: 0;
+}
+
+.decisionNotice {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 18px;
+  border-left: 4px solid var(--color-danger);
+  border-radius: 8px;
+  background: rgba(198, 23, 27, 0.07);
+  padding: 14px 16px;
+}
+
+.decisionNotice strong {
+  color: var(--color-danger);
+}
+
+.decisionNotice span {
+  color: var(--color-muted);
+  font-weight: 700;
+}
+
+.decisionNotice p {
+  margin: 0;
+  color: var(--color-text);
+}
+
+@media (max-width: 720px) {
+
+  .lotGrid {
+    grid-template-columns: 1fr;
+  }
+}

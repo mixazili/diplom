@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import styles from '../../../App.module.css';
 import { getYandexMaps } from '../../../utils/yandexMaps.js';
+import styles from './YandexMapPicker.module.css';
 
 const DEFAULT_CENTER = [53.9023, 27.5619];
 const DEFAULT_ZOOM = 11;
@@ -135,3 +135,4 @@ function YandexMapPicker({ value, onChange, error }) {
 }
 
 export default YandexMapPicker;
+

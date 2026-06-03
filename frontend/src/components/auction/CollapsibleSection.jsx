@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import styles from '../../App.module.css';
+import styles from './CollapsibleSection.module.css';
 
 function CollapsibleSection({ title, children, defaultOpen = false, className = '' }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -13,7 +13,7 @@ function CollapsibleSection({ title, children, defaultOpen = false, className = 
         aria-expanded={open}
       >
         <span>{title}</span>
-        <span className={styles.collapsibleSection__icon}>{open ? '−' : '+'}</span>
+        <span className={styles.collapsibleSection__icon}>{open ? '-' : '+'}</span>
       </button>
       {open && <div className={styles.collapsibleSection__content}>{children}</div>}
     </section>
@@ -21,3 +21,4 @@ function CollapsibleSection({ title, children, defaultOpen = false, className = 
 }
 
 export default CollapsibleSection;
+

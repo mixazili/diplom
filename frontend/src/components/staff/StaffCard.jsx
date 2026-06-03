@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import styles from '../../App.module.css';
+import styles from './StaffCard.module.css';
 
 function StaffCard({ title, meta, status, statusTone = '', children, actions }) {
   const [open, setOpen] = useState(false);

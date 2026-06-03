@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import styles from '../../App.module.css';
 import { logout } from '../../features/auth/authSlice.js';
 import { formatDateTime } from '../../utils/formatters.js';
 import AuctionReviewList from './AuctionReviewList.jsx';
 import ReviewList from './ReviewList.jsx';
 import { createStaffRequest } from './useStaffRequest.js';
+import LoadingState from '../ui/LoadingState.jsx';
+import styles from './AdminPanel.module.css';
 
 const isDevBuild = import.meta.env.DEV;
 
@@ -50,6 +51,7 @@ function AdminPanel() {
   const [devTime, setDevTime] = useState(null);
   const [timeForm, setTimeForm] = useState('');
   const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(true);
 
   const loadPanel = async () => {
     const requests = [
@@ -71,10 +73,15 @@ function AdminPanel() {
       setDevTime(devTimeData.time);
       setTimeForm(toLocalInputValue(devTimeData.time.currentTime));
     }
+
+    setLoading(false);
   };
 
   useEffect(() => {
-    loadPanel().catch((error) => setMessage(error.message));
+    loadPanel().catch((error) => {
+      setMessage(error.message);
+      setLoading(false);
+    });
   }, [staffRequest]);
 
   const createModerator = async (event) => {
@@ -108,6 +115,7 @@ function AdminPanel() {
       });
       setDevTime(data.time);
       setTimeForm(toLocalInputValue(data.time.currentTime));
+      window.dispatchEvent(new Event('auction:dev-time-changed'));
       setMessage('');
     } catch (error) {
       setMessage(error.message);
@@ -177,15 +185,15 @@ function AdminPanel() {
         <div className={styles.devTimeGrid}>
           <article className={styles.devTimeCard}>
             <span>Текущее время Auction.by</span>
-            <strong>{devTime ? formatDateTime(devTime.currentTime) : 'Загрузка...'}</strong>
+            <strong>{devTime ? formatDateTime(devTime.currentTime) : <LoadingState compact text="Загрузка" />}</strong>
           </article>
           <article className={styles.devTimeCard}>
             <span>Реальное время</span>
-            <strong>{devTime ? formatDateTime(devTime.realTime) : 'Загрузка...'}</strong>
+            <strong>{devTime ? formatDateTime(devTime.realTime) : <LoadingState compact text="Загрузка" />}</strong>
           </article>
           <article className={styles.devTimeCard}>
             <span>Оффсет</span>
-            <strong>{devTime ? `${devTime.offsetHours} ч` : 'Загрузка...'}</strong>
+            <strong>{devTime ? `${devTime.offsetHours} ч` : <LoadingState compact text="Загрузка" />}</strong>
           </article>
         </div>
 
@@ -267,7 +275,7 @@ function AdminPanel() {
         </section>
 
         {message && <p className={styles.message__error}>{message}</p>}
-        {renderSection()}
+        {loading ? <LoadingState text="Загрузка панели" /> : renderSection()}
       </div>
     </div>
   );

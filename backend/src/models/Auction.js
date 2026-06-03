@@ -59,6 +59,31 @@ const auctionSchema = new mongoose.Schema(
       type: String,
       default: null
     },
+    resultReason: {
+      type: String,
+      default: null
+    },
+    winner: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
+    winnerParticipantNumber: {
+      type: Number,
+      default: null
+    },
+    winningBidAmount: {
+      type: Number,
+      default: null
+    },
+    winningBidAt: {
+      type: Date,
+      default: null
+    },
+    extendedAt: {
+      type: Date,
+      default: null
+    },
     pricing: {
       auctionType: { type: String, enum: ['increase', 'decrease'], default: 'increase' },
       priceWithoutVat: { type: Number, required: true, min: 0 },

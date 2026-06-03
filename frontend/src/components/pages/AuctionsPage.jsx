@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import styles from '../../App.module.css';
 import { apiRequest, authHeader } from '../../api/client.js';
 import { auctionCategoryLabels } from '../../constants/auctionCategories.js';
 import { citiesByRegion, regions } from '../../utils/location.js';
 import AuctionCard from '../auction/AuctionCard.jsx';
 import CustomSelect from '../ui/CustomSelect.jsx';
+import LoadingState from '../ui/LoadingState.jsx';
+import styles from './AuctionsPage.module.css';
 
 const statusGroups = [
   {
@@ -159,7 +160,18 @@ function FilterGroup({ title, children }) {
   );
 }
 
-function AuctionsPage({ user, accessToken, categories = [], search = '', onOpenAuction }) {
+function AuctionsPage({
+  user,
+  accessToken,
+  actionVersion = 0,
+  categories = [],
+  search = '',
+  timeOffsetMs = 0,
+  onApplyAuction,
+  onOpenAuction,
+  onPayDepositAuction,
+  onPayLotAuction
+}) {
   const [auctions, setAuctions] = useState([]);
   const [status, setStatus] = useState('idle');
   const [message, setMessage] = useState('');
@@ -229,6 +241,10 @@ function AuctionsPage({ user, accessToken, categories = [], search = '', onOpenA
       params.set('onlyOwn', 'true');
     }
 
+    if (personalFilter === 'participating') {
+      params.set('onlyParticipating', 'true');
+    }
+
     setStatus('loading');
     apiRequest(`/auctions?${params.toString()}`, {
       headers: accessToken ? authHeader(accessToken) : undefined
@@ -246,6 +262,7 @@ function AuctionsPage({ user, accessToken, categories = [], search = '', onOpenA
       });
   }, [
     accessToken,
+    actionVersion,
     categories.join('|'),
     limit,
     page,
@@ -409,7 +426,7 @@ function AuctionsPage({ user, accessToken, categories = [], search = '', onOpenA
             </label>
           </div>
 
-          {status === 'loading' && <p className={styles.panel__text}>Загрузка лотов...</p>}
+          {status === 'loading' && <LoadingState text="Загрузка лотов" />}
           {status === 'failed' && <p className={styles.message__error}>{message}</p>}
           {status !== 'loading' && filteredAuctions.length === 0 && (
             <section className={styles.emptyState}>
@@ -424,9 +441,14 @@ function AuctionsPage({ user, accessToken, categories = [], search = '', onOpenA
                   auction={auction}
                   isAuthenticated={Boolean(user)}
                   isVerified={isVerified}
+                  currentUserId={user?.id}
                   key={auction.id}
                   mode="catalog"
+                  timeOffsetMs={timeOffsetMs}
+                  onApply={onApplyAuction}
                   onOpen={() => onOpenAuction(auction.id)}
+                  onPayDeposit={onPayDepositAuction}
+                  onPayLot={onPayLotAuction}
                 />
               ))}
             </div>
