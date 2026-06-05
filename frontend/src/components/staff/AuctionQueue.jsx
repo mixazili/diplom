@@ -2,14 +2,15 @@ import React, { useMemo, useState } from 'react';
 import AuctionCard from '../auction/AuctionCard.jsx';
 import AuctionDetails from './AuctionDetails.jsx';
 import StaffListControls, { StaffPagination, paginateItems, sortByDate } from './StaffListControls.jsx';
+import usePersistedState from '../../hooks/usePersistedState.js';
 import styles from './AuctionQueue.module.css';
 
 function AuctionQueue({ auctions, onApprove, onReturn }) {
   const [comments, setComments] = useState({});
   const [selectedAuctionId, setSelectedAuctionId] = useState(null);
-  const [sort, setSort] = useState('oldest');
-  const [limit, setLimit] = useState(20);
-  const [page, setPage] = useState(1);
+  const [sort, setSort] = usePersistedState('auction.staff.auctionQueue.sort', 'oldest');
+  const [limit, setLimit] = usePersistedState('auction.staff.auctionQueue.limit', 20);
+  const [page, setPage] = usePersistedState('auction.staff.auctionQueue.page', 1);
   const selectedAuction = auctions.find((auction) => auction.id === selectedAuctionId);
   const sortedAuctions = useMemo(
     () => sortByDate(auctions, sort, (auction) => auction.submittedAt || auction.updatedAt || auction.createdAt),
@@ -55,10 +56,10 @@ function AuctionQueue({ auctions, onApprove, onReturn }) {
 
   return (
     <section className={styles.staffSection}>
-      <h2 className={styles.sectionTitle}>Заявки на создание лотов</h2>
+      <h2 className={styles.sectionTitle}>Заявки на создание аукционов</h2>
       <StaffListControls sort={sort} onSortChange={(value) => { setSort(value); setPage(1); }} limit={limit} onLimitChange={(value) => { setLimit(value); setPage(1); }} />
-      <div className={styles.lotGrid}>
-        {pageItems.length === 0 && <p className={styles.panel__text}>Нет лотов в ожидании проверки.</p>}
+      <div className={styles.auctionGrid}>
+        {pageItems.length === 0 && <p className={styles.panel__text}>Нет аукционов в ожидании проверки.</p>}
         {pageItems.map((auction) => (
           <AuctionCard
             auction={auction}

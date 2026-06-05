@@ -11,7 +11,9 @@ import HomePage from './components/pages/HomePage.jsx';
 import AuctionsPage from './components/pages/AuctionsPage.jsx';
 import AuctionPage from './components/pages/AuctionPage.jsx';
 import AuctionActionModals from './components/auction/AuctionActionModals.jsx';
+import AuctionProtocolModal from './components/auction/AuctionProtocolModal.jsx';
 import { apiRequest, authHeader } from './api/client.js';
+import { auctionCategoryLabels } from './constants/auctionCategories.js';
 import styles from './AppShell.module.css';
 
 let initialRefreshStarted = false;
@@ -33,7 +35,7 @@ const routeFromLocation = () => {
   }
 
   if (pathname === '/cabinet') {
-    return { name: 'cabinet' };
+    return { name: 'cabinet', section: params.get('section') || '' };
   }
 
   if (pathname.startsWith('/auction/')) {
@@ -57,7 +59,7 @@ const pathForRoute = (route) => {
   }
 
   if (route.name === 'cabinet') {
-    return '/cabinet';
+    return route.section ? `/cabinet?section=${encodeURIComponent(route.section)}` : '/cabinet';
   }
 
   if (route.name === 'staff') {
@@ -95,6 +97,8 @@ function App() {
   const [actionError, setActionError] = useState('');
   const [actionVersion, setActionVersion] = useState(0);
   const [clockTick, setClockTick] = useState(0);
+  const [auctionBreadcrumb, setAuctionBreadcrumb] = useState(null);
+  const [protocolAuction, setProtocolAuction] = useState(null);
 
   useEffect(() => {
     if (refreshToken && !initialRefreshStarted) {
@@ -147,6 +151,12 @@ function App() {
     }
   }, [route.name, user]);
 
+  useEffect(() => {
+    if (route.name !== 'auction') {
+      setAuctionBreadcrumb(null);
+    }
+  }, [route.name, route.id]);
+
   const navigate = (name, options = {}, replace = false) => {
     const nextRoute = { name, ...options };
     const path = pathForRoute(nextRoute);
@@ -175,6 +185,59 @@ function App() {
   const openAuctionApplication = (auction) => requireUserAction(auction, 'apply');
   const openDepositPayment = (auction) => requireUserAction(auction, 'deposit');
   const openLotPayment = (auction) => requireUserAction(auction, 'lot');
+  const openAuctionProtocol = (auction) => setProtocolAuction(auction);
+  const toggleFavoriteAuction = async (auction) => {
+    if (!user || !accessToken) {
+      openAuthMode('login');
+      return { isFavorite: Boolean(auction?.isFavorite) };
+    }
+
+    const data = await apiRequest(`/auctions/${auction.id}/favorite`, {
+      method: 'POST',
+      headers: authHeader(accessToken),
+      body: JSON.stringify({})
+    });
+    setActionVersion((value) => value + 1);
+    return data;
+  };
+
+  const breadcrumbs = useMemo(() => {
+    const home = { label: 'Главная', route: { name: 'home' } };
+    const catalog = { label: 'Каталог аукционов', route: { name: 'auctions' } };
+
+    if (route.name === 'home') {
+      return [{ label: 'Главная' }];
+    }
+
+    if (route.name === 'auth') {
+      return [home, { label: route.authMode === 'login' ? 'Вход' : 'Регистрация' }];
+    }
+
+    if (route.name === 'cabinet') {
+      return [home, { label: user?.role === 'admin' ? 'Панель админа' : user?.role === 'moderator' ? 'Панель модератора' : 'Личный кабинет' }];
+    }
+
+    if (route.name === 'staff') {
+      return [home, { label: user?.role === 'admin' ? 'Панель админа' : user?.role === 'moderator' ? 'Панель модератора' : 'Вход для сотрудников' }];
+    }
+
+    if (route.name === 'auctions') {
+      return [home, { label: 'Каталог аукционов' }];
+    }
+
+    if (route.name === 'auction') {
+      const category = auctionBreadcrumb?.category;
+      const categoryLabel = category ? auctionCategoryLabels[category] : '';
+      return [
+        home,
+        catalog,
+        ...(categoryLabel ? [{ label: categoryLabel, route: { name: 'auctions', options: { categories: [category] } } }] : []),
+        { label: auctionBreadcrumb?.title || 'Аукцион' }
+      ];
+    }
+
+    return [home];
+  }, [auctionBreadcrumb, route, user?.role]);
 
   const runCardAction = async ({ path, body }) => {
     if (!accessToken) {
@@ -229,11 +292,14 @@ function App() {
       return (
         <UserCabinet
           actionVersion={actionVersion}
+          initialSection={route.section}
           timeOffsetMs={timeOffsetMs}
           onApplyAuction={openAuctionApplication}
           onOpenAuction={openAuction}
           onPayDepositAuction={openDepositPayment}
           onPayLotAuction={openLotPayment}
+          onOpenProtocolAuction={openAuctionProtocol}
+          onToggleFavoriteAuction={toggleFavoriteAuction}
         />
       );
     }
@@ -252,9 +318,12 @@ function App() {
           user={user}
           actionVersion={actionVersion}
           onApplyAuction={openAuctionApplication}
+          onClearSearch={() => navigate('auctions', { categories: route.categories || [] })}
           onOpenAuction={openAuction}
           onPayDepositAuction={openDepositPayment}
           onPayLotAuction={openLotPayment}
+          onOpenProtocolAuction={openAuctionProtocol}
+          onToggleFavoriteAuction={toggleFavoriteAuction}
         />
       );
     }
@@ -269,9 +338,12 @@ function App() {
           user={user}
           onApplyAuction={openAuctionApplication}
           onBack={() => navigate('auctions')}
+          onMetaChange={setAuctionBreadcrumb}
           onOpenAuction={openAuction}
           onPayDepositAuction={openDepositPayment}
           onPayLotAuction={openLotPayment}
+          onOpenProtocolAuction={openAuctionProtocol}
+          onToggleFavoriteAuction={toggleFavoriteAuction}
         />
       );
     }
@@ -286,6 +358,8 @@ function App() {
         onOpenAuction={openAuction}
         onPayDepositAuction={openDepositPayment}
         onPayLotAuction={openLotPayment}
+        onOpenProtocolAuction={openAuctionProtocol}
+        onToggleFavoriteAuction={toggleFavoriteAuction}
       />
     );
   }, [accessToken, actionVersion, clockTick, route, timeOffsetMs, user]);
@@ -294,6 +368,8 @@ function App() {
     <main className={styles.app}>
       <SiteHeader
         activeCategories={route.name === 'auctions' ? route.categories || [] : []}
+        breadcrumbs={breadcrumbs}
+        searchQuery={route.name === 'auctions' ? route.search || '' : ''}
         user={user}
         onAuthMode={openAuthMode}
         onNavigate={navigate}
@@ -312,6 +388,7 @@ function App() {
         onPayDeposit={(payload) => runCardAction({ path: `/auctions/${actionModal.auction.id}/deposit/pay`, body: payload })}
         onPayLot={(payload) => runCardAction({ path: `/auctions/${actionModal.auction.id}/lot/pay`, body: payload })}
       />
+      <AuctionProtocolModal auction={protocolAuction} onClose={() => setProtocolAuction(null)} />
     </main>
   );
 }

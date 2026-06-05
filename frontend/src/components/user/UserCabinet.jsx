@@ -4,6 +4,7 @@ import { changePassword, logout } from '../../features/auth/authSlice.js';
 import { fetchMyVerification } from '../../features/verification/verificationSlice.js';
 import AuctionCreateForm from './auction/AuctionCreateForm.jsx';
 import MyAuctions from './auction/MyAuctions.jsx';
+import MyFavorites from './auction/MyFavorites.jsx';
 import MyParticipations from './auction/MyParticipations.jsx';
 import MyWins from './auction/MyWins.jsx';
 import VerificationForm from './VerificationForm.jsx';
@@ -13,7 +14,7 @@ const verificationStatus = {
   draft: {
     label: 'Верификация не пройдена',
     tone: 'danger',
-    text: 'Без верификации нельзя участвовать в торгах и выставлять свои лоты на продажу.'
+    text: 'Без верификации нельзя участвовать в торгах и запускать свои аукционы.'
   },
   pending: {
     label: 'Верификация ожидает проверки',
@@ -23,7 +24,7 @@ const verificationStatus = {
   approved: {
     label: 'Верификация пройдена',
     tone: 'success',
-    text: 'Можно участвовать в торгах и подавать лоты на проверку.'
+    text: 'Можно участвовать в торгах и подавать аукционы на проверку.'
   },
   rejected: {
     label: 'Верификация отклонена',
@@ -49,11 +50,14 @@ function ConfirmModal({ onClose, onConfirm }) {
 
 function UserCabinet({
   actionVersion = 0,
+  initialSection = '',
   timeOffsetMs = 0,
   onApplyAuction,
   onOpenAuction,
   onPayDepositAuction,
-  onPayLotAuction
+  onPayLotAuction,
+  onOpenProtocolAuction,
+  onToggleFavoriteAuction
 }) {
   const dispatch = useDispatch();
   const { accessToken, user, status: authStatus, errors: authErrors } = useSelector((state) => state.auth);
@@ -65,6 +69,17 @@ function UserCabinet({
   const [passwordError, setPasswordError] = useState('');
 
   useEffect(() => {
+    if (!initialSection) {
+      setActiveSection('profile');
+      return;
+    }
+
+    if (['profile', 'auctions', 'participations', 'wins', 'favorites'].includes(initialSection)) {
+      setActiveSection(initialSection);
+    }
+  }, [initialSection]);
+
+  useEffect(() => {
     if (accessToken) {
       dispatch(fetchMyVerification({ token: accessToken }));
     }
@@ -72,7 +87,7 @@ function UserCabinet({
 
   const effectiveStatus = request?.status || user.verificationStatus || 'draft';
   const statusConfig = verificationStatus[effectiveStatus] || verificationStatus.draft;
-  const canCreateLot = effectiveStatus === 'approved';
+  const canCreateAuction = effectiveStatus === 'approved';
   const canShowVerificationForm = !['approved', 'pending'].includes(effectiveStatus);
   const rejectionReason = effectiveStatus === 'rejected' ? request?.moderationComment : '';
 
@@ -92,23 +107,23 @@ function UserCabinet({
     });
   };
 
-  const openCreateLot = () => {
+  const openCreateAuction = () => {
     setEditingAuction(null);
-    setActiveSection('create-lot');
+    setActiveSection('create-auction');
   };
 
   const openVerificationForm = () => {
     setActiveSection('verification-form');
   };
 
-  const openEditLot = (auction) => {
+  const openEditAuction = (auction) => {
     setEditingAuction(auction);
-    setActiveSection('create-lot');
+    setActiveSection('create-auction');
   };
 
-  const closeLotForm = () => {
+  const closeAuctionForm = () => {
     setEditingAuction(null);
-    setActiveSection('lots');
+    setActiveSection('auctions');
   };
 
   const closeVerificationForm = () => {
@@ -176,21 +191,22 @@ function UserCabinet({
     </div>
   );
 
-  const renderLots = () => (
+  const renderAuctions = () => (
     <MyAuctions
-      canCreateLot={canCreateLot}
-      onCreate={openCreateLot}
-      onEdit={openEditLot}
+      canCreateAuction={canCreateAuction}
+      onCreate={openCreateAuction}
+      onEdit={openEditAuction}
       onOpenAuction={onOpenAuction}
+      onOpenProtocolAuction={onOpenProtocolAuction}
       timeOffsetMs={timeOffsetMs}
     />
   );
 
-  const renderCreateLot = () => {
-    if (!canCreateLot) {
+  const renderCreateAuction = () => {
+    if (!canCreateAuction) {
       return (
         <section className={styles.panel}>
-          <p className={styles.panel__text}>Создание лотов доступно только после одобрения верификации.</p>
+          <p className={styles.panel__text}>Создание аукционов доступно только после одобрения верификации.</p>
         </section>
       );
     }
@@ -199,8 +215,8 @@ function UserCabinet({
       <AuctionCreateForm
         verification={request}
         initialAuction={editingAuction}
-        onSaved={closeLotForm}
-        onCancel={closeLotForm}
+        onSaved={closeAuctionForm}
+        onCancel={closeAuctionForm}
       />
     );
   };
@@ -213,6 +229,20 @@ function UserCabinet({
       onOpenAuction={onOpenAuction}
       onPayDepositAuction={onPayDepositAuction}
       onPayLotAuction={onPayLotAuction}
+      onOpenProtocolAuction={onOpenProtocolAuction}
+      onToggleFavoriteAuction={onToggleFavoriteAuction}
+    />
+  );
+  const renderFavorites = () => (
+    <MyFavorites
+      actionVersion={actionVersion}
+      timeOffsetMs={timeOffsetMs}
+      onApplyAuction={onApplyAuction}
+      onOpenAuction={onOpenAuction}
+      onPayDepositAuction={onPayDepositAuction}
+      onPayLotAuction={onPayLotAuction}
+      onOpenProtocolAuction={onOpenProtocolAuction}
+      onToggleFavoriteAuction={onToggleFavoriteAuction}
     />
   );
   const renderWins = () => (
@@ -221,6 +251,8 @@ function UserCabinet({
       timeOffsetMs={timeOffsetMs}
       onOpenAuction={onOpenAuction}
       onPayLotAuction={onPayLotAuction}
+      onOpenProtocolAuction={onOpenProtocolAuction}
+      onToggleFavoriteAuction={onToggleFavoriteAuction}
     />
   );
 
@@ -254,14 +286,28 @@ function UserCabinet({
           Профиль
         </button>
         <button
-          className={`${styles.cabinetSidebar__button} ${['lots', 'create-lot'].includes(activeSection) ? styles['cabinetSidebar__button--active'] : ''}`}
+          className={`${styles.cabinetSidebar__button} ${activeSection === 'notifications' ? styles['cabinetSidebar__button--active'] : ''}`}
+          type="button"
+          onClick={() => setActiveSection('notifications')}
+        >
+          Уведомления
+        </button>
+        <button
+          className={`${styles.cabinetSidebar__button} ${activeSection === 'chats' ? styles['cabinetSidebar__button--active'] : ''}`}
+          type="button"
+          onClick={() => setActiveSection('chats')}
+        >
+          Чаты сделок
+        </button>
+        <button
+          className={`${styles.cabinetSidebar__button} ${['auctions', 'create-auction'].includes(activeSection) ? styles['cabinetSidebar__button--active'] : ''}`}
           type="button"
           onClick={() => {
             setEditingAuction(null);
-            setActiveSection('lots');
+            setActiveSection('auctions');
           }}
         >
-          Мои лоты
+          Мои аукционы
         </button>
         <button
           className={`${styles.cabinetSidebar__button} ${activeSection === 'participations' ? styles['cabinetSidebar__button--active'] : ''}`}
@@ -269,6 +315,13 @@ function UserCabinet({
           onClick={() => setActiveSection('participations')}
         >
           Участие в аукционах
+        </button>
+        <button
+          className={`${styles.cabinetSidebar__button} ${activeSection === 'favorites' ? styles['cabinetSidebar__button--active'] : ''}`}
+          type="button"
+          onClick={() => setActiveSection('favorites')}
+        >
+          Избранные аукционы
         </button>
         <button
           className={`${styles.cabinetSidebar__button} ${activeSection === 'wins' ? styles['cabinetSidebar__button--active'] : ''}`}
@@ -284,10 +337,13 @@ function UserCabinet({
 
       <div className={styles.cabinetMain}>
         {activeSection === 'profile' && renderProfile()}
-        {activeSection === 'lots' && renderLots()}
+        {activeSection === 'auctions' && renderAuctions()}
         {activeSection === 'participations' && renderParticipations()}
+        {activeSection === 'favorites' && renderFavorites()}
         {activeSection === 'wins' && renderWins()}
-        {activeSection === 'create-lot' && renderCreateLot()}
+        {activeSection === 'notifications' && null}
+        {activeSection === 'chats' && null}
+        {activeSection === 'create-auction' && renderCreateAuction()}
         {activeSection === 'verification-form' && renderVerificationForm()}
       </div>
 

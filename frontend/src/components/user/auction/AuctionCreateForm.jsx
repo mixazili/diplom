@@ -381,7 +381,7 @@ function PhotoUploader({ photos, mainPhotoIndex, onAdd, onMainChange, onRemove, 
       </div>
       <div className={styles.photoUploader__drop}>
         <strong>{photos.length ? `Выбрано фото: ${photos.length} из 50` : 'Фото пока не выбраны'}</strong>
-        <span>Главная фотография будет использоваться в каталоге и карточке лота.</span>
+        <span>Главная фотография будет использоваться в каталоге и карточке аукциона.</span>
       </div>
       {error && <span className={styles.field__error}>{error}</span>}
       {photos.length > 0 && (
@@ -389,7 +389,7 @@ function PhotoUploader({ photos, mainPhotoIndex, onAdd, onMainChange, onRemove, 
           {photos.map((photo, index) => {
             return (
               <article className={`${styles.photoCard} ${mainPhotoIndex === index ? styles['photoCard--main'] : ''}`} key={photo.id}>
-                <img src={photo.previewUrl || photo.url} alt="Фото лота" />
+                <img src={photo.previewUrl || photo.url} alt="Фото предмета торгов" />
                 <button
                   className={styles.photoCard__mainButton}
                   type="button"
@@ -680,16 +680,16 @@ function AuctionCreateForm({ verification, initialAuction = null, onSaved, onCan
   if (!verification || verification.status !== 'approved') {
     return (
       <section className={styles.panel}>
-        <p className={styles.panel__text}>Создание лота доступно только после одобрения верификации.</p>
+        <p className={styles.panel__text}>Создание аукциона доступно только после одобрения верификации.</p>
       </section>
     );
   }
 
   return (
-    <section className={`${styles.panel} ${styles.lotCreatePanel}`}>
+    <section className={`${styles.panel} ${styles.auctionCreatePanel}`}>
       <div className={styles.panel__header}>
         <button className={styles.backButton} type="button" onClick={onCancel}>← Назад</button>
-        <h1 className={styles.panel__title}>{isEditing ? 'Редактирование лота' : 'Заявка на создание лота'}</h1>
+        <h1 className={styles.panel__title}>{isEditing ? 'Редактирование аукциона' : 'Заявка на создание аукциона'}</h1>
         <p className={styles.panel__text}>
           Заполните карточку будущего аукциона. Черновик можно сохранить и продолжить позже.
         </p>
@@ -867,7 +867,7 @@ function AuctionCreateForm({ verification, initialAuction = null, onSaved, onCan
           <div className={styles.formGrid}>
             <Field
               className={styles.fieldFull}
-              label="Название лота"
+              label="Название предмета торгов"
               value={form.item.title}
               onChange={(value) => updateSection('item', 'title', value)}
               error={errors['item.title']}
@@ -980,7 +980,7 @@ function AuctionCreateForm({ verification, initialAuction = null, onSaved, onCan
             Сохранить черновой вариант
           </button>
           <button className={styles.button} type="submit" disabled={auction.createStatus === 'loading'}>
-            Подать заявку на создание лота
+            Подать заявку на создание аукциона
           </button>
         </div>
       </form>

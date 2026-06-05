@@ -6,6 +6,7 @@ import {
   ChevronRight,
   Clock,
   Eye,
+  FileText,
   Heart,
   MapPin,
   Maximize2,
@@ -496,7 +497,7 @@ function BidHistory({ auction, bids }) {
   );
 }
 
-function TradingBlock({ auction, user, viewer, bids, timeOffsetMs = 0, onApply, onPayDeposit, onPayLot, onPlaceBid, actionLoading }) {
+function TradingBlock({ auction, user, viewer, bids, timeOffsetMs = 0, onApply, onPayDeposit, onPayLot, onPlaceBid, onOpenProtocol, actionLoading }) {
   const participation = viewer?.participation;
   const [bidAmount, setBidAmount] = useState('');
   const isLoggedIn = Boolean(user);
@@ -539,7 +540,7 @@ function TradingBlock({ auction, user, viewer, bids, timeOffsetMs = 0, onApply, 
     }
 
     if (isOwner) {
-      return 'Владелец лота не может подавать заявку и участвовать в собственных торгах.';
+      return 'Продавец не может подавать заявку и участвовать в собственном аукционе.';
     }
 
     return '';
@@ -548,6 +549,12 @@ function TradingBlock({ auction, user, viewer, bids, timeOffsetMs = 0, onApply, 
   return (
     <section className={`${styles.auctionPageBlock} ${styles.auctionPageTradingBlock}`}>
       <h2>Проведение торгов</h2>
+      {['finished_success', 'finished_failed'].includes(auction.status) && (
+        <button className={styles.protocolInlineButton} type="button" onClick={() => onOpenProtocol?.(auction)}>
+          <FileText size={20} />
+          Посмотреть протокол электронных торгов
+        </button>
+      )}
 
       {!['finished_failed', 'cancelled'].includes(auction.status) && (
         <section className={styles.auctionPageTradeSection}>
@@ -609,7 +616,7 @@ function TradingBlock({ auction, user, viewer, bids, timeOffsetMs = 0, onApply, 
               disabled={actionLoading}
               onClick={() => onPlaceBid(Number(currentPrice))}
             >
-              Приобрести лот
+              Приобрести предмет торгов
             </button>
           ) : (
             <>
@@ -654,9 +661,9 @@ function TradingBlock({ auction, user, viewer, bids, timeOffsetMs = 0, onApply, 
           <h3><Trophy size={20} />Результат участия</h3>
           {isWinner ? (
             <>
-              <p>{participation.lotPaymentStatus === 'paid' ? 'Вы победили. Лот оплачен.' : 'Вы победили. Ожидается полная оплата лота.'}</p>
+              <p>{participation.lotPaymentStatus === 'paid' ? 'Вы победили. Предмет торгов оплачен.' : 'Вы победили. Ожидается полная оплата предмета торгов.'}</p>
               {participation.lotPaymentStatus !== 'paid' && (
-                <button className={styles.button} type="button" onClick={onPayLot} disabled={actionLoading}>Оплатить лот</button>
+                <button className={styles.button} type="button" onClick={onPayLot} disabled={actionLoading}>Оплатить предмет торгов</button>
               )}
             </>
           ) : (
@@ -692,6 +699,8 @@ function SimilarAuctions({
   onOpenAuction,
   onPayDepositAuction,
   onPayLotAuction,
+  onOpenProtocolAuction,
+  onToggleFavoriteAuction,
   user,
   accessToken,
   timeOffsetMs = 0
@@ -771,6 +780,8 @@ function SimilarAuctions({
                 onOpen={() => onOpenAuction(item.id)}
                 onPayDeposit={onPayDepositAuction}
                 onPayLot={onPayLotAuction}
+                onOpenProtocol={onOpenProtocolAuction}
+                onToggleFavorite={onToggleFavoriteAuction}
               />
             </div>
           ))}
@@ -791,9 +802,12 @@ function AuctionPage({
   timeOffsetMs = 0,
   onApplyAuction,
   onBack,
+  onMetaChange,
   onOpenAuction,
+  onOpenProtocolAuction,
   onPayDepositAuction,
-  onPayLotAuction
+  onPayLotAuction,
+  onToggleFavoriteAuction
 }) {
   const [auction, setAuction] = useState(null);
   const [viewer, setViewer] = useState(null);
@@ -803,6 +817,7 @@ function AuctionPage({
   const [actionError, setActionError] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [pageAction, setPageAction] = useState(null);
+  const [isFavorite, setIsFavorite] = useState(false);
   const subjectInfoRef = useRef(null);
   const [mapPanelHeight, setMapPanelHeight] = useState(null);
 
@@ -816,6 +831,7 @@ function AuctionPage({
       .then((data) => {
         setAuction(data.auction);
         setViewer(data.viewer || null);
+        setIsFavorite(Boolean(data.auction?.isFavorite || data.viewer?.isFavorite));
         setBids(data.bids || []);
         setStatus('succeeded');
       })
@@ -926,6 +942,29 @@ function AuctionPage({
     return main ? [main, ...source.filter((photo) => photo !== main)] : source;
   }, [auction]);
 
+  useEffect(() => {
+    if (!auction) {
+      return;
+    }
+
+    onMetaChange?.({
+      category: auction.item?.category || '',
+      title: auction.item?.title || 'Аукцион'
+    });
+  }, [auction?.id, auction?.item?.category, auction?.item?.title, onMetaChange]);
+
+  const toggleFavorite = async () => {
+    if (!auction || !onToggleFavoriteAuction) {
+      return;
+    }
+
+    const result = await onToggleFavoriteAuction(auction);
+    if (typeof result?.isFavorite === 'boolean') {
+      setIsFavorite(result.isFavorite);
+      setAuction((current) => (current ? { ...current, isFavorite: result.isFavorite } : current));
+    }
+  };
+
   useLayoutEffect(() => {
     if (!auction || !subjectInfoRef.current) {
       return undefined;
@@ -956,14 +995,14 @@ function AuctionPage({
   }, [auction, auction?.item?.description, auction?.item?.characteristics?.length]);
 
   if (status === 'loading') {
-    return <LoadingState text="Загрузка лота" />;
+    return <LoadingState text="Загрузка аукциона" />;
   }
 
   if (status === 'failed' || !auction) {
     return (
       <section className={styles.emptyState}>
-        <h1>Лот не найден</h1>
-        <p>{message || 'Лот еще не опубликован или был снят с торгов.'}</p>
+        <h1>Аукцион не найден</h1>
+        <p>{message || 'Аукцион еще не опубликован или был снят с торгов.'}</p>
         <button className={styles.backButton} type="button" onClick={onBack}>← Назад</button>
       </section>
     );
@@ -981,9 +1020,16 @@ function AuctionPage({
       <header className={styles.auctionPageHeader}>
         <div className={styles.auctionPageHeader__title}>
           <h1>{item.title}</h1>
-          <button className={styles.auctionPageLike} type="button" aria-label="Добавить в избранное">
-            <Heart size={25} />
-          </button>
+          {!viewer?.isOwner && (
+            <button
+              className={`${styles.auctionPageLike} ${isFavorite ? styles['auctionPageLike--active'] : ''}`}
+              type="button"
+              aria-label={isFavorite ? 'Убрать из избранного' : 'Добавить в избранное'}
+              onClick={toggleFavorite}
+            >
+              <Heart size={25} fill={isFavorite ? 'currentColor' : 'none'} />
+            </button>
+          )}
         </div>
         <span className={styles.auctionPageViews}>
           <Eye size={20} />
@@ -998,7 +1044,7 @@ function AuctionPage({
           <AuctionStatusBanner auction={auction} bids={bids} variant="large" timeInfo={timeInfo} />
 
           <div className={styles.auctionPageInfoGroup}>
-            <InfoRow label="Номер аукциона" value={auction.lotNumber ? `Лот №${auction.lotNumber}` : 'Не присвоен'} />
+            <InfoRow label="Номер аукциона" value={auction.auctionNumber ? `Аукцион №${auction.auctionNumber}` : 'Не присвоен'} />
             <InfoRow label="Тип аукциона" value={getAuctionTypeLabel(pricing.auctionType)} />
           </div>
 
@@ -1036,6 +1082,7 @@ function AuctionPage({
         onPayDeposit={() => setPageAction({ type: 'deposit', auction })}
         onPayLot={() => setPageAction({ type: 'lot', auction })}
         onPlaceBid={placeBid}
+        onOpenProtocol={onOpenProtocolAuction}
         timeOffsetMs={timeOffsetMs}
       />
 
@@ -1103,7 +1150,7 @@ function AuctionPage({
           </ul>
           <h3>Ответственность покупателя и продавца</h3>
           <ul className={styles.termsList}>
-            <li>При отказе или уклонении победителя от подписания протокола, заключения договора, возмещения затрат или оплаты лота результаты торгов аннулируются, а внесенный задаток возврату не подлежит.</li>
+            <li>При отказе или уклонении победителя от подписания протокола, заключения договора, возмещения затрат или оплаты предмета торгов результаты торгов аннулируются, а внесенный задаток возврату не подлежит.</li>
             <li>Отказ от приобретения предмета торгов не освобождает победителя от оплаты услуг оператора торгов.</li>
             <li>Продавец несет ответственность за достоверность сведений о предмете торгов и готовность заключить договор с победителем.</li>
           </ul>
@@ -1120,6 +1167,8 @@ function AuctionPage({
         onOpenAuction={onOpenAuction}
         onPayDepositAuction={onPayDepositAuction}
         onPayLotAuction={onPayLotAuction}
+        onOpenProtocolAuction={onOpenProtocolAuction}
+        onToggleFavoriteAuction={onToggleFavoriteAuction}
       />
 
       <AuctionActionModals

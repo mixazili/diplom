@@ -4,13 +4,14 @@ import { formatDateTime, getVerificationTitle } from '../../utils/formatters.js'
 import StaffCard from './StaffCard.jsx';
 import StaffListControls, { StaffPagination, paginateItems, sortByDate } from './StaffListControls.jsx';
 import VerificationDetails from './VerificationDetails.jsx';
+import usePersistedState from '../../hooks/usePersistedState.js';
 import styles from './VerificationQueue.module.css';
 
 function VerificationQueue({ verifications, onApprove, onReject }) {
   const [comments, setComments] = useState({});
-  const [sort, setSort] = useState('oldest');
-  const [limit, setLimit] = useState(20);
-  const [page, setPage] = useState(1);
+  const [sort, setSort] = usePersistedState('auction.staff.verificationQueue.sort', 'oldest');
+  const [limit, setLimit] = usePersistedState('auction.staff.verificationQueue.limit', 20);
+  const [page, setPage] = usePersistedState('auction.staff.verificationQueue.page', 1);
 
   const updateComment = (id, value) => {
     setComments((current) => ({ ...current, [id]: value }));

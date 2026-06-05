@@ -25,7 +25,9 @@ function HomePage({
   onApplyAuction,
   onOpenAuction,
   onPayDepositAuction,
-  onPayLotAuction
+  onPayLotAuction,
+  onOpenProtocolAuction,
+  onToggleFavoriteAuction
 }) {
   const [popularAuctions, setPopularAuctions] = useState({ items: [], total: 0, page: 1 });
   const [newAuctions, setNewAuctions] = useState({ items: [], total: 0, page: 1 });
@@ -122,8 +124,8 @@ function HomePage({
 
   const sections = useMemo(() => [
     {
-      title: 'Мои опубликованные лоты',
-      description: 'Лоты, которые вы выставили и которые уже доступны участникам.',
+      title: 'Мои опубликованные аукционы',
+      description: 'Аукционы, которые вы запустили и которые уже доступны участникам.',
       items: myAuctions.items.slice(0, myAuctions.visibleCount),
       mode: 'owner',
       hasMore: myAuctions.items.length > myAuctions.visibleCount,
@@ -140,13 +142,13 @@ function HomePage({
     },
     {
       title: 'Популярные аукционы',
-      description: 'Лоты на этапе ожидания и приема заявок.',
+      description: 'Аукционы на этапе ожидания и приема заявок.',
       items: popularAuctions.items,
       hasMore: popularAuctions.items.length < popularAuctions.total,
       onShowMore: () => showMoreRemote(setPopularAuctions, 'popular', popularAuctions.page)
     },
     {
-      title: 'Новые лоты',
+      title: 'Новые аукционы',
       description: 'Последние опубликованные предложения площадки.',
       items: newAuctions.items,
       hasMore: newAuctions.items.length < newAuctions.total,
@@ -161,7 +163,7 @@ function HomePage({
           <p className={styles.panel__eyebrow}>AUCTION.BY</p>
           <h1>Онлайн-аукционы для имущества, техники и бизнеса</h1>
           <p>
-            Создавайте лоты, проходите модерацию, подавайте заявки и участвуйте в торгах в одном веб-приложении.
+            Создавайте аукционы, проходите модерацию, подавайте заявки и участвуйте в торгах в одном веб-приложении.
           </p>
         </div>
       </section>
@@ -176,6 +178,8 @@ function HomePage({
         onOpenAuction={onOpenAuction}
         onPayDepositAuction={onPayDepositAuction}
         onPayLotAuction={onPayLotAuction}
+        onOpenProtocolAuction={onOpenProtocolAuction}
+        onToggleFavoriteAuction={onToggleFavoriteAuction}
       />
     </div>
   );

@@ -29,7 +29,7 @@ const auctionSchema = new mongoose.Schema(
       required: true,
       index: true
     },
-    lotNumber: {
+    auctionNumber: {
       type: String,
       trim: true
     },
@@ -156,11 +156,11 @@ const auctionSchema = new mongoose.Schema(
 );
 
 auctionSchema.index(
-  { lotNumber: 1 },
+  { auctionNumber: 1 },
   {
     unique: true,
-    name: 'lotNumber_1',
-    partialFilterExpression: { lotNumber: { $type: 'string' } }
+    name: 'auctionNumber_1',
+    partialFilterExpression: { auctionNumber: { $type: 'string' } }
   }
 );
 

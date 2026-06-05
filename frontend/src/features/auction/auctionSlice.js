@@ -112,7 +112,7 @@ const auctionSlice = createSlice({
       })
       .addCase(fetchMyAuctions.rejected, (state, action) => {
         state.status = 'failed';
-        state.message = action.payload?.message || 'Не удалось загрузить лоты';
+        state.message = action.payload?.message || 'Не удалось загрузить аукционы';
       })
       .addCase(submitAuction.pending, (state) => {
         state.createStatus = 'loading';
@@ -126,7 +126,7 @@ const auctionSlice = createSlice({
       })
       .addCase(submitAuction.rejected, (state, action) => {
         state.createStatus = 'failed';
-        state.message = action.payload?.message || 'Заявка на лот не отправлена';
+        state.message = action.payload?.message || 'Заявка на аукцион не отправлена';
         state.errors = action.payload?.errors || {};
       })
       .addCase(updateAuction.pending, (state) => {
@@ -143,7 +143,7 @@ const auctionSlice = createSlice({
       })
       .addCase(updateAuction.rejected, (state, action) => {
         state.createStatus = 'failed';
-        state.message = action.payload?.message || 'Лот не отправлен повторно';
+        state.message = action.payload?.message || 'Аукцион не отправлен повторно';
         state.errors = action.payload?.errors || {};
       })
       .addCase(deleteAuction.fulfilled, (state, action) => {
@@ -151,7 +151,7 @@ const auctionSlice = createSlice({
         state.message = '';
       })
       .addCase(deleteAuction.rejected, (state, action) => {
-        state.message = action.payload?.message || 'Не удалось удалить лот';
+        state.message = action.payload?.message || 'Не удалось удалить аукцион';
       })
       .addCase(returnAuctionToDraft.fulfilled, (state, action) => {
         state.items = state.items.map((auction) =>
@@ -160,7 +160,7 @@ const auctionSlice = createSlice({
         state.message = '';
       })
       .addCase(returnAuctionToDraft.rejected, (state, action) => {
-        state.message = action.payload?.message || 'Не удалось вернуть лот в черновик';
+        state.message = action.payload?.message || 'Не удалось вернуть аукцион в черновик';
       });
   }
 });

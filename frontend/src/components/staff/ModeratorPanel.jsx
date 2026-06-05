@@ -11,9 +11,9 @@ import styles from './ModeratorPanel.module.css';
 
 const menuItems = [
   ['verifications', 'Заявки на верификацию'],
-  ['auctions', 'Заявки на лоты'],
+  ['auctions', 'Заявки на аукционы'],
   ['verificationReviews', 'Журнал верификаций'],
-  ['auctionReviews', 'Журнал лотов']
+  ['auctionReviews', 'Журнал аукционов']
 ];
 
 function ModeratorPanel() {
@@ -90,7 +90,7 @@ function ModeratorPanel() {
     }
 
     if (activeSection === 'auctionReviews') {
-      return <AuctionReviewList reviews={auctionReviews} title="Мой журнал решений по лотам" showModerator={false} />;
+      return <AuctionReviewList reviews={auctionReviews} title="Мой журнал решений по аукционам" showModerator={false} />;
     }
 
     return (
@@ -126,7 +126,7 @@ function ModeratorPanel() {
           <div>
             <p className={styles.summary__label}>Панель модератора</p>
             <h2 className={styles.summary__title}>{user.email}</h2>
-            <p className={styles.summary__text}>Проверка заявок пользователей, заявок на лоты и журнал собственных решений.</p>
+            <p className={styles.summary__text}>Проверка заявок пользователей, заявок на аукционы и журнал собственных решений.</p>
           </div>
         </section>
         {message && <p className={styles.message__error}>{message}</p>}

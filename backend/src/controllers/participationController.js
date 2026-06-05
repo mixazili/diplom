@@ -5,6 +5,7 @@ const Deposit = require('../models/Deposit');
 const asyncHandler = require('../utils/asyncHandler');
 const { formatAuction } = require('../utils/auctionFormatters');
 const { updateAuctionStatuses } = require('../services/statusAutomationService');
+const { ensureAuctionProtocol } = require('../services/auctionProtocolService');
 const { getCurrentTime } = require('../services/timeService');
 const { emitAuctionUpdate } = require('../services/socketService');
 
@@ -72,7 +73,7 @@ const getAuctionForParticipation = async (auctionId) => {
 const ensureUserCanParticipate = (req, res, auction) => {
   if (!auction) {
     res.status(404);
-    return 'Лот не найден';
+    return 'Аукцион не найден';
   }
 
   if (req.user.role !== 'user' || req.user.verificationStatus !== 'approved') {
@@ -82,7 +83,7 @@ const ensureUserCanParticipate = (req, res, auction) => {
 
   if (auction.owner?.toString() === req.user._id.toString()) {
     res.status(403);
-    return 'Владелец лота не может участвовать в собственных торгах';
+    return 'Продавец не может участвовать в собственном аукционе';
   }
 
   return '';
@@ -285,7 +286,7 @@ const placeBid = asyncHandler(async (req, res) => {
 
   if (isDecrease && latestBid) {
     res.status(400);
-    return res.json({ message: 'Лот уже приобретен другим участником' });
+    return res.json({ message: 'Предмет торгов уже приобретен другим участником' });
   }
 
   if (latestBid?.bidder?.toString() === req.user._id.toString()) {
@@ -314,6 +315,7 @@ const placeBid = asyncHandler(async (req, res) => {
     auction.winningBidAt = now;
     auction.schedule.biddingEndAt = now;
     await auction.save();
+    await ensureAuctionProtocol(auction);
 
     application.lotPaymentStatus = 'pending';
     await application.save();
@@ -343,7 +345,7 @@ const payWonLot = asyncHandler(async (req, res) => {
 
   if (auction.status !== 'finished_success') {
     res.status(400);
-    return res.json({ message: 'Оплата лота доступна только после успешного завершения торгов' });
+    return res.json({ message: 'Оплата предмета торгов доступна только после успешного завершения торгов' });
   }
 
   const application = await AuctionApplication.findOne({
@@ -354,7 +356,7 @@ const payWonLot = asyncHandler(async (req, res) => {
 
   if (!application) {
     res.status(403);
-    return res.json({ message: 'Оплатить лот может только победитель торгов' });
+    return res.json({ message: 'Оплатить предмет торгов может только победитель торгов' });
   }
 
   const cardNumber = String(req.body.cardNumber || '').replace(/\D/g, '');
@@ -371,7 +373,7 @@ const payWonLot = asyncHandler(async (req, res) => {
 
   const payload = await buildAuctionRealtimePayload(auction._id, req.user._id);
   await broadcastAuction(auction._id);
-  res.json({ message: 'Лот успешно оплачен', ...payload });
+  res.json({ message: 'Предмет торгов успешно оплачен', ...payload });
 });
 
 const listMyParticipations = asyncHandler(async (req, res) => {

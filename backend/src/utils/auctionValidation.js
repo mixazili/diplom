@@ -283,7 +283,7 @@ const validateAuctionPayload = ({ payload, photos, user }) => {
   if (!hasText(item.title)) {
     addError(errors, 'item.title');
   } else if (String(item.title).trim().length > 100) {
-    addError(errors, 'item.title', 'Название лота должно быть до 100 знаков');
+    addError(errors, 'item.title', 'Название предмета торгов должно быть до 100 знаков');
   }
 
   if (!auctionCategories.includes(item.category)) {

@@ -1,18 +1,125 @@
-import React, { useState } from 'react';
-import { Bell, Heart, Search, UserCircle } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Bell, Heart, MessageCircle, Search, UserCircle } from 'lucide-react';
+import { apiRequest } from '../../api/client.js';
 import { auctionCategoryGroups, auctionCategoryLabels } from '../../constants/auctionCategories.js';
 import styles from './Layout.module.css';
 
-function SiteHeader({ user, onNavigate, onAuthMode, activeCategories = [] }) {
-  const [query, setQuery] = useState('');
+const publicAuctionStatuses = [
+  'application_waiting',
+  'applications_open',
+  'bidding_waiting',
+  'bidding_active',
+  'finished_success',
+  'finished_failed',
+  'cancelled'
+];
+
+const formatMoney = (value) =>
+  `${new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value || 0))} BYN`;
+
+const getAuctionPrice = (auction) =>
+  auction.status === 'finished_success'
+    ? auction.winningBidAmount || auction.lastBidPrice || auction.currentPrice || auction.pricing?.priceWithVat
+    : auction.currentPrice || auction.lastBidPrice || auction.pricing?.priceWithVat;
+
+function Breadcrumbs({ items = [], onNavigate }) {
+  if (!items.length) {
+    return null;
+  }
+
+  return (
+    <nav className={styles.breadcrumbs} aria-label="Путь по сайту">
+      {items.map((item, index) => {
+        const isLast = index === items.length - 1;
+        return (
+          <React.Fragment key={`${item.label}-${index}`}>
+            {isLast || !item.route ? (
+              <span aria-current={isLast ? 'page' : undefined}>{item.label}</span>
+            ) : (
+              <button type="button" onClick={() => onNavigate(item.route.name, item.route.options || {})}>
+                {item.label}
+              </button>
+            )}
+            {!isLast && <small>/</small>}
+          </React.Fragment>
+        );
+      })}
+    </nav>
+  );
+}
+
+function SiteHeader({ user, onNavigate, onAuthMode, activeCategories = [], searchQuery = '', breadcrumbs = [] }) {
+  const [query, setQuery] = useState(searchQuery || '');
+  const [suggestions, setSuggestions] = useState([]);
+  const [suggestionStatus, setSuggestionStatus] = useState('idle');
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const latestRequestRef = useRef(0);
   const isAuthenticated = Boolean(user);
   const cabinetRoute = user?.role === 'user' ? 'cabinet' : 'staff';
   const cabinetLabel = user?.role === 'user' ? 'Личный кабинет' : user?.role === 'admin' ? 'Панель админа' : 'Панель модератора';
   const selectedCategories = new Set(activeCategories);
+  const normalizedQuery = query.trim();
+  const shouldShowSuggestions = isSearchFocused && normalizedQuery.length >= 2;
+
+  useEffect(() => {
+    setQuery(searchQuery || '');
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (normalizedQuery.length < 2) {
+      setSuggestions([]);
+      setSuggestionStatus('idle');
+      return undefined;
+    }
+
+    const requestId = latestRequestRef.current + 1;
+    latestRequestRef.current = requestId;
+    const timerId = window.setTimeout(() => {
+      const params = new URLSearchParams({
+        scope: 'catalog',
+        limit: '10',
+        page: '1',
+        search: normalizedQuery,
+        sort: 'newest'
+      });
+
+      publicAuctionStatuses.forEach((status) => params.append('status', status));
+      params.append('auctionType', 'increase');
+      params.append('auctionType', 'decrease');
+
+      setSuggestionStatus('loading');
+      apiRequest(`/auctions?${params.toString()}`)
+        .then((data) => {
+          if (latestRequestRef.current !== requestId) {
+            return;
+          }
+
+          setSuggestions(data.auctions || []);
+          setSuggestionStatus('succeeded');
+        })
+        .catch(() => {
+          if (latestRequestRef.current === requestId) {
+            setSuggestions([]);
+            setSuggestionStatus('failed');
+          }
+        });
+    }, 260);
+
+    return () => window.clearTimeout(timerId);
+  }, [normalizedQuery]);
+
+  const goToSearchResults = () => {
+    if (!normalizedQuery) {
+      return;
+    }
+
+    setIsSearchFocused(false);
+    onNavigate('auctions', { search: normalizedQuery });
+  };
 
   const submitSearch = (event) => {
     event.preventDefault();
-    onNavigate('auctions', { search: query.trim() });
+    goToSearchResults();
   };
 
   const toggleCategory = (value) => {
@@ -22,7 +129,7 @@ function SiteHeader({ user, onNavigate, onAuthMode, activeCategories = [] }) {
     } else {
       nextCategories.add(value);
     }
-    onNavigate('auctions', { categories: [...nextCategories], search: query.trim() });
+    onNavigate('auctions', { categories: [...nextCategories], search: normalizedQuery });
   };
 
   const toggleGroup = (values) => {
@@ -37,8 +144,15 @@ function SiteHeader({ user, onNavigate, onAuthMode, activeCategories = [] }) {
       }
     });
 
-    onNavigate('auctions', { categories: [...nextCategories], search: query.trim() });
+    onNavigate('auctions', { categories: [...nextCategories], search: normalizedQuery });
   };
+
+  const suggestionRows = useMemo(() => suggestions.map((auction) => ({
+    id: auction.id,
+    auctionNumber: auction.auctionNumber ? `Аукцион №${auction.auctionNumber}` : 'Аукцион без номера',
+    title: auction.item?.title || 'Предмет торгов без названия',
+    price: formatMoney(getAuctionPrice(auction))
+  })), [suggestions]);
 
   return (
     <header className={styles.siteHeader}>
@@ -48,17 +162,66 @@ function SiteHeader({ user, onNavigate, onAuthMode, activeCategories = [] }) {
           <small>Онлайн-аукционы</small>
         </button>
 
-        <form className={styles.siteSearch} onSubmit={submitSearch}>
-          <input
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Найти лот"
-          />
-          <button type="submit" aria-label="Найти">
-            <Search size={20} strokeWidth={2.2} />
-          </button>
-        </form>
+        <div
+          className={styles.siteSearchWrap}
+          onBlur={() => window.setTimeout(() => setIsSearchFocused(false), 160)}
+          onFocus={() => setIsSearchFocused(true)}
+        >
+          <form className={styles.siteSearch} onSubmit={submitSearch}>
+            <input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Найти аукцион"
+            />
+            {query && (
+              <button
+                className={styles.siteSearch__clear}
+                type="button"
+                onClick={() => {
+                  setQuery('');
+                  setSuggestions([]);
+                  setSuggestionStatus('idle');
+                }}
+                aria-label="Очистить поиск"
+              >
+                ×
+              </button>
+            )}
+            <button type="submit" aria-label="Найти">
+              <Search size={24} strokeWidth={2.2} />
+            </button>
+          </form>
+
+          {shouldShowSuggestions && (
+            <div className={styles.searchSuggest} role="listbox">
+              {suggestionStatus === 'loading' && <span className={styles.searchSuggest__state}>Поиск...</span>}
+              {suggestionStatus !== 'loading' && suggestionRows.length === 0 && (
+                <span className={styles.searchSuggest__state}>Аукционы не найдены</span>
+              )}
+              {suggestionRows.map((item) => (
+                <button
+                  className={styles.searchSuggest__item}
+                  key={item.id}
+                  type="button"
+                  onClick={() => {
+                    setIsSearchFocused(false);
+                    onNavigate('auction', { id: item.id });
+                  }}
+                >
+                  <span>
+                    <small>{item.auctionNumber}</small>
+                    <strong>{item.title}</strong>
+                  </span>
+                  <b>{item.price}</b>
+                </button>
+              ))}
+              <button className={styles.searchSuggest__all} type="button" onClick={goToSearchResults}>
+                Все результаты
+              </button>
+            </div>
+          )}
+        </div>
 
         <div className={styles.siteHeader__actions}>
           {isAuthenticated ? (
@@ -66,7 +229,20 @@ function SiteHeader({ user, onNavigate, onAuthMode, activeCategories = [] }) {
               <button className={styles.iconButton} type="button" aria-label="Уведомления">
                 <Bell size={20} />
               </button>
-              <button className={styles.iconButton} type="button" aria-label="Избранное">
+              <button
+                className={styles.iconButton}
+                type="button"
+                aria-label="Чаты сделок"
+                onClick={() => onNavigate(user?.role === 'user' ? 'cabinet' : 'staff', user?.role === 'user' ? { section: 'chats' } : {})}
+              >
+                <MessageCircle size={20} />
+              </button>
+              <button
+                className={styles.iconButton}
+                type="button"
+                aria-label="Избранное"
+                onClick={() => onNavigate(user?.role === 'user' ? 'cabinet' : 'staff', user?.role === 'user' ? { section: 'favorites' } : {})}
+              >
                 <Heart size={20} />
               </button>
               <button className={styles.iconButton} type="button" aria-label={cabinetLabel} title={cabinetLabel} onClick={() => onNavigate(cabinetRoute)}>
@@ -124,6 +300,8 @@ function SiteHeader({ user, onNavigate, onAuthMode, activeCategories = [] }) {
           );
         })}
       </div>
+
+      <Breadcrumbs items={breadcrumbs} onNavigate={onNavigate} />
     </header>
   );
 }

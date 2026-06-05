@@ -1,4 +1,4 @@
-.lotGrid {
+.auctionGrid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
   gap: 18px;
@@ -26,7 +26,7 @@
 
 @media (max-width: 720px) {
 
-  .lotGrid {
+  .auctionGrid {
     grid-template-columns: 1fr;
   }
 }

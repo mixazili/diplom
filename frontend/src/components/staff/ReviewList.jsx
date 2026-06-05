@@ -1,9 +1,10 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { verificationStatusLabels } from '../../constants/verificationLabels.js';
 import { formatDateTime, getVerificationTitle } from '../../utils/formatters.js';
 import StaffCard from './StaffCard.jsx';
 import StaffListControls, { StaffPagination, paginateItems, sortByDate } from './StaffListControls.jsx';
 import VerificationDetails from './VerificationDetails.jsx';
+import usePersistedState from '../../hooks/usePersistedState.js';
 import styles from './ReviewList.module.css';
 
 const filterOptions = [
@@ -13,10 +14,11 @@ const filterOptions = [
 ];
 
 function ReviewList({ reviews, title, showModerator = true }) {
-  const [sort, setSort] = useState('newest');
-  const [filters, setFilters] = useState(['approved', 'rejected']);
-  const [limit, setLimit] = useState(20);
-  const [page, setPage] = useState(1);
+  const storagePrefix = showModerator ? 'auction.staff.verificationReviews.all' : 'auction.staff.verificationReviews.mine';
+  const [sort, setSort] = usePersistedState(`${storagePrefix}.sort`, 'newest');
+  const [filters, setFilters] = usePersistedState(`${storagePrefix}.filters`, ['approved', 'rejected']);
+  const [limit, setLimit] = usePersistedState(`${storagePrefix}.limit`, 20);
+  const [page, setPage] = usePersistedState(`${storagePrefix}.page`, 1);
   const toggleFilter = (value) => {
     setFilters((current) => {
       const next = current.includes(value) ? current.filter((item) => item !== value) : [...current, value];

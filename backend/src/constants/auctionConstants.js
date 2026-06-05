@@ -1,24 +1,3 @@
-const VAT_RATE = 0.2;
-const ORGANIZATION_FEE_PERCENT = 1;
-
-const auctionCategories = [
-  'passenger_cars',
-  'trucks',
-  'buses',
-  'motorcycles',
-  'personal_mobility',
-  'real_estate',
-  'machines_equipment',
-  'special_equipment',
-  'art',
-  'antiques',
-  'books',
-  'jewelry',
-  'electronics',
-  'clothing',
-  'other_property'
-];
-
 const auctionCategoryLabels = {
   passenger_cars: 'Легковые автомобили',
   trucks: 'Грузовые автомобили',
@@ -46,10 +25,21 @@ const operatorInfo = {
   unp: '192822249'
 };
 
+const buyerTerms = {
+  obligations: [
+    'Победитель торгов либо единственный участник, давший согласие на приобретение лота, обязан полностью оплатить выигранный лот и возместить затраты на организацию и проведение аукциона.',
+    'Победитель торгов и продавец обязаны подписать протокол по результатам торгов.',
+    'Победитель торгов и продавец обязаны заключить договор купли-продажи предмета торгов.'
+  ],
+  responsibility: [
+    'При отказе или уклонении победителя от подписания протокола, заключения договора, возмещения затрат или оплаты предмета торгов результаты торгов аннулируются, а внесенный задаток возврату не подлежит.',
+    'Отказ от приобретения предмета торгов не освобождает победителя от оплаты услуг оператора торгов.',
+    'Продавец несет ответственность за достоверность сведений о предмете торгов и готовность заключить договор с победителем.'
+  ]
+};
+
 module.exports = {
-  VAT_RATE,
-  ORGANIZATION_FEE_PERCENT,
-  auctionCategories,
   auctionCategoryLabels,
+  buyerTerms,
   operatorInfo
 };

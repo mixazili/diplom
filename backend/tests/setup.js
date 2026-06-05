@@ -6,6 +6,7 @@ const { connectDatabase, disconnectDatabase } = require('../src/config/database'
 const User = require('../src/models/User');
 const Auction = require('../src/models/Auction');
 const AuctionApplication = require('../src/models/AuctionApplication');
+const AuctionProtocol = require('../src/models/AuctionProtocol');
 const AuctionReview = require('../src/models/AuctionReview');
 const AuctionView = require('../src/models/AuctionView');
 const Bid = require('../src/models/Bid');
@@ -22,6 +23,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   await Auction.deleteMany({});
   await AuctionApplication.deleteMany({});
+  await AuctionProtocol.deleteMany({});
   await AuctionReview.deleteMany({});
   await AuctionView.deleteMany({});
   await Bid.deleteMany({});

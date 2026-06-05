@@ -113,9 +113,9 @@ function AuctionActionModals({ action, loading, error, onCancel, onConfirmApply,
       )}
       {type === 'lot' && (
         <PaymentForm
-          title="Оплата выигранного лота"
+          title="Оплата выигранного предмета торгов"
           amount={getLotPaymentDue(auction)}
-          description="К оплате выставлена стоимость выигранного лота за вычетом ранее внесенного задатка."
+          description="К оплате выставлена стоимость выигранного предмета торгов за вычетом ранее внесенного задатка."
           loading={loading}
           onCancel={onCancel}
           onSubmit={onPayLot}

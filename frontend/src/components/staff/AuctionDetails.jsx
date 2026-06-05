@@ -131,7 +131,7 @@ function ReadOnlyGrid({ items }) {
 
 function AuctionDetails({ auction }) {
   if (!auction) {
-    return <p className={styles.panel__text}>Нет данных лота.</p>;
+    return <p className={styles.panel__text}>Нет данных аукциона.</p>;
   }
 
   const pricing = auction.pricing || {};
@@ -173,14 +173,14 @@ function AuctionDetails({ auction }) {
       </ReadSection>
 
       <ReadSection title="Информация о предмете торгов" userEntered>
-        <ReadField label="Название лота" value={item.title} wide />
+        <ReadField label="Название предмета торгов" value={item.title} wide />
         <ReadField label="Категория" value={auctionCategoryLabels[item.category] || item.category} />
         {auction.photos?.length > 0 && (
           <div className={styles.fieldFull}>
             <div className={styles.photoGrid}>
               {auction.photos.map((photo, index) => (
                 <a className={`${styles.photoCard} ${photo.isMain ? styles['photoCard--main'] : ''}`} href={photo.url} target="_blank" rel="noreferrer" key={photo.path || index}>
-                  <img src={photo.url} alt="Фото лота" />
+                  <img src={photo.url} alt="Фото предмета торгов" />
                 </a>
               ))}
             </div>

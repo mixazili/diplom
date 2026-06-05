@@ -181,7 +181,7 @@ const demoUsers = [
   }
 ];
 
-const lotTemplates = [
+const itemTemplates = [
   {
     category: 'passenger_cars',
     title: 'Volkswagen Passat B8 2019',
@@ -414,17 +414,17 @@ const makeVerificationDocs = (userSeed, index, suffix = 'approved') => {
   });
 };
 
-const makeAuctionPhotos = ({ ownerIndex, lotIndex, title, category }) => {
-  const count = 2 + ((ownerIndex + lotIndex) % 4);
+const makeAuctionPhotos = ({ ownerIndex, auctionIndex, title, category }) => {
+  const count = 2 + ((ownerIndex + auctionIndex) % 4);
 
   return Array.from({ length: count }, (_, photoIndex) => {
-    const fileName = `${process.env.NODE_ENV}-auction-${ownerIndex + 1}-${lotIndex + 1}-${photoIndex + 1}.svg`;
+    const fileName = `${process.env.NODE_ENV}-auction-${ownerIndex + 1}-${auctionIndex + 1}-${photoIndex + 1}.svg`;
     const file = writeSvg({
       dir: auctionUploadDir,
       fileName,
       title,
       subtitle: `${category} / фото ${photoIndex + 1}`,
-      color: ['#991b1b', '#1d4ed8', '#047857', '#92400e', '#6d28d9', '#0f766e'][(ownerIndex + lotIndex + photoIndex) % 6]
+      color: ['#991b1b', '#1d4ed8', '#047857', '#92400e', '#6d28d9', '#0f766e'][(ownerIndex + auctionIndex + photoIndex) % 6]
     });
 
     return {
@@ -586,18 +586,18 @@ const scheduleForStatus = (status) => {
   };
 };
 
-const buildAuction = ({ owner, ownerSeed, ownerIndex, lotIndex, verificationData, status, lotNumber = null, previousRejection = false }) => {
-  const template = lotTemplates[(ownerIndex + lotIndex) % lotTemplates.length];
+const buildAuction = ({ owner, ownerSeed, ownerIndex, auctionIndex, verificationData, status, auctionNumber = null, previousRejection = false }) => {
+  const template = itemTemplates[(ownerIndex + auctionIndex) % itemTemplates.length];
   const vatApplies = ['legal_entity', 'entrepreneur'].includes(ownerSeed.accountType);
-  const priceWithVat = 2500 + ownerIndex * 1600 + lotIndex * 850;
-  const auctionType = lotIndex % 2 === 0 ? 'increase' : 'decrease';
+  const priceWithVat = 2500 + ownerIndex * 1600 + auctionIndex * 850;
+  const auctionType = auctionIndex % 2 === 0 ? 'increase' : 'decrease';
   const minPriceWithVat = auctionType === 'decrease' ? Math.round(priceWithVat * 0.7) : null;
-  const bidStepsCount = auctionType === 'decrease' ? 8 + (lotIndex % 8) : null;
-  const title = `${template.title} ${ownerIndex + 1}.${lotIndex + 1}`;
+  const bidStepsCount = auctionType === 'decrease' ? 8 + (auctionIndex % 8) : null;
+  const title = `${template.title} ${ownerIndex + 1}.${auctionIndex + 1}`;
 
   return {
     owner: owner._id,
-    lotNumber,
+    auctionNumber,
     status,
     moderationComment: status === 'returned' ? 'Причина отклонения: требуется уточнить описание и приложить фото лучшего качества.' : '',
     pricing: {
@@ -616,18 +616,18 @@ const buildAuction = ({ owner, ownerSeed, ownerIndex, lotIndex, verificationData
     },
     schedule: {
       ...scheduleForStatus(status),
-      paymentDeadlineDays: 10 + (lotIndex % 20),
-      contractDeadlineDays: 12 + (lotIndex % 20)
+      paymentDeadlineDays: 10 + (auctionIndex % 20),
+      contractDeadlineDays: 12 + (auctionIndex % 20)
     },
     item: {
       title,
       category: template.category,
       characteristics: template.characteristics.map(([name, value]) => ({ name, value })),
-      description: `Демо-лот для проверки каталога, карточек, модерации и страницы лота. Продавец: ${ownerSeed.email}. ${previousRejection ? 'Ранее заявка возвращалась на доработку и была отправлена повторно.' : ''}`,
+      description: `Демо-аукцион для проверки каталога, карточек, модерации и страницы аукциона. Продавец: ${ownerSeed.email}. ${previousRejection ? 'Ранее заявка возвращалась на доработку и была отправлена повторно.' : ''}`,
       locationAddress: template.address,
       geoLocation: template.geoLocation
     },
-    photos: makeAuctionPhotos({ ownerIndex, lotIndex, title, category: template.category }),
+    photos: makeAuctionPhotos({ ownerIndex, auctionIndex, title, category: template.category }),
     inspection: {
       contactName: verificationData.personalData.fullName || verificationData.organizationData.directorFullName,
       contactPhone: ownerSeed.phone,
@@ -713,7 +713,7 @@ const addReviewForAuction = async ({ auction, moderator, action, comment, snapsh
   const snapshot = formatAuction({
     ...auction.toObject(),
     status: snapshotStatus,
-    lotNumber: null,
+    auctionNumber: null,
     moderationComment: action === 'returned' ? comment : '',
     reviewedBy: null,
     reviewedAt: null
@@ -851,27 +851,27 @@ const seed = async () => {
   }
 
   const createdAuctions = [];
-  let lotSequence = 0;
+  let auctionSequence = 0;
 
   for (let ownerIndex = 0; ownerIndex < createdUsers.length; ownerIndex += 1) {
     const ownerBundle = createdUsers[ownerIndex];
-    const lotsCount = 5 + ownerIndex;
+    const auctionsCount = 5 + ownerIndex;
 
-    for (let lotIndex = 0; lotIndex < lotsCount; lotIndex += 1) {
-      const requestedStatus = statusCycle[(ownerIndex + lotIndex) % statusCycle.length];
-      const moderator = createdModerators[(ownerIndex + lotIndex) % createdModerators.length];
+    for (let auctionIndex = 0; auctionIndex < auctionsCount; auctionIndex += 1) {
+      const requestedStatus = statusCycle[(ownerIndex + auctionIndex) % statusCycle.length];
+      const moderator = createdModerators[(ownerIndex + auctionIndex) % createdModerators.length];
       const isPublished = ['application_waiting', 'applications_open', 'bidding_waiting', 'bidding_active', 'finished_success', 'finished_failed'].includes(requestedStatus);
-      const hadPreviousRejection = isPublished && (ownerIndex + lotIndex) % 4 === 0;
-      const lotNumber = isPublished ? `${currentYear}-${String(++lotSequence).padStart(6, '0')}` : null;
+      const hadPreviousRejection = isPublished && (ownerIndex + auctionIndex) % 4 === 0;
+      const auctionNumber = isPublished ? `${currentYear}-${String(++auctionSequence).padStart(6, '0')}` : null;
 
       const auctionData = buildAuction({
         owner: ownerBundle.user,
         ownerSeed: ownerBundle.seed,
         ownerIndex,
-        lotIndex,
+        auctionIndex,
         verificationData: ownerBundle.verificationData,
         status: requestedStatus,
-        lotNumber,
+        auctionNumber,
         previousRejection: hadPreviousRejection
       });
 
@@ -917,7 +917,7 @@ const seed = async () => {
           auction,
           moderator,
           action: 'approved',
-          comment: hadPreviousRejection ? 'После доработки заявка одобрена.' : 'Заявка на публикацию лота одобрена.',
+          comment: hadPreviousRejection ? 'После доработки заявка одобрена.' : 'Заявка на публикацию аукциона одобрена.',
           snapshotStatus: 'pending'
         });
       }
@@ -925,8 +925,8 @@ const seed = async () => {
   }
 
   await Counter.findOneAndUpdate(
-    { key: `lot-number:${currentYear}` },
-    { $set: { key: `lot-number:${currentYear}`, value: lotSequence } },
+    { key: `auction-number:${currentYear}` },
+    { $set: { key: `auction-number:${currentYear}`, value: auctionSequence } },
     { upsert: true }
   );
 
@@ -956,7 +956,7 @@ const seed = async () => {
   console.log(`Created ${createdUsers.length} users, ${createdModerators.length} moderators, ${createdAuctions.length} auctions.`);
   console.table(statusStats);
   console.log('Verification histories include rejected -> approved cases for 5 users.');
-  console.log('Auction histories include current returned lots and returned -> approved publication cases.');
+  console.log('Auction histories include current returned auctions and returned -> approved publication cases.');
   console.table(accounts);
 };
 

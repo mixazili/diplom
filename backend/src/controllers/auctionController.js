@@ -4,11 +4,13 @@ const AuctionApplication = require('../models/AuctionApplication');
 const Bid = require('../models/Bid');
 const Deposit = require('../models/Deposit');
 const AuctionView = require('../models/AuctionView');
+const User = require('../models/User');
 const VerificationRequest = require('../models/VerificationRequest');
 const asyncHandler = require('../utils/asyncHandler');
 const { formatAuction } = require('../utils/auctionFormatters');
 const { validateAuctionPayload } = require('../utils/auctionValidation');
 const { updateAuctionStatuses } = require('../services/statusAutomationService');
+const { ensureAuctionProtocol } = require('../services/auctionProtocolService');
 
 const parsePayload = (rawPayload) => {
   if (!rawPayload) {
@@ -264,12 +266,14 @@ const attachViewerParticipation = async (auctions, userId) => {
   }
 
   const auctionIds = auctions.map((auction) => auction._id);
-  const [applications, deposits] = await Promise.all([
+  const [applications, deposits, user] = await Promise.all([
     AuctionApplication.find({ auction: { $in: auctionIds }, participant: userId }),
-    Deposit.find({ auction: { $in: auctionIds }, payer: userId })
+    Deposit.find({ auction: { $in: auctionIds }, payer: userId }),
+    User.findById(userId).select('favoriteAuctions')
   ]);
   const applicationByAuction = new Map(applications.map((application) => [application.auction.toString(), application]));
   const depositByAuction = new Map(deposits.map((deposit) => [deposit.auction.toString(), deposit]));
+  const favoriteSet = new Set((user?.favoriteAuctions || []).map((id) => id.toString()));
 
   return auctions.map((auction) => {
     const auctionId = auction._id.toString();
@@ -281,7 +285,8 @@ const attachViewerParticipation = async (auctions, userId) => {
         application,
         deposit: depositByAuction.get(auctionId),
         auction
-      })
+      }),
+      isFavorite: favoriteSet.has(auctionId)
     };
   });
 };
@@ -318,11 +323,14 @@ const listPublicAuctions = asyncHandler(async (req, res) => {
   }
 
   if (search) {
+    const normalizedAuctionSearch = search
+      .replace(/^(?:аукцион|лот)\s*№?\s*/i, '')
+      .replace(/^№\s*/i, '')
+      .trim();
     andConditions.push({
       $or: [
         { 'item.title': { $regex: search, $options: 'i' } },
-        { 'item.locationAddress': { $regex: search, $options: 'i' } },
-        { lotNumber: { $regex: search, $options: 'i' } }
+        { auctionNumber: { $regex: normalizedAuctionSearch || search, $options: 'i' } }
       ]
     });
   }
@@ -365,10 +373,18 @@ const listPublicAuctions = asyncHandler(async (req, res) => {
     }
   }
 
+  if (String(req.query.onlyWon || '') === 'true') {
+    if (!req.user?._id) {
+      query._id = { $in: [] };
+    } else {
+      query.winner = req.user._id;
+    }
+  }
+
   andConditions.push({
     $or: [
       { status: { $ne: 'cancelled' } },
-      { lotNumber: { $type: 'string' } }
+      { auctionNumber: { $type: 'string' } }
     ]
   });
 
@@ -438,6 +454,75 @@ const listPublicAuctions = asyncHandler(async (req, res) => {
   });
 });
 
+const listFavoriteAuctions = asyncHandler(async (req, res) => {
+  await updateAuctionStatuses();
+
+  const statuses = getQueryList(req.query.status);
+  const sortMode = String(req.query.sort || 'newest');
+  const requestedLimit = Number(req.query.limit) || 20;
+  const limit = Math.min(Math.max(requestedLimit, 1), 60);
+  const page = Math.max(Number(req.query.page) || 1, 1);
+  const skip = (page - 1) * limit;
+  const user = await User.findById(req.user._id).select('favoriteAuctions');
+  const favoriteIds = user?.favoriteAuctions || [];
+  const query = {
+    _id: { $in: favoriteIds },
+    owner: { $ne: req.user._id },
+    status: {
+      $in: statuses.length > 0
+        ? statuses.filter((status) => publicAuctionStatuses.includes(status))
+        : publicAuctionStatuses
+    }
+  };
+  const direction = sortMode === 'oldest' ? 1 : -1;
+
+  const [auctions, total] = await Promise.all([
+    Auction.find(query)
+      .sort({ reviewedAt: direction, createdAt: direction })
+      .skip(skip)
+      .limit(limit),
+    Auction.countDocuments(query)
+  ]);
+
+  res.json({
+    auctions: await attachViewerParticipation(auctions, req.user._id),
+    total,
+    page,
+    limit
+  });
+});
+
+const toggleFavoriteAuction = asyncHandler(async (req, res) => {
+  const auction = await Auction.findOne({
+    _id: req.params.id,
+    status: { $in: publicAuctionStatuses }
+  });
+
+  if (!auction) {
+    res.status(404);
+    return res.json({ message: 'Аукцион не найден или еще не опубликован' });
+  }
+
+  if (auction.owner?.toString() === req.user._id.toString()) {
+    res.status(400);
+    return res.json({ message: 'Собственный аукцион нельзя добавить в избранное' });
+  }
+
+  const user = await User.findById(req.user._id).select('favoriteAuctions');
+  const favoriteSet = new Set((user.favoriteAuctions || []).map((id) => id.toString()));
+  const isFavorite = favoriteSet.has(auction._id.toString());
+
+  if (isFavorite) {
+    user.favoriteAuctions = user.favoriteAuctions.filter((id) => id.toString() !== auction._id.toString());
+  } else {
+    user.favoriteAuctions = [...user.favoriteAuctions, auction._id];
+  }
+
+  await user.save();
+
+  res.json({ isFavorite: !isFavorite, auctionId: auction._id.toString() });
+});
+
 const getPublicAuction = asyncHandler(async (req, res) => {
   await updateAuctionStatuses();
   const auction = await Auction.findOne({
@@ -445,13 +530,13 @@ const getPublicAuction = asyncHandler(async (req, res) => {
     status: { $in: publicAuctionStatuses },
     $or: [
       { status: { $ne: 'cancelled' } },
-      { lotNumber: { $type: 'string' } }
+      { auctionNumber: { $type: 'string' } }
     ]
   });
 
   if (!auction) {
     res.status(404);
-    return res.json({ message: 'Лот не найден или еще не опубликован' });
+    return res.json({ message: 'Аукцион не найден или еще не опубликован' });
   }
 
   const isOwner = req.user?._id && auction.owner?.toString() === req.user._id.toString();
@@ -491,10 +576,16 @@ const getPublicAuction = asyncHandler(async (req, res) => {
   res.json({
     auction: {
       ...formatAuction(auction),
+      isFavorite: req.user?._id
+        ? Boolean((req.user.favoriteAuctions || []).some((id) => id.toString() === auction._id.toString()))
+        : false,
       participantStats: await getAuctionParticipantStats(auction._id)
     },
     viewer: {
       isOwner: Boolean(isOwner),
+      isFavorite: req.user?._id
+        ? Boolean((req.user.favoriteAuctions || []).some((id) => id.toString() === auction._id.toString()))
+        : false,
       participation: application
         ? {
             status: application.status,
@@ -511,13 +602,73 @@ const getPublicAuction = asyncHandler(async (req, res) => {
   });
 });
 
+const getAuctionProtocol = asyncHandler(async (req, res) => {
+  await updateAuctionStatuses();
+  const auction = await Auction.findOne({
+    _id: req.params.id,
+    status: { $in: ['finished_success', 'finished_failed'] },
+    auctionNumber: { $type: 'string' }
+  });
+
+  if (!auction) {
+    res.status(404);
+    return res.json({ message: 'Протокол доступен только после завершения торгов' });
+  }
+
+  const protocol = await ensureAuctionProtocol(auction);
+  if (!protocol) {
+    res.status(404);
+    return res.json({ message: 'Протокол еще не сформирован' });
+  }
+
+  res.json({
+    protocol: {
+      id: protocol._id.toString(),
+      auction: auction._id.toString(),
+      auctionNumber: protocol.auctionNumber,
+      protocolNumber: protocol.protocolNumber,
+      generatedAt: protocol.generatedAt,
+      status: protocol.status,
+      resultStatus: protocol.resultStatus,
+      contentHtml: protocol.contentHtml
+    }
+  });
+});
+
+const downloadAuctionProtocol = asyncHandler(async (req, res) => {
+  await updateAuctionStatuses();
+  const auction = await Auction.findOne({
+    _id: req.params.id,
+    status: { $in: ['finished_success', 'finished_failed'] },
+    auctionNumber: { $type: 'string' }
+  });
+
+  if (!auction) {
+    res.status(404);
+    return res.send('Протокол доступен только после завершения торгов');
+  }
+
+  const protocol = await ensureAuctionProtocol(auction);
+  if (!protocol) {
+    res.status(404);
+    return res.send('Протокол еще не сформирован');
+  }
+
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.setHeader(
+    'Content-Disposition',
+    `attachment; filename="auction-protocol-${protocol.protocolNumber}.html"`
+  );
+  return res.send(protocol.contentHtml);
+});
+
 const listSimilarAuctions = asyncHandler(async (req, res) => {
   await updateAuctionStatuses();
   const auction = await Auction.findById(req.params.id);
 
   if (!auction) {
     res.status(404);
-    return res.json({ message: 'Лот не найден' });
+    return res.json({ message: 'Аукцион не найден' });
   }
 
   const page = Math.max(Number(req.query.page) || 1, 1);
@@ -549,7 +700,7 @@ const ensureCanManageAuctions = (req, res) => {
   if (req.user.role !== 'user' || req.user.verificationStatus !== 'approved') {
     removeUploadedFiles(req.files);
     res.status(403);
-    res.json({ message: 'Создавать и редактировать лоты могут только верифицированные пользователи' });
+    res.json({ message: 'Создавать и редактировать аукционы могут только верифицированные пользователи' });
     return false;
   }
 
@@ -583,7 +734,7 @@ const createAuction = asyncHandler(async (req, res) => {
   if (Object.keys(errors).length > 0) {
     removeUploadedFiles(req.files);
     res.status(400);
-    return res.json({ message: 'Проверьте данные лота', errors });
+    return res.json({ message: 'Проверьте данные аукциона', errors });
   }
 
   const auction = await Auction.create({
@@ -602,7 +753,7 @@ const createAuction = asyncHandler(async (req, res) => {
   });
 
   res.status(201).json({
-    message: normalized.isDraft ? 'Черновик лота сохранен' : 'Заявка на создание лота отправлена на проверку',
+    message: normalized.isDraft ? 'Черновик аукциона сохранен' : 'Заявка на создание аукциона отправлена на проверку',
     auction: formatAuction(auction)
   });
 });
@@ -617,7 +768,7 @@ const updateAuction = asyncHandler(async (req, res) => {
   if (!auction) {
     removeUploadedFiles(req.files);
     res.status(404);
-    return res.json({ message: 'Лот не найден' });
+    return res.json({ message: 'Аукцион не найден' });
   }
 
   const payload = parsePayload(req.body.payload);
@@ -631,7 +782,7 @@ const updateAuction = asyncHandler(async (req, res) => {
   if (!['draft', 'pending', 'returned', 'application_waiting'].includes(auction.status) || (auction.status === 'application_waiting' && !payload.isDraft)) {
     removeUploadedFiles(req.files);
     res.status(400);
-    return res.json({ message: 'Редактировать можно неопубликованные лоты и лоты до начала приема заявок при возврате в черновик' });
+    return res.json({ message: 'Редактировать можно неопубликованные аукционы и аукционы до начала приема заявок при возврате в черновик' });
   }
 
   const { photos, removedPhotos, validationPhotos } = mergeAuctionPhotos({ auction, payload, files: req.files || [] });
@@ -640,11 +791,11 @@ const updateAuction = asyncHandler(async (req, res) => {
   if (Object.keys(errors).length > 0) {
     removeUploadedFiles(req.files);
     res.status(400);
-    return res.json({ message: 'Проверьте данные лота', errors });
+    return res.json({ message: 'Проверьте данные аукциона', errors });
   }
 
   auction.status = normalized.isDraft ? 'draft' : 'pending';
-  auction.lotNumber = undefined;
+  auction.auctionNumber = undefined;
   auction.moderationComment = '';
   auction.pricing = normalized.pricing;
   auction.schedule = normalized.schedule;
@@ -658,7 +809,7 @@ const updateAuction = asyncHandler(async (req, res) => {
   removeAuctionPhotos(removedPhotos);
 
   res.json({
-    message: normalized.isDraft ? 'Черновик лота сохранен' : 'Лот отправлен на проверку',
+    message: normalized.isDraft ? 'Черновик аукциона сохранен' : 'Аукцион отправлен на проверку',
     auction: formatAuction(auction)
   });
 });
@@ -668,20 +819,20 @@ const deleteAuction = asyncHandler(async (req, res) => {
 
   if (!auction) {
     res.status(404);
-    return res.json({ message: 'Лот не найден' });
+    return res.json({ message: 'Аукцион не найден' });
   }
 
   if (!['draft', 'pending', 'returned', 'application_waiting'].includes(auction.status)) {
     res.status(400);
-    return res.json({ message: 'Удалить можно неопубликованный лот или лот до начала приема заявок' });
+    return res.json({ message: 'Удалить можно неопубликованный аукцион или аукцион до начала приема заявок' });
   }
 
   auction.status = 'cancelled';
-  auction.lotNumber = undefined;
+  auction.auctionNumber = undefined;
   auction.moderationComment = 'Удален пользователем';
   await auction.save();
 
-  res.json({ message: 'Лот удален' });
+  res.json({ message: 'Аукцион удален' });
 });
 
 const returnAuctionToDraft = asyncHandler(async (req, res) => {
@@ -689,23 +840,23 @@ const returnAuctionToDraft = asyncHandler(async (req, res) => {
 
   if (!auction) {
     res.status(404);
-    return res.json({ message: 'Лот не найден' });
+    return res.json({ message: 'Аукцион не найден' });
   }
 
   if (auction.status !== 'application_waiting') {
     res.status(400);
-    return res.json({ message: 'Вернуть в черновик можно только лот до начала приема заявок' });
+    return res.json({ message: 'Вернуть в черновик можно только аукцион до начала приема заявок' });
   }
 
   auction.status = 'draft';
-  auction.lotNumber = undefined;
+  auction.auctionNumber = undefined;
   auction.moderationComment = '';
   auction.submittedAt = null;
   auction.reviewedBy = null;
   auction.reviewedAt = null;
   await auction.save();
 
-  res.json({ message: 'Лот возвращен в черновик', auction: formatAuction(auction) });
+  res.json({ message: 'Аукцион возвращен в черновик', auction: formatAuction(auction) });
 });
 
 const listMyAuctions = asyncHandler(async (req, res) => {
@@ -721,8 +872,12 @@ module.exports = {
   deleteAuction,
   returnAuctionToDraft,
   listMyAuctions,
+  listFavoriteAuctions,
   listPublicAuctions,
   listSimilarAuctions,
   getPublicAuction,
+  getAuctionProtocol,
+  downloadAuctionProtocol,
+  toggleFavoriteAuction,
   formatAuction
 };

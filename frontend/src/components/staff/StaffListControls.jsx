@@ -58,14 +58,14 @@ function StaffListControls({ sort, onSortChange, limit, onLimitChange, filters =
         <div className={styles.staffDecisionFilter}>
           <div className={styles.staffDecisionFilter__options}>
             {decisionOptions.map(([value, label]) => (
-              <label className={`${styles.checkRow} ${styles.filterChoice}`} key={value}>
-                <input
-                  type="checkbox"
-                  checked={filters.includes(value)}
-                  onChange={() => onFilterToggle(value)}
-                />
-                <span>{label}</span>
-              </label>
+              <button
+                className={`${styles.filterChoice} ${filters.includes(value) ? styles['filterChoice--selected'] : ''}`}
+                key={value}
+                type="button"
+                onClick={() => onFilterToggle(value)}
+              >
+                {label}
+              </button>
             ))}
           </div>
         </div>

@@ -10,7 +10,9 @@ function AuctionSections({
   onApplyAuction,
   onOpenAuction,
   onPayDepositAuction,
-  onPayLotAuction
+  onPayLotAuction,
+  onOpenProtocolAuction,
+  onToggleFavoriteAuction
 }) {
   const visibleSections = sections.filter((section) => section.items?.length > 0);
 
@@ -26,7 +28,7 @@ function AuctionSections({
             <h2>{section.title}</h2>
             {section.description && <p>{section.description}</p>}
           </div>
-          <div className={styles.lotGrid}>
+          <div className={styles.auctionGrid}>
             {section.items.map((item) => {
               const auction = section.getAuction ? section.getAuction(item) : item;
               const participant = section.getParticipant ? section.getParticipant(item) : null;
@@ -44,6 +46,8 @@ function AuctionSections({
                   onOpen={() => onOpenAuction(auction.id)}
                   onPayDeposit={onPayDepositAuction}
                   onPayLot={onPayLotAuction}
+                  onOpenProtocol={onOpenProtocolAuction}
+                  onToggleFavorite={onToggleFavoriteAuction}
                   participant={participant}
                 />
               );
