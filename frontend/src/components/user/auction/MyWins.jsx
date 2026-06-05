@@ -13,8 +13,8 @@ import usePersistedState from '../../../hooks/usePersistedState.js';
 import styles from './MyParticipations.module.css';
 
 const paymentFilters = [
-  ['unpaid', 'Предмет торгов не оплачен'],
-  ['paid', 'Предмет торгов оплачен']
+  ['unpaid', 'Лот не оплачен'],
+  ['paid', 'Лот оплачен']
 ];
 
 const defaultPaymentFilters = ['unpaid', 'paid'];

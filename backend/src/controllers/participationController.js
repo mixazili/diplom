@@ -356,7 +356,7 @@ const payWonLot = asyncHandler(async (req, res) => {
 
   if (!application) {
     res.status(403);
-    return res.json({ message: 'Оплатить предмет торгов может только победитель торгов' });
+    return res.json({ message: 'Оплатить лот может только победитель торгов' });
   }
 
   const cardNumber = String(req.body.cardNumber || '').replace(/\D/g, '');

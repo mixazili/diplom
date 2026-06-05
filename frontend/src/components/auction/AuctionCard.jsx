@@ -313,9 +313,14 @@ function ParticipationBlock({ auction, isVerified, participant, onApply, onPayDe
     if (participant.isWinner) {
       return (
         <ParticipationMessage icon={Trophy} title="Вы победили в торгах" tone="success">
-          {participant.lotPaymentStatus === 'paid' && <span className={styles.auctionCard__paidMark}>Предмет торгов оплачен</span>}
+          {participant.lotPaymentStatus === 'paid' && (
+            <span className={styles.auctionCard__paidMark}>
+              <BadgeCheck size={17} />
+              Лот оплачен
+            </span>
+          )}
           {participant.lotPaymentStatus !== 'paid' && onPayLot && (
-            <button className={styles.button} type="button" onClick={(event) => { event.stopPropagation(); onPayLot(auction); }}>Оплатить предмет торгов</button>
+            <button className={styles.button} type="button" onClick={(event) => { event.stopPropagation(); onPayLot(auction); }}>Оплатить лот</button>
           )}
         </ParticipationMessage>
       );

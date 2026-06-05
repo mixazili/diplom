@@ -661,9 +661,9 @@ function TradingBlock({ auction, user, viewer, bids, timeOffsetMs = 0, onApply, 
           <h3><Trophy size={20} />Результат участия</h3>
           {isWinner ? (
             <>
-              <p>{participation.lotPaymentStatus === 'paid' ? 'Вы победили. Предмет торгов оплачен.' : 'Вы победили. Ожидается полная оплата предмета торгов.'}</p>
+              <p>{participation.lotPaymentStatus === 'paid' ? 'Вы победили. Лот оплачен.' : 'Вы победили. Ожидается полная оплата лота.'}</p>
               {participation.lotPaymentStatus !== 'paid' && (
-                <button className={styles.button} type="button" onClick={onPayLot} disabled={actionLoading}>Оплатить предмет торгов</button>
+                <button className={styles.button} type="button" onClick={onPayLot} disabled={actionLoading}>Оплатить лот</button>
               )}
             </>
           ) : (
