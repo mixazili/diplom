@@ -7,6 +7,7 @@ const User = require('../models/User');
 const VerificationRequest = require('../models/VerificationRequest');
 const VerificationReview = require('../models/VerificationReview');
 const { formatAuction } = require('../utils/auctionFormatters');
+const { ensureAuctionProtocol } = require('./auctionProtocolService');
 const { getCurrentTime } = require('./timeService');
 
 const dayMs = 24 * 60 * 60 * 1000;
@@ -70,6 +71,7 @@ const updateAuctionStatuses = async (now = null) => {
         auction.status = 'finished_failed';
         auction.resultReason = 'Нет участников с оплаченным задатком';
         await auction.save();
+        await ensureAuctionProtocol(auction);
         return;
       }
 
@@ -77,6 +79,7 @@ const updateAuctionStatuses = async (now = null) => {
         auction.status = 'finished_failed';
         auction.resultReason = 'За время торгов не было сделано ни одной ставки';
         await auction.save();
+        await ensureAuctionProtocol(auction);
         await Deposit.updateMany({ auction: auction._id, status: 'paid' }, { $set: { status: 'refunded' } });
         return;
       }
@@ -88,6 +91,7 @@ const updateAuctionStatuses = async (now = null) => {
       auction.winningBidAmount = latestBid.amount;
       auction.winningBidAt = latestBid.createdAt;
       await auction.save();
+      await ensureAuctionProtocol(auction);
 
       await AuctionApplication.updateOne(
         {
@@ -159,7 +163,7 @@ const expirePendingAuctions = async (now = null) => {
       auction.moderationComment = staleAuctionComment;
       auction.reviewedBy = null;
       auction.reviewedAt = currentTime;
-      auction.lotNumber = undefined;
+      auction.auctionNumber = undefined;
       await auction.save();
 
       await AuctionReview.create({

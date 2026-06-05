@@ -3,6 +3,7 @@ import AuctionCard from '../auction/AuctionCard.jsx';
 import { formatDateTime } from '../../utils/formatters.js';
 import AuctionDetails from './AuctionDetails.jsx';
 import StaffListControls, { StaffPagination, paginateItems, sortByDate } from './StaffListControls.jsx';
+import usePersistedState from '../../hooks/usePersistedState.js';
 import styles from './AuctionReviewList.module.css';
 
 const actionLabels = {
@@ -18,10 +19,11 @@ const filterOptions = [
 
 function AuctionReviewList({ reviews, title, showModerator = true }) {
   const [selectedReviewId, setSelectedReviewId] = useState(null);
-  const [sort, setSort] = useState('newest');
-  const [filters, setFilters] = useState(['approved', 'returned']);
-  const [limit, setLimit] = useState(20);
-  const [page, setPage] = useState(1);
+  const storagePrefix = showModerator ? 'auction.staff.auctionReviews.all' : 'auction.staff.auctionReviews.mine';
+  const [sort, setSort] = usePersistedState(`${storagePrefix}.sort`, 'newest');
+  const [filters, setFilters] = usePersistedState(`${storagePrefix}.filters`, ['approved', 'returned']);
+  const [limit, setLimit] = usePersistedState(`${storagePrefix}.limit`, 20);
+  const [page, setPage] = usePersistedState(`${storagePrefix}.page`, 1);
   const selectedReview = reviews.find((review) => review.id === selectedReviewId);
   const toggleFilter = (value) => {
     setFilters((current) => {
@@ -77,7 +79,7 @@ function AuctionReviewList({ reviews, title, showModerator = true }) {
         limit={limit}
         onLimitChange={(value) => { setLimit(value); setPage(1); }}
       />
-      <div className={styles.lotGrid}>
+      <div className={styles.auctionGrid}>
         {pageItems.length === 0 && <p className={styles.panel__text}>Журнал пока пуст.</p>}
         {pageItems.map((review) => {
           const snapshot = review.auctionSnapshot || review.auction;

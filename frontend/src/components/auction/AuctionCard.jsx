@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, BadgeCheck, Clock, CreditCard, Eye, Heart, MapPin, Trophy } from 'lucide-react';
+import { AlertCircle, BadgeCheck, Clock, CreditCard, Eye, FileText, Heart, MapPin, Trophy } from 'lucide-react';
 import { formatCardLocation } from '../../utils/location.js';
 import { getClientNow } from '../../utils/time.js';
 import { getYandexMaps } from '../../utils/yandexMaps.js';
@@ -190,7 +190,17 @@ const getDisplayPrice = (auction, timeOffsetMs = 0) => {
   return auction.currentPrice || auction.lastBidPrice || auction.pricing?.priceWithVat || 0;
 };
 
-function PhotoCarousel({ auction, showStatus, showLike, showViews, timeInfo, statusDanger = false, mediaMeta = '' }) {
+function PhotoCarousel({
+  auction,
+  showStatus,
+  showLike,
+  showViews,
+  timeInfo,
+  statusDanger = false,
+  mediaMeta = '',
+  isFavorite = false,
+  onToggleFavorite
+}) {
   const photos = useMemo(() => {
     const source = auction.photos?.length > 0 ? auction.photos : [];
     const mainPhoto = source.find((item) => item.isMain);
@@ -219,7 +229,7 @@ function PhotoCarousel({ auction, showStatus, showLike, showViews, timeInfo, sta
       </div>
 
       {photo ? (
-        <img src={photo.url} alt={auction.item?.title || 'Фото лота'} />
+        <img src={photo.url} alt={auction.item?.title || 'Фото предмета торгов'} />
       ) : (
         <div className={styles.auctionCard__placeholder}>Фото не загружено</div>
       )}
@@ -242,8 +252,16 @@ function PhotoCarousel({ auction, showStatus, showLike, showViews, timeInfo, sta
         </span>
       )}
       {showLike && (
-        <button className={styles.auctionCard__like} type="button" aria-label="Добавить в избранное">
-          <Heart size={22} strokeWidth={2.1} />
+        <button
+          className={`${styles.auctionCard__like} ${isFavorite ? styles['auctionCard__like--active'] : ''}`}
+          type="button"
+          aria-label={isFavorite ? 'Убрать из избранного' : 'Добавить в избранное'}
+          onClick={(event) => {
+            event.stopPropagation();
+            onToggleFavorite?.(auction);
+          }}
+        >
+          <Heart size={23} strokeWidth={2.1} fill={isFavorite ? 'currentColor' : 'none'} />
         </button>
       )}
       {showViews && (
@@ -295,9 +313,9 @@ function ParticipationBlock({ auction, isVerified, participant, onApply, onPayDe
     if (participant.isWinner) {
       return (
         <ParticipationMessage icon={Trophy} title="Вы победили в торгах" tone="success">
-          {participant.lotPaymentStatus === 'paid' && <span className={styles.auctionCard__paidMark}>Лот оплачен</span>}
+          {participant.lotPaymentStatus === 'paid' && <span className={styles.auctionCard__paidMark}>Предмет торгов оплачен</span>}
           {participant.lotPaymentStatus !== 'paid' && onPayLot && (
-            <button className={styles.button} type="button" onClick={(event) => { event.stopPropagation(); onPayLot(auction); }}>Оплатить лот</button>
+            <button className={styles.button} type="button" onClick={(event) => { event.stopPropagation(); onPayLot(auction); }}>Оплатить предмет торгов</button>
           )}
         </ParticipationMessage>
       );
@@ -354,6 +372,8 @@ function AuctionCard({
   onOpen,
   onPayDeposit,
   onPayLot,
+  onOpenProtocol,
+  onToggleFavorite,
   footerMeta = '',
   statusOverride = '',
   currentUserId = null,
@@ -373,11 +393,29 @@ function AuctionCard({
   const editable = ['draft', 'pending', 'returned'].includes(auction.status);
   const canReturnToDraft = auction.status === 'application_waiting';
   const deletable = ['draft', 'pending', 'returned', 'application_waiting'].includes(auction.status);
-  const cardTitle = auction.item?.title || 'Лот без названия';
+  const cardTitle = auction.item?.title || 'Предмет торгов без названия';
   const ownerCanOpen = mode !== 'owner' || !['draft', 'pending', 'returned'].includes(auction.status);
   const clickableCard = (['journal', 'public', 'catalog', 'moderation'].includes(mode) || mode === 'owner') && ownerCanOpen && Boolean(onOpen);
   const [priceValue, priceCurrency] = formatMoneyParts(getDisplayPrice(auction, timeOffsetMs));
   const viewerParticipation = participant || auction.viewerParticipation || auction.participation || null;
+  const [favorite, setFavorite] = useState(Boolean(auction.isFavorite));
+
+  useEffect(() => {
+    setFavorite(Boolean(auction.isFavorite));
+  }, [auction.isFavorite, auction.id]);
+
+  const toggleFavorite = async () => {
+    if (!onToggleFavorite) {
+      return;
+    }
+
+    const result = await onToggleFavorite(auction);
+    if (typeof result?.isFavorite === 'boolean') {
+      setFavorite(result.isFavorite);
+    } else {
+      setFavorite((current) => !current);
+    }
+  };
 
   const cardActions = useMemo(() => {
     if (mode !== 'owner') {
@@ -408,6 +446,7 @@ function AuctionCard({
       </>
     );
   }, [auction, canReturnToDraft, deletable, editable, mode, onDelete, onEdit, onReturnToDraft]);
+  const hasProtocol = ['finished_success', 'finished_failed'].includes(auction.status) && typeof onOpenProtocol === 'function';
 
   return (
     <article
@@ -430,10 +469,12 @@ function AuctionCard({
         timeInfo={timeInfo}
         statusDanger={statusDanger}
         mediaMeta={mode === 'journal' ? footerMeta : ''}
+        isFavorite={favorite}
+        onToggleFavorite={toggleFavorite}
       />
 
       <div className={styles.auctionCard__body}>
-        {isPublished && auction.lotNumber && <span className={styles.auctionCard__lotNumber}>Лот №{auction.lotNumber}</span>}
+        {isPublished && auction.auctionNumber && <span className={styles.auctionCard__auctionNumber}>Аукцион №{auction.auctionNumber}</span>}
         <h3>{cardTitle}</h3>
         <div className={styles.auctionCard__info}>
           <span className={styles.auctionCard__location}>
@@ -441,7 +482,7 @@ function AuctionCard({
             <span>{address}</span>
           </span>
           {auction.status === 'returned' && auction.moderationComment && (
-            <div className={styles.lotCard__comment}>
+            <div className={styles.auctionCard__comment}>
               <strong>Причина отклонения</strong>
               <p>{auction.moderationComment}</p>
             </div>
@@ -460,6 +501,19 @@ function AuctionCard({
             onPayDeposit={onPayDeposit || onOpen}
             onPayLot={onPayLot || onOpen}
           />
+        )}
+        {hasProtocol && (
+          <button
+            className={styles.protocolButton}
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onOpenProtocol?.(auction);
+            }}
+          >
+            <FileText size={18} />
+            Протокол электронных торгов
+          </button>
         )}
         {footerMeta && mode !== 'journal' && <span className={styles.auctionCard__footerMeta}>{footerMeta}</span>}
 

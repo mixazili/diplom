@@ -5,6 +5,7 @@ import { citiesByRegion, regions } from '../../utils/location.js';
 import AuctionCard from '../auction/AuctionCard.jsx';
 import CustomSelect from '../ui/CustomSelect.jsx';
 import LoadingState from '../ui/LoadingState.jsx';
+import usePersistedState from '../../hooks/usePersistedState.js';
 import styles from './AuctionsPage.module.css';
 
 const statusGroups = [
@@ -51,6 +52,7 @@ const sortOptions = [
 
 const pageSizeOptions = [20, 40, 60];
 const defaultStatuses = ['application_waiting', 'applications_open'];
+const allStatuses = statusGroups.flatMap((group) => group.values);
 const defaultAuctionTypes = ['increase', 'decrease'];
 
 const toggleValue = (values, value) =>
@@ -74,6 +76,18 @@ const toggleRequiredGroupValues = (values, groupValues) => {
 };
 
 const formatMoneyInput = (value) => String(Math.round(Number(value || 0)));
+
+function FilterChoice({ selected, children, onClick }) {
+  return (
+    <button
+      className={`${styles.filterChoice} ${selected ? styles['filterChoice--selected'] : ''}`}
+      type="button"
+      onClick={onClick}
+    >
+      {children}
+    </button>
+  );
+}
 
 const getPaginationPages = (current, total) => {
   if (total <= 9) {
@@ -168,24 +182,27 @@ function AuctionsPage({
   search = '',
   timeOffsetMs = 0,
   onApplyAuction,
+  onClearSearch,
   onOpenAuction,
+  onOpenProtocolAuction,
   onPayDepositAuction,
-  onPayLotAuction
+  onPayLotAuction,
+  onToggleFavoriteAuction
 }) {
   const [auctions, setAuctions] = useState([]);
   const [status, setStatus] = useState('idle');
   const [message, setMessage] = useState('');
   const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(20);
-  const [sort, setSort] = useState('newest');
-  const [selectedStatuses, setSelectedStatuses] = useState(defaultStatuses);
-  const [selectedAuctionTypes, setSelectedAuctionTypes] = useState(defaultAuctionTypes);
+  const [page, setPage] = usePersistedState('auction.catalog.page', 1);
+  const [limit, setLimit] = usePersistedState('auction.catalog.limit', 20);
+  const [sort, setSort] = usePersistedState('auction.catalog.sort', 'newest');
+  const [selectedStatuses, setSelectedStatuses] = usePersistedState('auction.catalog.statuses', search.trim() ? allStatuses : defaultStatuses);
+  const [selectedAuctionTypes, setSelectedAuctionTypes] = usePersistedState('auction.catalog.auctionTypes', defaultAuctionTypes);
   const [priceBounds, setPriceBounds] = useState({ min: 0, max: 0 });
   const [priceRange, setPriceRange] = useState(null);
-  const [region, setRegion] = useState('');
-  const [city, setCity] = useState('');
-  const [personalFilter, setPersonalFilter] = useState('');
+  const [region, setRegion] = usePersistedState('auction.catalog.region', '');
+  const [city, setCity] = usePersistedState('auction.catalog.city', '');
+  const [personalFilter, setPersonalFilter] = usePersistedState('auction.catalog.personalFilter', '');
   const isVerified = user?.verificationStatus === 'approved';
   const regionOptions = useMemo(() => [{ value: '', label: 'Все области' }, ...regions.map(([value, label]) => ({ value, label }))], []);
   const cityOptions = useMemo(
@@ -198,8 +215,12 @@ function AuctionsPage({
   }, [categories.join('|'), search, selectedStatuses.join('|'), selectedAuctionTypes.join('|'), sort, limit, personalFilter, region, city, priceRange?.min, priceRange?.max]);
 
   useEffect(() => {
-    setPriceRange(null);
-  }, [categories.join('|'), search, selectedStatuses.join('|'), selectedAuctionTypes.join('|'), personalFilter, region, city]);
+    if (search.trim()) {
+      setSelectedStatuses(allStatuses);
+    } else if (!Array.isArray(selectedStatuses) || selectedStatuses.length === 0) {
+      setSelectedStatuses(defaultStatuses);
+    }
+  }, [search]);
 
   useEffect(() => {
     if (selectedStatuses.length === 0 || selectedAuctionTypes.length === 0) {
@@ -245,6 +266,10 @@ function AuctionsPage({
       params.set('onlyParticipating', 'true');
     }
 
+    if (personalFilter === 'won') {
+      params.set('onlyWon', 'true');
+    }
+
     setStatus('loading');
     apiRequest(`/auctions?${params.toString()}`, {
       headers: accessToken ? authHeader(accessToken) : undefined
@@ -279,13 +304,18 @@ function AuctionsPage({
 
   const filteredAuctions = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
+    const normalizedAuctionSearch = normalizedSearch
+      .replace(/^(?:аукцион|лот)\s*№?\s*/i, '')
+      .replace(/^№\s*/i, '')
+      .trim();
 
     if (!normalizedSearch) {
       return auctions;
     }
 
     return auctions.filter((auction) =>
-      `${auction.item?.title || ''} ${auction.item?.locationAddress || ''}`.toLowerCase().includes(normalizedSearch)
+      `${auction.item?.title || ''}`.toLowerCase().includes(normalizedSearch) ||
+      `${auction.auctionNumber || ''}`.toLowerCase().includes(normalizedAuctionSearch || normalizedSearch)
     );
   }, [auctions, search]);
 
@@ -322,6 +352,16 @@ function AuctionsPage({
         <h1>{categoryLabel}</h1>
       </header>
 
+      {search.trim() && (
+        <section className={styles.catalogSearchBanner}>
+          <div>
+            <span>Результат поиска</span>
+            <strong>{search.trim()}</strong>
+          </div>
+          <button type="button" onClick={onClearSearch} aria-label="Очистить поиск">×</button>
+        </section>
+      )}
+
       <div className={styles.catalogLayout}>
         <aside className={styles.catalogFilters}>
           <FilterGroup title="Статус аукциона">
@@ -330,24 +370,19 @@ function AuctionsPage({
 
               return (
                 <div className={styles.catalogFilterNested} key={group.label}>
-                  <label className={`${styles.checkRow} ${styles.filterChoice}`}>
-                    <input
-                      checked={selectedCount === group.values.length}
-                      type="checkbox"
-                      onChange={() => updateStatusGroup(group.values)}
-                    />
+                  <FilterChoice selected={selectedCount > 0} onClick={() => updateStatusGroup(group.values)}>
                     <span>{group.label}</span>
-                  </label>
+                    {selectedCount > 0 && <small>{selectedCount}/{group.values.length}</small>}
+                  </FilterChoice>
                   <div className={styles.catalogFilterNested__items}>
                     {group.options.map(([value, label]) => (
-                      <label className={`${styles.checkRow} ${styles.filterChoice}`} key={value}>
-                        <input
-                          checked={selectedStatuses.includes(value)}
-                          type="checkbox"
-                          onChange={() => setSelectedStatuses((current) => toggleRequiredValue(current, value))}
-                        />
-                        <span>{label}</span>
-                      </label>
+                      <FilterChoice
+                        key={value}
+                        selected={selectedStatuses.includes(value)}
+                        onClick={() => setSelectedStatuses((current) => toggleRequiredValue(current, value))}
+                      >
+                        {label}
+                      </FilterChoice>
                     ))}
                   </div>
                 </div>
@@ -357,14 +392,13 @@ function AuctionsPage({
 
           <FilterGroup title="Тип аукциона">
             {auctionTypes.map(([value, label]) => (
-              <label className={`${styles.checkRow} ${styles.filterChoice}`} key={value}>
-                <input
-                  checked={selectedAuctionTypes.includes(value)}
-                  type="checkbox"
-                  onChange={() => setSelectedAuctionTypes((current) => toggleRequiredValue(current, value))}
-                />
-                <span>{label}</span>
-              </label>
+              <FilterChoice
+                key={value}
+                selected={selectedAuctionTypes.includes(value)}
+                onClick={() => setSelectedAuctionTypes((current) => toggleRequiredValue(current, value))}
+              >
+                {label}
+              </FilterChoice>
             ))}
           </FilterGroup>
 
@@ -391,22 +425,15 @@ function AuctionsPage({
           </FilterGroup>
 
           <FilterGroup title="Мои фильтры">
-            <label className={`${styles.checkRow} ${styles.filterChoice}`}>
-              <input
-                checked={personalFilter === 'participating'}
-                type="checkbox"
-                onChange={() => updatePersonalFilter('participating')}
-              />
-              <span>Я участвую в торгах</span>
-            </label>
-            <label className={`${styles.checkRow} ${styles.filterChoice}`}>
-              <input
-                checked={personalFilter === 'own'}
-                type="checkbox"
-                onChange={() => updatePersonalFilter('own')}
-              />
-              <span>Только мои аукционы</span>
-            </label>
+            <FilterChoice selected={personalFilter === 'participating'} onClick={() => updatePersonalFilter('participating')}>
+              Я участник торгов
+            </FilterChoice>
+            <FilterChoice selected={personalFilter === 'won'} onClick={() => updatePersonalFilter('won')}>
+              Я победил в торгах
+            </FilterChoice>
+            <FilterChoice selected={personalFilter === 'own'} onClick={() => updatePersonalFilter('own')}>
+              Только мои аукционы
+            </FilterChoice>
           </FilterGroup>
 
           <button className={`${styles.buttonSecondary} ${styles.catalogResetButton}`} type="button" onClick={resetFilters}>
@@ -421,21 +448,21 @@ function AuctionsPage({
               <CustomSelect value={sort} options={sortOptions.map(([value, label]) => ({ value, label }))} onChange={setSort} />
             </label>
             <label>
-              <span>Лотов на странице</span>
+              <span>Аукционов на странице</span>
               <CustomSelect value={limit} options={pageSizeOptions.map((value) => ({ value, label: String(value) }))} onChange={(value) => setLimit(Number(value))} />
             </label>
           </div>
 
-          {status === 'loading' && <LoadingState text="Загрузка лотов" />}
+          {status === 'loading' && <LoadingState text="Загрузка аукционов" />}
           {status === 'failed' && <p className={styles.message__error}>{message}</p>}
           {status !== 'loading' && filteredAuctions.length === 0 && (
             <section className={styles.emptyState}>
-              <h2>Лоты не найдены</h2>
+              <h2>Аукционы не найдены</h2>
               <p>Попробуйте изменить фильтры или поисковый запрос.</p>
             </section>
           )}
           {filteredAuctions.length > 0 && (
-            <div className={styles.lotGrid}>
+            <div className={styles.auctionGrid}>
               {filteredAuctions.map((auction) => (
                 <AuctionCard
                   auction={auction}
@@ -449,6 +476,8 @@ function AuctionsPage({
                   onOpen={() => onOpenAuction(auction.id)}
                   onPayDeposit={onPayDepositAuction}
                   onPayLot={onPayLotAuction}
+                  onOpenProtocol={onOpenProtocolAuction}
+                  onToggleFavorite={onToggleFavoriteAuction}
                 />
               ))}
             </div>

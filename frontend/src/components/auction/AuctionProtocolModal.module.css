@@ -1,0 +1,119 @@
+.protocolModalBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 260;
+  display: grid;
+  place-items: center;
+  background: rgba(15, 23, 42, 0.52);
+  padding: 22px;
+}
+
+.protocolModal {
+  display: grid;
+  width: min(1120px, 100%);
+  max-height: min(92vh, 940px);
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--color-surface);
+  box-shadow: 0 28px 72px rgba(15, 23, 42, 0.28);
+}
+
+.protocolModal__header {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--color-border);
+  padding: 18px 20px;
+}
+
+.protocolModal__header span {
+  color: var(--color-accent);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.protocolModal__header h2 {
+  margin: 4px 0 0;
+  color: var(--color-heading);
+  font-size: 22px;
+}
+
+.protocolModal__actions {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.protocolModal__download,
+.protocolModal__close {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-heading);
+  padding: 9px 12px;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.protocolModal__download:hover,
+.protocolModal__close:hover {
+  border-color: rgba(185, 28, 28, 0.34);
+  color: var(--color-accent);
+}
+
+.protocolModal__close {
+  width: 40px;
+  padding: 0;
+}
+
+.protocolModal__body {
+  min-height: 0;
+  background: var(--color-background);
+  padding: 14px;
+}
+
+.protocolModal__frame {
+  width: 100%;
+  height: 76vh;
+  min-height: 520px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.protocolModal__error {
+  margin: 0;
+  color: var(--color-danger);
+  font-weight: 700;
+}
+
+@media (max-width: 720px) {
+  .protocolModalBackdrop {
+    padding: 10px;
+  }
+
+  .protocolModal__header {
+    display: grid;
+  }
+
+  .protocolModal__actions {
+    justify-content: space-between;
+  }
+
+  .protocolModal__frame {
+    height: 70vh;
+    min-height: 420px;
+  }
+}

@@ -117,7 +117,7 @@ export function CabinetFilterPanel({ children, sort, onSortChange, limit, onLimi
           <CustomSelect value={sort} options={sortOptions} onChange={onSortChange} />
         </label>
         <label>
-          <span>Лотов на странице</span>
+          <span>Аукционов на странице</span>
           <CustomSelect
             value={limit}
             options={pageSizeOptions.map((value) => ({ value, label: String(value) }))}

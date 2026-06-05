@@ -32,7 +32,7 @@ const createUser = async (overrides = {}) =>
 const createAuction = async ({ owner, status = 'applications_open', now = new Date(), overrides = {} } = {}) =>
   Auction.create({
     owner,
-    lotNumber: overrides.lotNumber || `${now.getFullYear()}-${Math.floor(Math.random() * 900000 + 100000)}`,
+    auctionNumber: overrides.auctionNumber || `${now.getFullYear()}-${Math.floor(Math.random() * 900000 + 100000)}`,
     status,
     pricing: {
       auctionType: 'increase',
@@ -56,7 +56,7 @@ const createAuction = async ({ owner, status = 'applications_open', now = new Da
       ...(overrides.schedule || {})
     },
     item: {
-      title: overrides.title || 'Тестовый лот',
+      title: overrides.title || 'Тестовый предмет торгов',
       category: 'electronics',
       characteristics: [{ name: 'Состояние', value: 'новое' }],
       locationAddress: 'г. Минск, ул. Калиновского, 79',
@@ -281,7 +281,7 @@ describe('auction participation flow', () => {
       status: 'bidding_active',
       now,
       overrides: {
-        lotNumber: '2026-100001',
+        auctionNumber: '2026-100001',
         schedule: {
           applicationEndAt: new Date(now.getTime() - 4 * hourMs),
           biddingStartAt: new Date(now.getTime() - 3 * hourMs),
@@ -294,7 +294,7 @@ describe('auction participation flow', () => {
       status: 'bidding_active',
       now,
       overrides: {
-        lotNumber: '2026-100002',
+        auctionNumber: '2026-100002',
         schedule: {
           applicationEndAt: new Date(now.getTime() - 4 * hourMs),
           biddingStartAt: new Date(now.getTime() - 3 * hourMs),

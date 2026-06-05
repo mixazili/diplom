@@ -9,26 +9,27 @@ import {
   toggleRequiredValue
 } from './CabinetAuctionControls.jsx';
 import LoadingState from '../../ui/LoadingState.jsx';
+import usePersistedState from '../../../hooks/usePersistedState.js';
 import styles from './MyParticipations.module.css';
 
 const paymentFilters = [
-  ['unpaid', 'Лот не оплачен'],
-  ['paid', 'Лот оплачен']
+  ['unpaid', 'Предмет торгов не оплачен'],
+  ['paid', 'Предмет торгов оплачен']
 ];
 
 const defaultPaymentFilters = ['unpaid', 'paid'];
 
 const getAuctionDate = (item) => new Date(item.auction?.reviewedAt || item.auction?.updatedAt || item.auction?.createdAt || 0).getTime();
 
-function MyWins({ actionVersion = 0, onOpenAuction, onPayLotAuction, timeOffsetMs = 0 }) {
+function MyWins({ actionVersion = 0, onOpenAuction, onOpenProtocolAuction, onPayLotAuction, onToggleFavoriteAuction, timeOffsetMs = 0 }) {
   const { accessToken, user } = useSelector((state) => state.auth);
   const [items, setItems] = useState([]);
   const [status, setStatus] = useState('idle');
   const [message, setMessage] = useState('');
-  const [selectedPaymentFilters, setSelectedPaymentFilters] = useState(defaultPaymentFilters);
-  const [sort, setSort] = useState('newest');
-  const [limit, setLimit] = useState(20);
-  const [page, setPage] = useState(1);
+  const [selectedPaymentFilters, setSelectedPaymentFilters] = usePersistedState('auction.cabinet.wins.paymentFilters', defaultPaymentFilters);
+  const [sort, setSort] = usePersistedState('auction.cabinet.wins.sort', 'newest');
+  const [limit, setLimit] = usePersistedState('auction.cabinet.wins.limit', 20);
+  const [page, setPage] = usePersistedState('auction.cabinet.wins.page', 1);
 
   const load = (silent = false) => {
     if (!accessToken) {
@@ -89,7 +90,7 @@ function MyWins({ actionVersion = 0, onOpenAuction, onPayLotAuction, timeOffsetM
       {status === 'loading' && <LoadingState text="Загрузка побед" />}
       {status !== 'loading' && filteredItems.length === 0 && <p className={styles.panel__text}>Побед в выбранных статусах оплаты пока нет.</p>}
 
-      <div className={styles.lotGrid}>
+      <div className={styles.auctionGrid}>
         {visibleItems.map((item) => (
           <AuctionCard
             key={`${item.auction.id}-${item.participantNumber || item.status}`}
@@ -99,8 +100,10 @@ function MyWins({ actionVersion = 0, onOpenAuction, onPayLotAuction, timeOffsetM
             mode="public"
             timeOffsetMs={timeOffsetMs}
             onOpen={() => onOpenAuction?.(item.auction.id)}
+            onOpenProtocol={onOpenProtocolAuction}
             participant={item}
             onPayLot={onPayLotAuction}
+            onToggleFavorite={onToggleFavoriteAuction}
           />
         ))}
       </div>

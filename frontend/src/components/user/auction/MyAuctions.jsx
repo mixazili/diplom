@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import AuctionCard from '../../auction/AuctionCard.jsx';
 import { deleteAuction, fetchMyAuctions, returnAuctionToDraft } from '../../../features/auction/auctionSlice.js';
@@ -8,6 +8,7 @@ import {
   Pagination
 } from './CabinetAuctionControls.jsx';
 import LoadingState from '../../ui/LoadingState.jsx';
+import usePersistedState from '../../../hooks/usePersistedState.js';
 import styles from './MyAuctions.module.css';
 
 const statusGroups = [
@@ -62,14 +63,14 @@ const publicLikeStatuses = new Set([
 
 const getAuctionDate = (auction) => new Date(auction.reviewedAt || auction.updatedAt || auction.createdAt || 0).getTime();
 
-function MyAuctions({ canCreateLot, onCreate, onEdit, onOpenAuction, timeOffsetMs = 0 }) {
+function MyAuctions({ canCreateAuction, onCreate, onEdit, onOpenAuction, onOpenProtocolAuction, timeOffsetMs = 0 }) {
   const dispatch = useDispatch();
   const { accessToken } = useSelector((state) => state.auth);
   const { items, status, message } = useSelector((state) => state.auction);
-  const [selectedStatuses, setSelectedStatuses] = useState(defaultStatuses);
-  const [sort, setSort] = useState('newest');
-  const [limit, setLimit] = useState(20);
-  const [page, setPage] = useState(1);
+  const [selectedStatuses, setSelectedStatuses] = usePersistedState('auction.cabinet.myAuctions.statuses', defaultStatuses);
+  const [sort, setSort] = usePersistedState('auction.cabinet.myAuctions.sort', 'newest');
+  const [limit, setLimit] = usePersistedState('auction.cabinet.myAuctions.limit', 20);
+  const [page, setPage] = usePersistedState('auction.cabinet.myAuctions.page', 1);
 
   useEffect(() => {
     if (!accessToken) {
@@ -102,7 +103,7 @@ function MyAuctions({ canCreateLot, onCreate, onEdit, onOpenAuction, timeOffsetM
   const safePage = Math.min(page, totalPages);
   const visibleItems = filteredItems.slice((safePage - 1) * limit, safePage * limit);
 
-  const removeLot = async (id) => {
+  const removeAuction = async (id) => {
     await dispatch(deleteAuction({ id, token: accessToken }));
   };
 
@@ -113,14 +114,14 @@ function MyAuctions({ canCreateLot, onCreate, onEdit, onOpenAuction, timeOffsetM
   return (
     <section className={styles.panel}>
       <div className={`${styles.panel__header} ${styles['panel__header--row']}`}>
-        <h1 className={styles.panel__title}>Мои лоты</h1>
-        <button className={`${styles.button} ${styles.panel__headerAction}`} type="button" onClick={onCreate} disabled={!canCreateLot}>
-          Создать лот
+        <h1 className={styles.panel__title}>Мои аукционы</h1>
+        <button className={`${styles.button} ${styles.panel__headerAction}`} type="button" onClick={onCreate} disabled={!canCreateAuction}>
+          Создать аукцион
         </button>
       </div>
 
-      <div className={styles.lotToolbar}>
-        {!canCreateLot && <p className={styles.message__error}>Создание лота доступно только после одобрения верификации.</p>}
+      <div className={styles.auctionToolbar}>
+        {!canCreateAuction && <p className={styles.message__error}>Создание аукциона доступно только после одобрения верификации.</p>}
       </div>
 
       <CabinetFilterPanel sort={sort} onSortChange={setSort} limit={limit} onLimitChange={setLimit}>
@@ -129,23 +130,24 @@ function MyAuctions({ canCreateLot, onCreate, onEdit, onOpenAuction, timeOffsetM
         ))}
       </CabinetFilterPanel>
 
-      {status === 'loading' && items.length === 0 && <LoadingState text="Загрузка лотов" />}
+      {status === 'loading' && items.length === 0 && <LoadingState text="Загрузка аукционов" />}
       {status === 'failed' && <p className={styles.message__error}>{message}</p>}
       {status !== 'loading' && filteredItems.length === 0 && (
-        <p className={styles.panel__text}>В выбранных статусах лотов пока нет.</p>
+        <p className={styles.panel__text}>В выбранных статусах аукционов пока нет.</p>
       )}
 
-      <div className={styles.lotGrid}>
+      <div className={styles.auctionGrid}>
         {visibleItems.map((auction) => (
           <AuctionCard
             auction={auction}
-            isVerified={canCreateLot}
+            isVerified={canCreateAuction}
             key={auction.id}
             mode="owner"
             timeOffsetMs={timeOffsetMs}
-            onDelete={removeLot}
+            onDelete={removeAuction}
             onEdit={onEdit}
             onOpen={publicLikeStatuses.has(auction.status) ? () => onOpenAuction?.(auction.id) : undefined}
+            onOpenProtocol={onOpenProtocolAuction}
             onReturnToDraft={moveToDraft}
           />
         ))}

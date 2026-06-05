@@ -202,11 +202,11 @@ select.field__control:disabled {
   gap: 16px;
 }
 
-.lotCreatePanel {
+.auctionCreatePanel {
   padding: 34px;
 }
 
-.lotCreatePanel .panel__header {
+.auctionCreatePanel .panel__header {
   max-width: 760px;
 }
 

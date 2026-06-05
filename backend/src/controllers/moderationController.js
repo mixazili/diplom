@@ -108,15 +108,15 @@ const listMyReviews = asyncHandler(async (req, res) => {
 
 const populateAuction = (query) => query.populate('owner').populate('reviewedBy');
 
-const generateLotNumber = async () => {
+const generateAuctionNumber = async () => {
   const year = new Date().getFullYear();
-  const key = `lot-number:${year}`;
+  const key = `auction-number:${year}`;
   const matcher = new RegExp(`^(?:LOT-)?${year}-(\\d+)$`);
   const existingNumbers = await Auction.find({
-    lotNumber: { $regex: matcher }
-  }).select('lotNumber').lean();
+    auctionNumber: { $regex: matcher }
+  }).select('auctionNumber').lean();
   const maxExisting = existingNumbers.reduce((max, auction) => {
-    const match = String(auction.lotNumber || '').match(matcher);
+    const match = String(auction.auctionNumber || '').match(matcher);
     const value = match ? Number(match[1]) : 0;
     return Number.isFinite(value) ? Math.max(max, value) : max;
   }, 0);
@@ -153,7 +153,7 @@ const getAuctionDetails = asyncHandler(async (req, res) => {
 
   if (!auction) {
     res.status(404);
-    return res.json({ message: 'Лот не найден' });
+    return res.json({ message: 'Аукцион не найден' });
   }
 
   res.json({ auction: formatAuction(auction) });
@@ -171,25 +171,25 @@ const createAuctionReview = async ({ auction, moderator, action, comment }) => {
     let saved = false;
 
     for (let attempt = 0; attempt < 20 && !saved; attempt += 1) {
-      auction.lotNumber = await generateLotNumber();
+      auction.auctionNumber = await generateAuctionNumber();
 
       try {
         await auction.save();
         saved = true;
       } catch (error) {
-        if (error?.code !== 11000 || !String(error.message || '').includes('lotNumber')) {
+        if (error?.code !== 11000 || !String(error.message || '').includes('auctionNumber')) {
           throw error;
         }
 
-        auction.lotNumber = undefined;
+        auction.auctionNumber = undefined;
       }
     }
 
     if (!saved) {
-      throw new Error('Не удалось выдать уникальный номер лота');
+      throw new Error('Не удалось выдать уникальный номер аукциона');
     }
   } else {
-    auction.lotNumber = undefined;
+    auction.auctionNumber = undefined;
     await auction.save();
   }
 
@@ -209,12 +209,12 @@ const reviewAuction = (action) =>
 
     if (!auction) {
       res.status(404);
-      return res.json({ message: 'Лот не найден' });
+      return res.json({ message: 'Аукцион не найден' });
     }
 
     if (auction.status !== 'pending') {
       res.status(400);
-      return res.json({ message: 'Лот уже рассмотрен или не ожидает проверки' });
+      return res.json({ message: 'Аукцион уже рассмотрен или не ожидает проверки' });
     }
 
     const comment = String(req.body.comment || '').trim();
@@ -240,7 +240,7 @@ const reviewAuction = (action) =>
       });
 
     res.json({
-      message: action === 'approved' ? 'Лот одобрен' : 'Лот возвращен на доработку',
+      message: action === 'approved' ? 'Аукцион одобрен' : 'Аукцион возвращен на доработку',
       review: formatAuctionReview(populatedReview)
     });
   });

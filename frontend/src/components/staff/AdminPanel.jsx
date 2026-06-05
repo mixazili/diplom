@@ -13,7 +13,7 @@ const isDevBuild = import.meta.env.DEV;
 const menuItems = [
   ['moderators', 'Модераторы'],
   ['verificationReviews', 'Журнал верификаций'],
-  ['auctionReviews', 'Журнал лотов'],
+  ['auctionReviews', 'Журнал аукционов'],
   ...(isDevBuild ? [['devTime', 'Dev-время']] : [])
 ];
 
@@ -178,7 +178,7 @@ function AdminPanel() {
         <div>
           <h2 className={styles.sectionTitle}>Виртуальное время</h2>
           <p className={styles.panel__text}>
-            Инструмент доступен только в dev-сборке. После изменения времени backend сразу пересчитывает статусы лотов и просроченные заявки.
+            Инструмент доступен только в dev-сборке. После изменения времени backend сразу пересчитывает статусы аукционов и просроченные заявки.
           </p>
         </div>
 
@@ -236,7 +236,7 @@ function AdminPanel() {
     }
 
     if (activeSection === 'auctionReviews') {
-      return <AuctionReviewList reviews={auctionReviews} title="Журнал решений всех модераторов по лотам" />;
+      return <AuctionReviewList reviews={auctionReviews} title="Журнал решений всех модераторов по аукционам" />;
     }
 
     if (activeSection === 'devTime' && isDevBuild) {
@@ -270,7 +270,7 @@ function AdminPanel() {
           <div>
             <p className={styles.summary__label}>Панель администратора</p>
             <h2 className={styles.summary__title}>{user.email}</h2>
-            <p className={styles.summary__text}>Управление модераторами и общий журнал решений по верификациям и лотам.</p>
+            <p className={styles.summary__text}>Управление модераторами и общий журнал решений по верификациям и аукционам.</p>
           </div>
         </section>
 

@@ -237,6 +237,37 @@
   backdrop-filter: none;
 }
 
+.protocolButton {
+  display: inline-flex;
+  width: 100%;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+  color: var(--color-heading);
+  padding: 10px 14px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.protocolButton svg {
+  color: var(--color-accent);
+}
+
+.protocolButton:hover {
+  border-color: rgba(185, 28, 28, 0.34);
+  color: var(--color-accent);
+}
+
+.auctionCard__like--active {
+  color: var(--color-accent);
+  filter: drop-shadow(0 2px 4px rgba(255, 255, 255, 0.42));
+}
+
 .auctionCard__views {
   right: 10px;
   bottom: 10px;
@@ -263,14 +294,14 @@
   -webkit-line-clamp: 2;
 }
 
-.auctionCard__lotNumber,
+.auctionCard__auctionNumber,
 .auctionCard__footerMeta {
   color: var(--color-muted);
   font-size: 12px;
   font-weight: 700;
 }
 
-.auctionCard__lotNumber {
+.auctionCard__auctionNumber {
   text-transform: uppercase;
 }
 
@@ -445,7 +476,7 @@
   padding-top: 10px;
 }
 
-.lotCard__comment {
+.auctionCard__comment {
   display: grid;
   gap: 4px;
   border-left: 4px solid var(--color-danger);
@@ -454,7 +485,7 @@
   padding: 10px 12px;
 }
 
-.lotCard__comment p {
+.auctionCard__comment p {
   display: -webkit-box;
   overflow: hidden;
   color: var(--color-text);

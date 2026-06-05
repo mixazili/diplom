@@ -80,6 +80,15 @@ const userSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       default: null
+    },
+    favoriteAuctions: {
+      type: [
+        {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'Auction'
+        }
+      ],
+      default: []
     }
   },
   { timestamps: true }

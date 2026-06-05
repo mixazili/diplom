@@ -123,7 +123,7 @@ describe('auction creation API', () => {
 
     expect(response.status).toBe(201);
     expect(response.body.auction.status).toBe('pending');
-    expect(response.body.auction.lotNumber).toBe(null);
+    expect(response.body.auction.auctionNumber).toBe(null);
     expect(response.body.auction.photos).toHaveLength(1);
     expect(response.body.auction.photos[0].isMain).toBe(true);
 
@@ -135,7 +135,7 @@ describe('auction creation API', () => {
     const user = await createApprovedUser({ email: 'multiple-drafts@example.com' });
     const token = createAccessToken(user);
     const firstPayload = { ...createValidPayload(), isDraft: true };
-    const secondPayload = { ...createValidPayload(), item: { ...createValidPayload().item, title: 'Второй лот' }, isDraft: true };
+    const secondPayload = { ...createValidPayload(), item: { ...createValidPayload().item, title: 'Второй предмет торгов' }, isDraft: true };
 
     const firstResponse = await request(app)
       .post('/api/auctions')
@@ -157,12 +157,12 @@ describe('auction creation API', () => {
 
     expect(firstResponse.status).toBe(201);
     expect(secondResponse.status).toBe(201);
-    expect(firstResponse.body.auction.lotNumber).toBe(null);
-    expect(secondResponse.body.auction.lotNumber).toBe(null);
+    expect(firstResponse.body.auction.auctionNumber).toBe(null);
+    expect(secondResponse.body.auction.auctionNumber).toBe(null);
 
     const savedAuctions = await Auction.find({ owner: user._id }).lean();
     expect(savedAuctions).toHaveLength(2);
-    expect(savedAuctions.every((auction) => !Object.prototype.hasOwnProperty.call(auction, 'lotNumber'))).toBe(true);
+    expect(savedAuctions.every((auction) => !Object.prototype.hasOwnProperty.call(auction, 'auctionNumber'))).toBe(true);
   });
 
   it('rejects auction creation for unverified user', async () => {
@@ -234,7 +234,7 @@ describe('auction creation API', () => {
 
     const savedAuction = await Auction.findById(createResponse.body.auction.id);
     expect(savedAuction.status).toBe('application_waiting');
-    expect(savedAuction.lotNumber).toMatch(/^\d{4}-\d{6}$/);
+    expect(savedAuction.auctionNumber).toMatch(/^\d{4}-\d{6}$/);
 
     const savedReview = await AuctionReview.findOne({ auction: savedAuction._id });
     expect(savedReview.auctionSnapshot.item.title).toBe(createValidPayload().item.title);

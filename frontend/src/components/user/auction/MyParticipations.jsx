@@ -9,6 +9,7 @@ import {
   Pagination
 } from './CabinetAuctionControls.jsx';
 import LoadingState from '../../ui/LoadingState.jsx';
+import usePersistedState from '../../../hooks/usePersistedState.js';
 import styles from './MyParticipations.module.css';
 
 const auctionFilters = [
@@ -46,19 +47,21 @@ function MyParticipations({
   actionVersion = 0,
   onApplyAuction,
   onOpenAuction,
+  onOpenProtocolAuction,
   onPayDepositAuction,
   onPayLotAuction,
+  onToggleFavoriteAuction,
   timeOffsetMs = 0
 }) {
   const { accessToken, user } = useSelector((state) => state.auth);
   const [items, setItems] = useState([]);
   const [status, setStatus] = useState('idle');
   const [message, setMessage] = useState('');
-  const [onlyUnapprovedApplications, setOnlyUnapprovedApplications] = useState(false);
-  const [selectedAuctionFilters, setSelectedAuctionFilters] = useState(defaultAuctionFilters);
-  const [sort, setSort] = useState('newest');
-  const [limit, setLimit] = useState(20);
-  const [page, setPage] = useState(1);
+  const [onlyUnapprovedApplications, setOnlyUnapprovedApplications] = usePersistedState('auction.cabinet.participations.onlyUnapproved', false);
+  const [selectedAuctionFilters, setSelectedAuctionFilters] = usePersistedState('auction.cabinet.participations.statuses', defaultAuctionFilters);
+  const [sort, setSort] = usePersistedState('auction.cabinet.participations.sort', 'newest');
+  const [limit, setLimit] = usePersistedState('auction.cabinet.participations.limit', 20);
+  const [page, setPage] = usePersistedState('auction.cabinet.participations.page', 1);
 
   const load = (silent = false) => {
     if (!accessToken) {
@@ -147,7 +150,7 @@ function MyParticipations({
       {status === 'loading' && <LoadingState text="Загрузка заявок" />}
       {status !== 'loading' && filteredItems.length === 0 && <p className={styles.panel__text}>Подходящих заявок пока нет.</p>}
 
-      <div className={styles.lotGrid}>
+      <div className={styles.auctionGrid}>
         {visibleItems.map((item) => (
           <AuctionCard
             key={`${item.auction.id}-${item.participantNumber || item.status}`}
@@ -158,9 +161,11 @@ function MyParticipations({
             timeOffsetMs={timeOffsetMs}
             onApply={onApplyAuction}
             onOpen={() => onOpenAuction?.(item.auction.id)}
+            onOpenProtocol={onOpenProtocolAuction}
             participant={item}
             onPayDeposit={onPayDepositAuction}
             onPayLot={onPayLotAuction}
+            onToggleFavorite={onToggleFavoriteAuction}
           />
         ))}
       </div>

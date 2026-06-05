@@ -1,15 +1,32 @@
 .filterChoice {
+  display: inline-flex;
   width: 100%;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   border: 1px solid transparent;
   border-radius: 8px;
-  background: var(--color-background);
-  padding: 9px 10px;
+  background: #f4f5f7;
+  color: var(--color-heading);
+  padding: 8px 12px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
   cursor: pointer;
 }
 
-.filterChoice:hover {
-  border-color: rgba(185, 28, 28, 0.24);
-  background: var(--color-accent-muted);
+.filterChoice:focus-visible {
+  border-color: rgba(185, 28, 28, 0.28);
+  box-shadow: 0 0 0 3px var(--color-accent-soft);
+  outline: none;
+}
+
+.filterChoice--selected {
+  border-color: rgba(185, 28, 28, 0.28);
+  background: #fff4f4;
+  color: var(--color-accent);
 }
 
 .catalogPriceFilter__inputs span,
@@ -70,8 +87,6 @@
   width: 150px;
   min-height: 38px;
   align-items: center;
-  background: #f4f5f7;
-  color: var(--color-heading);
   padding: 7px 9px;
   font-size: 15px;
   font-weight: 700;
