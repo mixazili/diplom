@@ -287,7 +287,7 @@ const itemTemplates = [
     ]
   },
   {
-    category: 'clothes',
+    category: 'clothing',
     title: 'Партия спецодежды новая',
     address: 'г. Могилев, ул. Первомайская, д. 63',
     geoLocation: { lat: 53.8945, lng: 30.3307 },

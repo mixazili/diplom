@@ -229,7 +229,7 @@ function AuthPanel({ staffOnly = false, initialMode = 'register' }) {
               />
               <span>
                 Ознакомлен с{' '}
-                <a href="#" onClick={(event) => event.preventDefault()}>
+                <a href="/information/user-agreement">
                   Пользовательским соглашением интернет-сайта Auction.by
                 </a>{' '}
                 и согласен с обработкой информации о пользователе, в том числе персональных данных, а также их передачей,

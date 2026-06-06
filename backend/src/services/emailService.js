@@ -72,6 +72,14 @@ const createFallbackResult = ({ code, error }) => {
   };
 };
 
+const escapeHtml = (value) =>
+  String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
 const sendCodeEmail = async ({ email, code, subject, intro }) => {
   try {
     const transporter = await getTransporter();
@@ -166,9 +174,69 @@ const sendNotificationEmail = async ({ email, subject, title, body }) => {
   }
 };
 
+const sendSupportRequestEmail = async ({ to, name, email, subject, message }) => {
+  try {
+    const transporter = await getTransporter();
+    const normalizedSubject = subject || 'Обращение в службу поддержки Auction.by';
+    const safeName = escapeHtml(name);
+    const safeEmail = escapeHtml(email);
+    const safeSubject = escapeHtml(normalizedSubject);
+    const safeMessage = escapeHtml(message);
+    const text = [
+      `Имя: ${name}`,
+      `Email для ответа: ${email}`,
+      `Тема: ${normalizedSubject}`,
+      '',
+      message
+    ].join('\n');
+    const html = `
+      <div style="font-family: Arial, sans-serif; line-height: 1.5;">
+        <h2>Новое обращение в службу поддержки Auction.by</h2>
+        <p><strong>Имя:</strong> ${safeName}</p>
+        <p><strong>Email для ответа:</strong> ${safeEmail}</p>
+        <p><strong>Тема:</strong> ${safeSubject}</p>
+        <p style="white-space: pre-line;">${safeMessage}</p>
+      </div>
+    `;
+
+    const info = await transporter.sendMail({
+      from: config.mail.from,
+      to,
+      replyTo: email,
+      subject: `Auction.by: ${normalizedSubject}`,
+      text,
+      html
+    });
+    const previewUrl = nodemailer.getTestMessageUrl(info);
+
+    if (previewUrl) {
+      console.log(`Ethereal email preview: ${previewUrl}`);
+    }
+
+    return {
+      messageId: info.messageId,
+      previewUrl,
+      deliveryError: null
+    };
+  } catch (error) {
+    if (config.env !== 'production') {
+      transporterPromise = null;
+      console.warn(`Support email delivery failed: ${error.message}`);
+      return {
+        messageId: null,
+        previewUrl: null,
+        deliveryError: error.message
+      };
+    }
+
+    throw error;
+  }
+};
+
 module.exports = {
   sendEmailVerificationCode,
   sendStaffLoginCode: sendEmailVerificationCode,
   sendPasswordResetCode,
-  sendNotificationEmail
+  sendNotificationEmail,
+  sendSupportRequestEmail
 };

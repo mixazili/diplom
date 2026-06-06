@@ -3,16 +3,30 @@ import { Camera, Play, Send } from 'lucide-react';
 import styles from './Layout.module.css';
 
 const linkGroups = [
-  ['Информация', ['Как продать/купить?', 'Пользовательское соглашение', 'Политика обработки персональных данных', 'Оплата']],
-  ['Контакты', ['О компании', 'Связаться со службой поддержки']],
-  ['Аккаунт', ['Вход', 'Регистрация']]
+  ['Информация', [
+    ['Как продать/купить?', { name: 'static', options: { slug: 'howTo' } }],
+    ['Инструкция по участию в торгах', { name: 'static', options: { slug: 'biddingGuide' } }],
+    ['Инструкция по созданию аукциона', { name: 'static', options: { slug: 'sellerGuide' } }],
+    ['Пользовательское соглашение', { name: 'static', options: { slug: 'userAgreement' } }],
+    ['Политика обработки персональных данных', { name: 'static', options: { slug: 'privacyPolicy' } }],
+    ['Оплата', { name: 'static', options: { slug: 'payment' } }]
+  ]],
+  ['Контакты', [
+    ['О компании', { name: 'static', options: { slug: 'company' } }],
+    ['Контакты', { name: 'static', options: { slug: 'contacts' } }],
+    ['Связаться со службой поддержки', { name: 'static', options: { slug: 'support' } }]
+  ]],
+  ['Аккаунт', [
+    ['Вход', { authMode: 'login' }],
+    ['Регистрация', { authMode: 'register' }]
+  ]]
 ];
 
-function FooterLink({ children }) {
+function FooterLink({ children, onClick }) {
   return (
-    <a href="#" onClick={(event) => event.preventDefault()}>
+    <button type="button" onClick={onClick}>
       {children}
-    </a>
+    </button>
   );
 }
 
@@ -35,13 +49,11 @@ function SiteFooter({ onAuthMode, onNavigate }) {
         {linkGroups.map(([title, links]) => (
           <section key={title}>
             <h3>{title}</h3>
-            {links.map((link) => (
-              link === 'Вход' ? (
-                <button type="button" key={link} onClick={() => onAuthMode('login')}>Вход</button>
-              ) : link === 'Регистрация' ? (
-                <button type="button" key={link} onClick={() => onAuthMode('register')}>Регистрация</button>
+            {links.map(([label, target]) => (
+              target.authMode ? (
+                <button type="button" key={label} onClick={() => onAuthMode(target.authMode)}>{label}</button>
               ) : (
-                <FooterLink key={link}>{link}</FooterLink>
+                <FooterLink key={label} onClick={() => onNavigate(target.name, target.options)}>{label}</FooterLink>
               )
             ))}
           </section>
