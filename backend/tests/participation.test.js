@@ -172,7 +172,7 @@ describe('auction participation flow', () => {
 
     expect(savedAuction.status).toBe('bidding_waiting');
     expect(savedApplication.status).toBe('rejected');
-    expect(savedApplication.rejectionReason).toBe('Задаток не оплачен до окончания приема заявок');
+    expect(savedApplication.rejectionReason).toBe('Заявка аннулирована: задаток не оплачен до окончания приема заявок');
   });
 
   it('accepts bids only from paid participants and extends auction in final 10 minutes', async () => {
