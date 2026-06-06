@@ -882,7 +882,15 @@ function AuctionPage({
     socket.emit('auction:join', id);
     socket.on('auction:update', (payload) => {
       if (payload.auction) {
-        setAuction(payload.auction);
+        setAuction((current) => ({
+          ...payload.auction,
+          isFavorite: typeof payload.auction.isFavorite === 'boolean'
+            ? payload.auction.isFavorite
+            : current?.isFavorite
+        }));
+        if (typeof payload.auction.isFavorite === 'boolean') {
+          setIsFavorite(payload.auction.isFavorite);
+        }
       }
       if (Array.isArray(payload.bids)) {
         setBids(payload.bids);
@@ -897,7 +905,15 @@ function AuctionPage({
 
   const applyPayload = (data) => {
     if (data.auction) {
-      setAuction(data.auction);
+      setAuction((current) => ({
+        ...data.auction,
+        isFavorite: typeof data.auction.isFavorite === 'boolean'
+          ? data.auction.isFavorite
+          : current?.isFavorite
+      }));
+      if (typeof data.auction.isFavorite === 'boolean') {
+        setIsFavorite(data.auction.isFavorite);
+      }
     }
     if (data.viewer) {
       setViewer(data.viewer);

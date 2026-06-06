@@ -5,13 +5,16 @@ import { formatDateTime } from '../../utils/formatters.js';
 import AuctionCancellationList from './AuctionCancellationList.jsx';
 import AuctionReviewList from './AuctionReviewList.jsx';
 import ReviewList from './ReviewList.jsx';
+import StaffProfile from './StaffProfile.jsx';
 import { createStaffRequest } from './useStaffRequest.js';
 import LoadingState from '../ui/LoadingState.jsx';
+import PasswordInput from '../ui/PasswordInput.jsx';
 import styles from './AdminPanel.module.css';
 
 const isDevBuild = import.meta.env.DEV;
 
 const menuItems = [
+  ['profile', 'Профиль'],
   ['moderators', 'Модераторы'],
   ['verificationReviews', 'Журнал верификаций'],
   ['auctionReviews', 'Журнал аукционов'],
@@ -43,9 +46,9 @@ const offsetLabels = [
 
 function AdminPanel() {
   const dispatch = useDispatch();
-  const { accessToken, user } = useSelector((state) => state.auth);
+  const { accessToken } = useSelector((state) => state.auth);
   const staffRequest = useMemo(() => createStaffRequest(accessToken), [accessToken]);
-  const [activeSection, setActiveSection] = useState('moderators');
+  const [activeSection, setActiveSection] = useState('profile');
   const [moderators, setModerators] = useState([]);
   const [verificationReviews, setVerificationReviews] = useState([]);
   const [auctionReviews, setAuctionReviews] = useState([]);
@@ -151,9 +154,8 @@ function AdminPanel() {
           onChange={(event) => setModeratorForm((current) => ({ ...current, email: event.target.value }))}
           placeholder="email модератора"
         />
-        <input
+        <PasswordInput
           className={styles.field__control}
-          type="password"
           value={moderatorForm.password}
           onChange={(event) => setModeratorForm((current) => ({ ...current, password: event.target.value }))}
           placeholder="пароль от 8 символов"
@@ -236,6 +238,10 @@ function AdminPanel() {
   );
 
   const renderSection = () => {
+    if (activeSection === 'profile') {
+      return <StaffProfile roleLabel="Администратор" />;
+    }
+
     if (activeSection === 'verificationReviews') {
       return <ReviewList reviews={verificationReviews} title="Журнал решений всех модераторов по верификациям" />;
     }
@@ -275,14 +281,6 @@ function AdminPanel() {
       </aside>
 
       <div className={styles.cabinetMain}>
-        <section className={styles.summary}>
-          <div>
-            <p className={styles.summary__label}>Панель администратора</p>
-            <h2 className={styles.summary__title}>{user.email}</h2>
-            <p className={styles.summary__text}>Управление модераторами и общий журнал решений по верификациям и аукционам.</p>
-          </div>
-        </section>
-
         {message && <p className={styles.message__error}>{message}</p>}
         {loading ? <LoadingState text="Загрузка панели" /> : renderSection()}
       </div>

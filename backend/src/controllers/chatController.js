@@ -6,8 +6,9 @@ const ChatMessage = require('../models/ChatMessage');
 const Deposit = require('../models/Deposit');
 const asyncHandler = require('../utils/asyncHandler');
 const { ensureDealChatForAuction } = require('../services/chatService');
+const { emitCounters } = require('../services/notificationService');
 const { formatChat, formatChatMessage } = require('../utils/chatFormatters');
-const { emitChatMessage, emitChatRead } = require('../services/socketService');
+const { emitChatMessage, emitChatRead, emitUserChatIncoming } = require('../services/socketService');
 
 const removeUploadedFiles = (files = []) => {
   files.forEach((file) => {
@@ -80,6 +81,7 @@ const markMessagesRead = async (chat, userId) => {
     readerId: userId.toString(),
     messageIds
   });
+  await emitCounters(userId);
 
   return messageIds;
 };
@@ -181,6 +183,18 @@ const sendMessage = asyncHandler(async (req, res) => {
   };
 
   emitChatMessage(chat._id, payload);
+  await Promise.all(
+    chat.participants
+      .filter((participantId) => participantId.toString() !== req.user._id.toString())
+      .map(async (participantId) => {
+        emitUserChatIncoming(participantId, {
+          chatId: chat._id.toString(),
+          title: chat.auction?.item?.title || 'Чат сделки',
+          text: text || `Файлы: ${attachments.length}`
+        });
+        await emitCounters(participantId);
+      })
+  );
 
   res.status(201).json({
     chat: await formatChat(chat, {

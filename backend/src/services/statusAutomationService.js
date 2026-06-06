@@ -9,11 +9,18 @@ const VerificationReview = require('../models/VerificationReview');
 const { formatAuction } = require('../utils/auctionFormatters');
 const { ensureAuctionProtocol } = require('./auctionProtocolService');
 const { ensureDealChatForAuction } = require('./chatService');
+const {
+  createManyNotifications,
+  notifyAuctionFinished,
+  notifyAuctionReturned,
+  notifyVerificationReviewed
+} = require('./notificationService');
 const { getCurrentTime } = require('./timeService');
 
 const dayMs = 24 * 60 * 60 * 1000;
 const staleVerificationComment = 'Модератор не рассмотрел заявку в течение суток';
 const staleAuctionComment = 'Модератор не рассмотрел заявку в течение суток';
+const unpaidApplicationComment = 'Заявка аннулирована: задаток не оплачен до окончания приема заявок';
 
 const resolveNow = async (now) => now || getCurrentTime();
 
@@ -32,14 +39,34 @@ const updateAuctionStatuses = async (now = null) => {
 
   await Promise.all(
     auctionsWithClosedApplications.map(async (auction) => {
+      const unpaidApplications = await AuctionApplication.find({
+        auction: auction._id,
+        status: { $in: ['pending', 'deposit_required'] }
+      }).select('participant');
+
       await AuctionApplication.updateMany(
-        { auction: auction._id, status: 'deposit_required' },
+        { auction: auction._id, status: { $in: ['pending', 'deposit_required'] } },
         {
           $set: {
             status: 'rejected',
-            rejectionReason: 'Задаток не оплачен до окончания приема заявок'
+            participantNumber: null,
+            rejectionReason: unpaidApplicationComment,
+            lotPaymentStatus: 'not_required',
+            lotPaidAt: null
           }
         }
+      );
+
+      await createManyNotifications(
+        unpaidApplications.map((application) => ({
+          user: application.participant,
+          type: 'auction_application_annulled',
+          title: 'Заявка на участие аннулирована',
+          body: `Заявка на участие в аукционе «${auction.item?.title || 'Предмет торгов'}» аннулирована, потому что задаток не был оплачен до окончания приема заявок.`,
+          importance: 'important',
+          link: `/auction/${auction._id}`,
+          entity: { kind: 'auction', id: auction._id }
+        }))
       );
 
       auction.status = 'bidding_waiting';
@@ -73,6 +100,7 @@ const updateAuctionStatuses = async (now = null) => {
         auction.resultReason = 'Нет участников с оплаченным задатком';
         await auction.save();
         await ensureAuctionProtocol(auction);
+        await notifyAuctionFinished({ auction });
         return;
       }
 
@@ -81,6 +109,7 @@ const updateAuctionStatuses = async (now = null) => {
         auction.resultReason = 'За время торгов не было сделано ни одной ставки';
         await auction.save();
         await ensureAuctionProtocol(auction);
+        await notifyAuctionFinished({ auction });
         await Deposit.updateMany({ auction: auction._id, status: 'paid' }, { $set: { status: 'refunded' } });
         return;
       }
@@ -94,6 +123,7 @@ const updateAuctionStatuses = async (now = null) => {
       await auction.save();
       await ensureAuctionProtocol(auction);
       await ensureDealChatForAuction(auction);
+      await notifyAuctionFinished({ auction, latestBid });
 
       await AuctionApplication.updateOne(
         {
@@ -141,6 +171,12 @@ const expirePendingVerifications = async (now = null) => {
         action: 'rejected',
         comment: staleVerificationComment
       });
+      await notifyVerificationReviewed({
+        verification: request,
+        user: request.user,
+        action: 'rejected',
+        comment: staleVerificationComment
+      });
     })
   );
 };
@@ -175,6 +211,11 @@ const expirePendingAuctions = async (now = null) => {
         action: 'returned',
         comment: staleAuctionComment,
         auctionSnapshot: snapshot
+      });
+      await notifyAuctionReturned({
+        auction,
+        owner: auction.owner,
+        comment: staleAuctionComment
       });
     })
   );

@@ -1,5 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { io } from 'socket.io-client';
 import { useDispatch, useSelector } from 'react-redux';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import { refreshSession } from './features/auth/authSlice.js';
 import AdminPanel from './components/staff/AdminPanel.jsx';
 import ModeratorPanel from './components/staff/ModeratorPanel.jsx';
@@ -14,6 +17,7 @@ import AuctionActionModals from './components/auction/AuctionActionModals.jsx';
 import AuctionProtocolModal from './components/auction/AuctionProtocolModal.jsx';
 import { apiRequest, authHeader } from './api/client.js';
 import { auctionCategoryLabels } from './constants/auctionCategories.js';
+import { getSocketBaseUrl } from './utils/socket.js';
 import styles from './AppShell.module.css';
 
 let initialRefreshStarted = false;
@@ -99,6 +103,8 @@ function App() {
   const [clockTick, setClockTick] = useState(0);
   const [auctionBreadcrumb, setAuctionBreadcrumb] = useState(null);
   const [protocolAuction, setProtocolAuction] = useState(null);
+  const [counters, setCounters] = useState({ unreadNotifications: 0, unreadChatMessages: 0 });
+  const [notificationVersion, setNotificationVersion] = useState(0);
 
   useEffect(() => {
     if (refreshToken && !initialRefreshStarted) {
@@ -157,6 +163,56 @@ function App() {
     }
   }, [route.name, route.id]);
 
+  useEffect(() => {
+    if (!accessToken || !user) {
+      setCounters({ unreadNotifications: 0, unreadChatMessages: 0 });
+      return undefined;
+    }
+
+    let mounted = true;
+
+    apiRequest('/notifications/summary', { headers: authHeader(accessToken) })
+      .then((data) => {
+        if (mounted) {
+          setCounters(data.counters || { unreadNotifications: 0, unreadChatMessages: 0 });
+        }
+      })
+      .catch(() => {});
+
+    const socket = io(getSocketBaseUrl(), { auth: { token: accessToken } });
+
+    socket.on('notification:new', (payload) => {
+      if (payload.counters) {
+        setCounters(payload.counters);
+      }
+      if (payload.notification) {
+        setNotificationVersion((value) => value + 1);
+        const toastText = payload.notification.body
+          ? `${payload.notification.title}. ${payload.notification.body}`
+          : payload.notification.title;
+
+        if (payload.notification.importance === 'critical') {
+          toast.error(toastText);
+        } else {
+          toast.info(toastText);
+        }
+      }
+    });
+
+    socket.on('chat:incoming', (payload) => {
+      toast.info(payload?.text ? `Новое сообщение: ${payload.text}` : 'Новое сообщение в чате сделки');
+    });
+
+    socket.on('user:counters', (payload) => {
+      setCounters((current) => ({ ...current, ...(payload || {}) }));
+    });
+
+    return () => {
+      mounted = false;
+      socket.disconnect();
+    };
+  }, [accessToken, user?.id]);
+
   const navigate = (name, options = {}, replace = false) => {
     const nextRoute = { name, ...options };
     const path = pathForRoute(nextRoute);
@@ -193,13 +249,19 @@ function App() {
       return { isFavorite: Boolean(auction?.isFavorite) };
     }
 
-    const data = await apiRequest(`/auctions/${auction.id}/favorite`, {
-      method: 'POST',
-      headers: authHeader(accessToken),
-      body: JSON.stringify({})
-    });
-    setActionVersion((value) => value + 1);
-    return data;
+    try {
+      const data = await apiRequest(`/auctions/${auction.id}/favorite`, {
+        method: 'POST',
+        headers: authHeader(accessToken),
+        body: JSON.stringify({})
+      });
+      setActionVersion((value) => value + 1);
+      toast.success(data.isFavorite ? 'Аукцион добавлен в избранное' : 'Аукцион удален из избранного');
+      return data;
+    } catch (error) {
+      toast.error(error.message);
+      return { isFavorite: Boolean(auction?.isFavorite) };
+    }
   };
 
   const openCancelAuction = (auction) => {
@@ -259,15 +321,19 @@ function App() {
     setActionError('');
 
     try {
-      await apiRequest(path, {
+      const data = await apiRequest(path, {
         method: 'POST',
         headers: authHeader(accessToken),
         body: JSON.stringify(body || {})
       });
       setActionModal(null);
       setActionVersion((value) => value + 1);
+      if (data.message) {
+        toast.success(data.message);
+      }
     } catch (error) {
       setActionError(error.message);
+      toast.error(error.message);
     } finally {
       setActionLoading(false);
     }
@@ -312,6 +378,9 @@ function App() {
           onToggleFavoriteAuction={toggleFavoriteAuction}
           onCancelAuction={openCancelAuction}
           canCancelAuction={canStaffCancelAuctions}
+          counters={counters}
+          notificationVersion={notificationVersion}
+          onCountersChange={(nextCounters) => nextCounters && setCounters(nextCounters)}
         />
       );
     }
@@ -380,13 +449,14 @@ function App() {
         canCancelAuction={canStaffCancelAuctions}
       />
     );
-  }, [accessToken, actionVersion, clockTick, route, timeOffsetMs, user]);
+  }, [accessToken, actionVersion, clockTick, counters, notificationVersion, route, timeOffsetMs, user]);
 
   return (
     <main className={styles.app}>
       <SiteHeader
         activeCategories={route.name === 'auctions' ? route.categories || [] : []}
         breadcrumbs={breadcrumbs}
+        counters={counters}
         searchQuery={route.name === 'auctions' ? route.search || '' : ''}
         user={user}
         onAuthMode={openAuthMode}
@@ -403,11 +473,20 @@ function App() {
           setActionError('');
         }}
         onConfirmApply={() => runCardAction({ path: `/auctions/${actionModal.auction.id}/applications` })}
-        onConfirmCancel={() => runCardAction({ path: `/moderation/auctions/${actionModal.auction.id}/cancel` })}
+        onConfirmCancel={(comment) => runCardAction({ path: `/moderation/auctions/${actionModal.auction.id}/cancel`, body: { comment } })}
         onPayDeposit={(payload) => runCardAction({ path: `/auctions/${actionModal.auction.id}/deposit/pay`, body: payload })}
         onPayLot={(payload) => runCardAction({ path: `/auctions/${actionModal.auction.id}/lot/pay`, body: payload })}
       />
       <AuctionProtocolModal auction={protocolAuction} onClose={() => setProtocolAuction(null)} />
+      <ToastContainer
+        position="top-right"
+        autoClose={4200}
+        hideProgressBar
+        newestOnTop
+        closeOnClick
+        pauseOnFocusLoss={false}
+        theme="light"
+      />
     </main>
   );
 }

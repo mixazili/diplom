@@ -2,11 +2,13 @@ const Auction = require('../models/Auction');
 const AuctionApplication = require('../models/AuctionApplication');
 const Bid = require('../models/Bid');
 const Deposit = require('../models/Deposit');
+const User = require('../models/User');
 const asyncHandler = require('../utils/asyncHandler');
 const { formatAuction } = require('../utils/auctionFormatters');
 const { updateAuctionStatuses } = require('../services/statusAutomationService');
 const { ensureAuctionProtocol } = require('../services/auctionProtocolService');
 const { ensureDealChatForAuction } = require('../services/chatService');
+const { createNotification, notifyAuctionFinished } = require('../services/notificationService');
 const { getCurrentTime } = require('../services/timeService');
 const { emitAuctionUpdate } = require('../services/socketService');
 
@@ -59,12 +61,29 @@ const getAdmittedParticipantCount = (auctionId) =>
     participantNumber: { $ne: null }
   });
 
-const formatAuctionWithStats = async (auction) => ({
-  ...formatAuction(auction),
-  participantStats: {
-    admittedCount: await getAdmittedParticipantCount(auction._id)
+const getFavoriteSet = async (userId) => {
+  if (!userId) {
+    return new Set();
   }
-});
+
+  const user = await User.findById(userId).select('favoriteAuctions');
+  return new Set((user?.favoriteAuctions || []).map((id) => id.toString()));
+};
+
+const formatAuctionWithStats = async (auction, { favoriteSet = null } = {}) => {
+  const formattedAuction = {
+    ...formatAuction(auction),
+    participantStats: {
+      admittedCount: await getAdmittedParticipantCount(auction._id)
+    }
+  };
+
+  if (favoriteSet) {
+    formattedAuction.isFavorite = favoriteSet.has(auction._id.toString());
+  }
+
+  return formattedAuction;
+};
 
 const getAuctionForParticipation = async (auctionId) => {
   await updateAuctionStatuses();
@@ -115,15 +134,16 @@ const getCurrentPrice = async (auction, now = new Date()) => {
 };
 
 const buildAuctionRealtimePayload = async (auctionId, userId = null) => {
-  const [auction, bids, application, deposit] = await Promise.all([
+  const [auction, bids, application, deposit, favoriteSet] = await Promise.all([
     Auction.findById(auctionId),
     listBids(auctionId),
     userId ? AuctionApplication.findOne({ auction: auctionId, participant: userId }) : null,
-    userId ? Deposit.findOne({ auction: auctionId, payer: userId }) : null
+    userId ? Deposit.findOne({ auction: auctionId, payer: userId }) : null,
+    getFavoriteSet(userId)
   ]);
 
   return {
-    auction: await formatAuctionWithStats(auction),
+    auction: await formatAuctionWithStats(auction, { favoriteSet }),
     bids,
     viewer: {
       isOwner: Boolean(userId && auction.owner?.toString() === userId.toString()),
@@ -190,6 +210,17 @@ const applyForAuction = asyncHandler(async (req, res) => {
   );
 
   const payload = await buildAuctionRealtimePayload(auction._id, req.user._id);
+  await createNotification({
+    user: req.user._id,
+    type: 'application_submitted',
+    title: 'Заявка на участие подана',
+    body: `Для участия в аукционе «${auction.item?.title || 'Предмет торгов'}» необходимо оплатить задаток.`,
+    importance: 'important',
+    link: `/auction/${auction._id}`,
+    entity: { kind: 'auction', id: auction._id },
+    email: true,
+    emailSubject: 'Auction.by: заявка на участие подана'
+  });
   res.status(201).json({ message: 'Заявка подана. Необходимо оплатить задаток', ...payload });
 });
 
@@ -242,6 +273,28 @@ const payDeposit = asyncHandler(async (req, res) => {
   );
 
   const payload = await buildAuctionRealtimePayload(auction._id, req.user._id);
+  await Promise.all([
+    createNotification({
+      user: req.user._id,
+      type: 'deposit_paid',
+      title: 'Задаток оплачен',
+      body: `Вы допущены к торгам по аукциону «${auction.item?.title || 'Предмет торгов'}». Номер участника: ${application.participantNumber}.`,
+      importance: 'important',
+      link: `/auction/${auction._id}`,
+      entity: { kind: 'auction', id: auction._id },
+      email: true,
+      emailSubject: 'Auction.by: задаток оплачен'
+    }),
+    createNotification({
+      user: auction.owner,
+      type: 'auction_participant_admitted',
+      title: 'Участник допущен к торгам',
+      body: `По аукциону «${auction.item?.title || 'Предмет торгов'}» оплачен задаток новым участником.`,
+      importance: 'important',
+      link: `/auction/${auction._id}`,
+      entity: { kind: 'auction', id: auction._id }
+    })
+  ]);
   res.json({ message: 'Задаток успешно оплачен', ...payload });
 });
 
@@ -318,6 +371,7 @@ const placeBid = asyncHandler(async (req, res) => {
     await auction.save();
     await ensureAuctionProtocol(auction);
     await ensureDealChatForAuction(auction);
+    await notifyAuctionFinished({ auction, latestBid: bid });
 
     application.lotPaymentStatus = 'pending';
     await application.save();
@@ -334,6 +388,19 @@ const placeBid = asyncHandler(async (req, res) => {
 
   await broadcastAuction(auction._id);
   const payload = await buildAuctionRealtimePayload(auction._id, req.user._id);
+  await createNotification({
+    user: req.user._id,
+    type: 'bid_accepted',
+    title: isDecrease ? 'Лот приобретен' : 'Ставка принята',
+    body: isDecrease
+      ? `Вы первым приняли цену ${acceptedAmount.toFixed(2)} BYN по аукциону «${auction.item?.title || 'Предмет торгов'}».`
+      : `Ваша ставка ${acceptedAmount.toFixed(2)} BYN принята.`,
+    importance: isDecrease ? 'critical' : 'normal',
+    link: `/auction/${auction._id}`,
+    entity: { kind: 'auction', id: auction._id },
+    email: isDecrease,
+    emailSubject: isDecrease ? 'Auction.by: вы приобрели лот' : undefined
+  });
   res.status(201).json({ message: 'Ставка принята', bid: formatBid(bid), ...payload });
 });
 
@@ -372,6 +439,28 @@ const payWonLot = asyncHandler(async (req, res) => {
   application.lotPaymentStatus = 'paid';
   application.lotPaidAt = await getCurrentTime();
   await application.save();
+  await Promise.all([
+    createNotification({
+      user: auction.owner,
+      type: 'lot_paid',
+      title: 'Победитель оплатил лот',
+      body: `Лот по аукциону «${auction.item?.title || 'Предмет торгов'}» оплачен победителем.`,
+      importance: 'critical',
+      link: `/auction/${auction._id}`,
+      entity: { kind: 'auction', id: auction._id },
+      email: true,
+      emailSubject: 'Auction.by: лот оплачен'
+    }),
+    createNotification({
+      user: req.user._id,
+      type: 'lot_payment_completed',
+      title: 'Лот оплачен',
+      body: `Оплата лота по аукциону «${auction.item?.title || 'Предмет торгов'}» успешно выполнена.`,
+      importance: 'important',
+      link: `/auction/${auction._id}`,
+      entity: { kind: 'auction', id: auction._id }
+    })
+  ]);
 
   const payload = await buildAuctionRealtimePayload(auction._id, req.user._id);
   await broadcastAuction(auction._id);
@@ -381,10 +470,13 @@ const payWonLot = asyncHandler(async (req, res) => {
 const listMyParticipations = asyncHandler(async (req, res) => {
   await updateAuctionStatuses();
 
-  const applications = await AuctionApplication.find({ participant: req.user._id })
-    .populate('auction')
-    .sort({ updatedAt: -1 });
-  const deposits = await Deposit.find({ payer: req.user._id });
+  const [applications, deposits, favoriteSet] = await Promise.all([
+    AuctionApplication.find({ participant: req.user._id })
+      .populate('auction')
+      .sort({ updatedAt: -1 }),
+    Deposit.find({ payer: req.user._id }),
+    getFavoriteSet(req.user._id)
+  ]);
   const depositByAuction = new Map(deposits.map((deposit) => [deposit.auction.toString(), deposit]));
 
   res.json({
@@ -396,7 +488,10 @@ const listMyParticipations = asyncHandler(async (req, res) => {
         const isWinner = application.auction.winnerParticipantNumber === application.participantNumber;
 
         return {
-          auction: formatAuction(application.auction),
+          auction: {
+            ...formatAuction(application.auction),
+            isFavorite: favoriteSet.has(auctionId)
+          },
           status: application.status,
           participantNumber: application.participantNumber,
           depositStatus: deposit?.status || null,

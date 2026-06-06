@@ -10,6 +10,7 @@ import {
   verifyEmail,
   verifyStaffLogin
 } from '../../features/auth/authSlice.js';
+import PasswordInput from '../ui/PasswordInput.jsx';
 import styles from './AuthPanel.module.css';
 
 const initialCredentials = {
@@ -22,18 +23,29 @@ const initialCredentials = {
 };
 
 function Field({ label, type = 'text', value, onChange, placeholder, error, required = false }) {
+  const controlClassName = `${styles.field__control} ${error ? styles['field__control--error'] : ''}`;
+
   return (
     <label className={styles.field}>
       <span className={styles.field__label}>
         {label}{required && <span className={styles.requiredMark}>*</span>}
       </span>
-      <input
-        className={`${styles.field__control} ${error ? styles['field__control--error'] : ''}`}
-        type={type}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder}
-      />
+      {type === 'password' ? (
+        <PasswordInput
+          className={controlClassName}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={placeholder}
+        />
+      ) : (
+        <input
+          className={controlClassName}
+          type={type}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={placeholder}
+        />
+      )}
       {error && <span className={styles.field__error}>{error}</span>}
     </label>
   );

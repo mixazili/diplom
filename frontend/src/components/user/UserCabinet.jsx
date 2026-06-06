@@ -6,9 +6,11 @@ import AuctionCreateForm from './auction/AuctionCreateForm.jsx';
 import MyAuctions from './auction/MyAuctions.jsx';
 import MyChats from './chat/MyChats.jsx';
 import MyFavorites from './auction/MyFavorites.jsx';
+import MyNotifications from './notifications/MyNotifications.jsx';
 import MyParticipations from './auction/MyParticipations.jsx';
 import MyWins from './auction/MyWins.jsx';
 import VerificationForm from './VerificationForm.jsx';
+import PasswordInput from '../ui/PasswordInput.jsx';
 import styles from './UserCabinet.module.css';
 
 const verificationStatus = {
@@ -58,7 +60,10 @@ function UserCabinet({
   onPayDepositAuction,
   onPayLotAuction,
   onOpenProtocolAuction,
-  onToggleFavoriteAuction
+  onToggleFavoriteAuction,
+  counters = {},
+  notificationVersion = 0,
+  onCountersChange
 }) {
   const dispatch = useDispatch();
   const { accessToken, user, status: authStatus, errors: authErrors } = useSelector((state) => state.auth);
@@ -166,9 +171,8 @@ function UserCabinet({
           <h2>Смена пароля</h2>
           <label className={styles.field}>
             <span className={styles.field__label}>Новый пароль<span className={styles.requiredMark}>*</span></span>
-            <input
+            <PasswordInput
               className={styles.field__control}
-              type="password"
               value={passwordForm.password}
               onChange={(event) => setPasswordForm((current) => ({ ...current, password: event.target.value }))}
               placeholder="Минимум 8 символов"
@@ -176,9 +180,8 @@ function UserCabinet({
           </label>
           <label className={styles.field}>
             <span className={styles.field__label}>Повторите новый пароль<span className={styles.requiredMark}>*</span></span>
-            <input
+            <PasswordInput
               className={styles.field__control}
-              type="password"
               value={passwordForm.passwordRepeat}
               onChange={(event) => setPasswordForm((current) => ({ ...current, passwordRepeat: event.target.value }))}
             />
@@ -268,6 +271,18 @@ function UserCabinet({
       onToggleFavoriteAuction={onToggleFavoriteAuction}
     />
   );
+  const renderNotifications = () => (
+    <MyNotifications
+      realtimeVersion={notificationVersion}
+      onCountersChange={onCountersChange}
+      onOpenAuction={onOpenAuction}
+    />
+  );
+
+  const renderBadge = (value) => {
+    const count = Number(value || 0);
+    return count > 0 ? <span className={styles.cabinetSidebar__badge}>{count > 99 ? '99+' : count}</span> : null;
+  };
 
   const renderVerificationForm = () => {
     if (!canShowVerificationForm) {
@@ -303,14 +318,16 @@ function UserCabinet({
           type="button"
           onClick={() => setActiveSection('notifications')}
         >
-          Уведомления
+          <span>Уведомления</span>
+          {renderBadge(counters.unreadNotifications)}
         </button>
         <button
           className={`${styles.cabinetSidebar__button} ${activeSection === 'chats' ? styles['cabinetSidebar__button--active'] : ''}`}
           type="button"
           onClick={() => setActiveSection('chats')}
         >
-          Чаты сделок
+          <span>Чаты сделок</span>
+          {renderBadge(counters.unreadChatMessages)}
         </button>
         <button
           className={`${styles.cabinetSidebar__button} ${['auctions', 'create-auction'].includes(activeSection) ? styles['cabinetSidebar__button--active'] : ''}`}
@@ -354,7 +371,7 @@ function UserCabinet({
         {activeSection === 'participations' && renderParticipations()}
         {activeSection === 'favorites' && renderFavorites()}
         {activeSection === 'wins' && renderWins()}
-        {activeSection === 'notifications' && null}
+        {activeSection === 'notifications' && renderNotifications()}
         {activeSection === 'chats' && renderChats()}
         {activeSection === 'create-auction' && renderCreateAuction()}
         {activeSection === 'verification-form' && renderVerificationForm()}

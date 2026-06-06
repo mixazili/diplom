@@ -107,7 +107,7 @@ export function FlatFilterChoice({ selected, children, onClick }) {
   );
 }
 
-export function CabinetFilterPanel({ children, sort, onSortChange, limit, onLimitChange }) {
+export function CabinetFilterPanel({ children, sort, onSortChange, limit, onLimitChange, itemLabel = 'Аукционов на странице' }) {
   return (
     <div className={styles.filterPanel}>
       <div className={styles.filterPanel__grid}>{children}</div>
@@ -117,7 +117,7 @@ export function CabinetFilterPanel({ children, sort, onSortChange, limit, onLimi
           <CustomSelect value={sort} options={sortOptions} onChange={onSortChange} />
         </label>
         <label>
-          <span>Аукционов на странице</span>
+          <span>{itemLabel}</span>
           <CustomSelect
             value={limit}
             options={pageSizeOptions.map((value) => ({ value, label: String(value) }))}

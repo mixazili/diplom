@@ -1,0 +1,128 @@
+.panel {
+  display: grid;
+  gap: 18px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  box-shadow: 0 16px 40px var(--color-shadow);
+  padding: 28px;
+}
+
+.panel__title {
+  margin: 0;
+  color: var(--color-heading);
+  font-size: 32px;
+  line-height: 1.2;
+}
+
+.profileStack {
+  display: grid;
+  gap: 14px;
+}
+
+.profileLine {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-background);
+  padding: 14px;
+}
+
+.profileLine span {
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+.profileLine strong {
+  overflow-wrap: anywhere;
+  color: var(--color-heading);
+  font-size: 18px;
+}
+
+.passwordForm {
+  display: grid;
+  max-width: 620px;
+  gap: 14px;
+  border-top: 1px solid var(--color-border);
+  padding-top: 24px;
+}
+
+.passwordForm h2 {
+  margin: 0;
+  color: var(--color-heading);
+  font-size: 22px;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+}
+
+.field__label {
+  color: var(--color-heading);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.field__control {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  padding: 10px 12px;
+  outline: none;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.field__control:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-soft);
+}
+
+.requiredMark,
+.message__error {
+  color: var(--color-danger);
+}
+
+.requiredMark {
+  margin-left: 2px;
+}
+
+.message__error {
+  margin: 0;
+  font-size: 13px;
+}
+
+.buttonSecondary {
+  justify-self: start;
+  min-height: 42px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+  color: var(--color-heading);
+  padding: 10px 18px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.buttonSecondary:hover:not(:disabled) {
+  border-color: rgba(185, 28, 28, 0.34);
+}
+
+.buttonSecondary:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+
+@media (max-width: 720px) {
+  .panel {
+    padding: 18px;
+  }
+
+  .panel__title {
+    font-size: 26px;
+  }
+}

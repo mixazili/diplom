@@ -14,6 +14,7 @@ const Chat = require('../src/models/Chat');
 const ChatMessage = require('../src/models/ChatMessage');
 const Counter = require('../src/models/Counter');
 const Deposit = require('../src/models/Deposit');
+const Notification = require('../src/models/Notification');
 const VerificationRequest = require('../src/models/VerificationRequest');
 const VerificationReview = require('../src/models/VerificationReview');
 
@@ -33,6 +34,7 @@ beforeEach(async () => {
   await ChatMessage.deleteMany({});
   await Counter.deleteMany({});
   await Deposit.deleteMany({});
+  await Notification.deleteMany({});
   await VerificationRequest.deleteMany({});
   await VerificationReview.deleteMany({});
   await User.deleteMany({});

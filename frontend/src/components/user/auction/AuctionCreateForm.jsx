@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Star, X } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
+import { toast } from 'react-toastify';
 import {
   ORGANIZATION_FEE_PERCENT,
   VAT_RATE,
@@ -661,7 +662,12 @@ function AuctionCreateForm({ verification, initialAuction = null, onSaved, onCan
     const result = await dispatch(action);
 
     if ((isEditing ? updateAuction.fulfilled : submitAuction.fulfilled).match(result)) {
+      if (result.payload?.message) {
+        toast.success(result.payload.message);
+      }
       onSaved?.(result.payload.auction);
+    } else {
+      toast.error(result.payload?.message || result.error?.message || 'Не удалось сохранить аукцион');
     }
   };
 

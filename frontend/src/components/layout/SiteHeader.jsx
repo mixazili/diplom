@@ -48,7 +48,15 @@ function Breadcrumbs({ items = [], onNavigate }) {
   );
 }
 
-function SiteHeader({ user, onNavigate, onAuthMode, activeCategories = [], searchQuery = '', breadcrumbs = [] }) {
+function SiteHeader({
+  user,
+  onNavigate,
+  onAuthMode,
+  activeCategories = [],
+  searchQuery = '',
+  breadcrumbs = [],
+  counters = {}
+}) {
   const [query, setQuery] = useState(searchQuery || '');
   const [suggestions, setSuggestions] = useState([]);
   const [suggestionStatus, setSuggestionStatus] = useState('idle');
@@ -153,6 +161,10 @@ function SiteHeader({ user, onNavigate, onAuthMode, activeCategories = [], searc
     title: auction.item?.title || 'Предмет торгов без названия',
     price: formatMoney(getAuctionPrice(auction))
   })), [suggestions]);
+  const renderBadge = (value) => {
+    const count = Number(value || 0);
+    return count > 0 ? <span className={styles.iconButton__badge}>{count > 99 ? '99+' : count}</span> : null;
+  };
 
   return (
     <header className={styles.siteHeader}>
@@ -226,8 +238,14 @@ function SiteHeader({ user, onNavigate, onAuthMode, activeCategories = [], searc
         <div className={styles.siteHeader__actions}>
           {isAuthenticated ? (
             <>
-              <button className={styles.iconButton} type="button" aria-label="Уведомления">
+              <button
+                className={styles.iconButton}
+                type="button"
+                aria-label="Уведомления"
+                onClick={() => onNavigate(user?.role === 'user' ? 'cabinet' : 'staff', user?.role === 'user' ? { section: 'notifications' } : {})}
+              >
                 <Bell size={20} />
+                {renderBadge(counters.unreadNotifications)}
               </button>
               <button
                 className={styles.iconButton}
@@ -236,6 +254,7 @@ function SiteHeader({ user, onNavigate, onAuthMode, activeCategories = [], searc
                 onClick={() => onNavigate(user?.role === 'user' ? 'cabinet' : 'staff', user?.role === 'user' ? { section: 'chats' } : {})}
               >
                 <MessageCircle size={20} />
+                {renderBadge(counters.unreadChatMessages)}
               </button>
               <button
                 className={styles.iconButton}

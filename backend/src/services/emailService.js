@@ -122,8 +122,53 @@ const sendPasswordResetCode = ({ email, code }) =>
     intro: 'Код восстановления доступа Auction.by'
   });
 
+const sendNotificationEmail = async ({ email, subject, title, body }) => {
+  try {
+    const transporter = await getTransporter();
+    const text = [title, body].filter(Boolean).join('\n\n');
+    const html = `
+      <div style="font-family: Arial, sans-serif; line-height: 1.5;">
+        <h2>${title}</h2>
+        ${body ? `<p>${body}</p>` : ''}
+      </div>
+    `;
+
+    const info = await transporter.sendMail({
+      from: config.mail.from,
+      to: email,
+      subject,
+      text,
+      html
+    });
+    const previewUrl = nodemailer.getTestMessageUrl(info);
+
+    if (previewUrl) {
+      console.log(`Ethereal email preview: ${previewUrl}`);
+    }
+
+    return {
+      messageId: info.messageId,
+      previewUrl,
+      deliveryError: null
+    };
+  } catch (error) {
+    if (config.env !== 'production') {
+      transporterPromise = null;
+      console.warn(`Notification email delivery failed: ${error.message}`);
+      return {
+        messageId: null,
+        previewUrl: null,
+        deliveryError: error.message
+      };
+    }
+
+    throw error;
+  }
+};
+
 module.exports = {
   sendEmailVerificationCode,
   sendStaffLoginCode: sendEmailVerificationCode,
-  sendPasswordResetCode
+  sendPasswordResetCode,
+  sendNotificationEmail
 };

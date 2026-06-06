@@ -5,6 +5,7 @@ const authRoutes = require('./authRoutes');
 const chatRoutes = require('./chatRoutes');
 const healthRoutes = require('./healthRoutes');
 const moderationRoutes = require('./moderationRoutes');
+const notificationRoutes = require('./notificationRoutes');
 const systemRoutes = require('./systemRoutes');
 const verificationRoutes = require('./verificationRoutes');
 
@@ -16,6 +17,7 @@ router.use('/auth', authRoutes);
 router.use('/chats', chatRoutes);
 router.use('/health', healthRoutes);
 router.use('/moderation', moderationRoutes);
+router.use('/notifications', notificationRoutes);
 router.use('/system', systemRoutes);
 router.use('/verification', verificationRoutes);
 
