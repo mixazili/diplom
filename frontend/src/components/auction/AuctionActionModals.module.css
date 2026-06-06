@@ -91,7 +91,8 @@
 }
 
 .button,
-.buttonSecondary {
+.buttonSecondary,
+.buttonDanger {
   min-height: 44px;
   border-radius: 6px;
   padding: 10px 18px;
@@ -111,8 +112,15 @@
   color: var(--color-heading);
 }
 
+.buttonDanger {
+  border: 0;
+  background: var(--color-danger);
+  color: var(--color-on-accent);
+}
+
 .button:disabled,
-.buttonSecondary:disabled {
+.buttonSecondary:disabled,
+.buttonDanger:disabled {
   cursor: default;
   opacity: 0.65;
 }

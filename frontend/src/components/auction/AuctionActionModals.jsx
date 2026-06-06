@@ -89,7 +89,32 @@ function ConfirmApply({ auction, loading, onCancel, onConfirm }) {
   );
 }
 
-function AuctionActionModals({ action, loading, error, onCancel, onConfirmApply, onPayDeposit, onPayLot }) {
+function ConfirmCancel({ auction, loading, onCancel, onConfirm }) {
+  return (
+    <div className={styles.modalBackdrop}>
+      <div className={styles.modal}>
+        <h2>Отменить аукцион</h2>
+        <p>
+          После подтверждения аукцион будет переведен в статус "Отменен". Участники больше не смогут подавать заявки и делать ставки.
+        </p>
+        {auction?.item?.title && (
+          <div className={styles.paymentAmount}>
+            <span>Аукцион</span>
+            <strong>{auction.item.title}</strong>
+          </div>
+        )}
+        <div className={styles.actions}>
+          <button className={styles.buttonSecondary} type="button" onClick={onCancel} disabled={loading}>Назад</button>
+          <button className={styles.buttonDanger} type="button" onClick={onConfirm} disabled={loading}>
+            {loading ? 'Отмена...' : 'Отменить аукцион'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AuctionActionModals({ action, loading, error, onCancel, onConfirmApply, onConfirmCancel, onPayDeposit, onPayLot }) {
   if (!action) {
     return null;
   }
@@ -100,6 +125,9 @@ function AuctionActionModals({ action, loading, error, onCancel, onConfirmApply,
     <>
       {type === 'apply' && (
         <ConfirmApply auction={auction} loading={loading} onCancel={onCancel} onConfirm={onConfirmApply} />
+      )}
+      {type === 'cancel' && (
+        <ConfirmCancel auction={auction} loading={loading} onCancel={onCancel} onConfirm={onConfirmCancel} />
       )}
       {type === 'deposit' && (
         <PaymentForm

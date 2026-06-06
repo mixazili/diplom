@@ -202,27 +202,13 @@ function App() {
     return data;
   };
 
-  const cancelAuction = async (auction) => {
+  const openCancelAuction = (auction) => {
     if (!accessToken || !canStaffCancelAuctions || !auction?.id) {
       return;
     }
 
-    const confirmed = window.confirm('Отменить аукцион? Это действие переведет аукцион в статус "Отменен".');
-
-    if (!confirmed) {
-      return;
-    }
-
-    try {
-      await apiRequest(`/moderation/auctions/${auction.id}/cancel`, {
-        method: 'POST',
-        headers: authHeader(accessToken),
-        body: JSON.stringify({})
-      });
-      setActionVersion((value) => value + 1);
-    } catch (error) {
-      window.alert(error.message);
-    }
+    setActionError('');
+    setActionModal({ type: 'cancel', auction });
   };
 
   const breadcrumbs = useMemo(() => {
@@ -324,7 +310,7 @@ function App() {
           onPayLotAuction={openLotPayment}
           onOpenProtocolAuction={openAuctionProtocol}
           onToggleFavoriteAuction={toggleFavoriteAuction}
-          onCancelAuction={cancelAuction}
+          onCancelAuction={openCancelAuction}
           canCancelAuction={canStaffCancelAuctions}
         />
       );
@@ -350,7 +336,7 @@ function App() {
           onPayLotAuction={openLotPayment}
           onOpenProtocolAuction={openAuctionProtocol}
           onToggleFavoriteAuction={toggleFavoriteAuction}
-          onCancelAuction={cancelAuction}
+          onCancelAuction={openCancelAuction}
           canCancelAuction={canStaffCancelAuctions}
         />
       );
@@ -372,7 +358,7 @@ function App() {
           onPayLotAuction={openLotPayment}
           onOpenProtocolAuction={openAuctionProtocol}
           onToggleFavoriteAuction={toggleFavoriteAuction}
-          onCancelAuction={cancelAuction}
+          onCancelAuction={openCancelAuction}
           canCancelAuction={canStaffCancelAuctions}
         />
       );
@@ -390,7 +376,7 @@ function App() {
         onPayLotAuction={openLotPayment}
         onOpenProtocolAuction={openAuctionProtocol}
         onToggleFavoriteAuction={toggleFavoriteAuction}
-        onCancelAuction={cancelAuction}
+        onCancelAuction={openCancelAuction}
         canCancelAuction={canStaffCancelAuctions}
       />
     );
@@ -417,6 +403,7 @@ function App() {
           setActionError('');
         }}
         onConfirmApply={() => runCardAction({ path: `/auctions/${actionModal.auction.id}/applications` })}
+        onConfirmCancel={() => runCardAction({ path: `/moderation/auctions/${actionModal.auction.id}/cancel` })}
         onPayDeposit={(payload) => runCardAction({ path: `/auctions/${actionModal.auction.id}/deposit/pay`, body: payload })}
         onPayLot={(payload) => runCardAction({ path: `/auctions/${actionModal.auction.id}/lot/pay`, body: payload })}
       />
