@@ -325,6 +325,29 @@ select.field__control:disabled {
   color: var(--color-accent);
 }
 
+.cancelAuctionButton {
+  display: inline-flex;
+  width: fit-content;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--color-danger);
+  color: var(--color-on-accent);
+  padding: 11px 18px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(185, 28, 28, 0.18);
+}
+
+.cancelAuctionButton:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+
 .auctionPageLike--active {
   color: var(--color-accent);
 }

@@ -186,6 +186,7 @@ function App() {
   const openDepositPayment = (auction) => requireUserAction(auction, 'deposit');
   const openLotPayment = (auction) => requireUserAction(auction, 'lot');
   const openAuctionProtocol = (auction) => setProtocolAuction(auction);
+  const canStaffCancelAuctions = user?.role === 'admin' || user?.role === 'moderator';
   const toggleFavoriteAuction = async (auction) => {
     if (!user || !accessToken) {
       openAuthMode('login');
@@ -199,6 +200,15 @@ function App() {
     });
     setActionVersion((value) => value + 1);
     return data;
+  };
+
+  const openCancelAuction = (auction) => {
+    if (!accessToken || !canStaffCancelAuctions || !auction?.id) {
+      return;
+    }
+
+    setActionError('');
+    setActionModal({ type: 'cancel', auction });
   };
 
   const breadcrumbs = useMemo(() => {
@@ -300,6 +310,8 @@ function App() {
           onPayLotAuction={openLotPayment}
           onOpenProtocolAuction={openAuctionProtocol}
           onToggleFavoriteAuction={toggleFavoriteAuction}
+          onCancelAuction={openCancelAuction}
+          canCancelAuction={canStaffCancelAuctions}
         />
       );
     }
@@ -324,6 +336,8 @@ function App() {
           onPayLotAuction={openLotPayment}
           onOpenProtocolAuction={openAuctionProtocol}
           onToggleFavoriteAuction={toggleFavoriteAuction}
+          onCancelAuction={openCancelAuction}
+          canCancelAuction={canStaffCancelAuctions}
         />
       );
     }
@@ -344,6 +358,8 @@ function App() {
           onPayLotAuction={openLotPayment}
           onOpenProtocolAuction={openAuctionProtocol}
           onToggleFavoriteAuction={toggleFavoriteAuction}
+          onCancelAuction={openCancelAuction}
+          canCancelAuction={canStaffCancelAuctions}
         />
       );
     }
@@ -360,6 +376,8 @@ function App() {
         onPayLotAuction={openLotPayment}
         onOpenProtocolAuction={openAuctionProtocol}
         onToggleFavoriteAuction={toggleFavoriteAuction}
+        onCancelAuction={openCancelAuction}
+        canCancelAuction={canStaffCancelAuctions}
       />
     );
   }, [accessToken, actionVersion, clockTick, route, timeOffsetMs, user]);
@@ -385,6 +403,7 @@ function App() {
           setActionError('');
         }}
         onConfirmApply={() => runCardAction({ path: `/auctions/${actionModal.auction.id}/applications` })}
+        onConfirmCancel={() => runCardAction({ path: `/moderation/auctions/${actionModal.auction.id}/cancel` })}
         onPayDeposit={(payload) => runCardAction({ path: `/auctions/${actionModal.auction.id}/deposit/pay`, body: payload })}
         onPayLot={(payload) => runCardAction({ path: `/auctions/${actionModal.auction.id}/lot/pay`, body: payload })}
       />

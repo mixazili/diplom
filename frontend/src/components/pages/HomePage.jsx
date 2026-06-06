@@ -27,7 +27,9 @@ function HomePage({
   onPayDepositAuction,
   onPayLotAuction,
   onOpenProtocolAuction,
-  onToggleFavoriteAuction
+  onToggleFavoriteAuction,
+  onCancelAuction,
+  canCancelAuction = false
 }) {
   const [popularAuctions, setPopularAuctions] = useState({ items: [], total: 0, page: 1 });
   const [newAuctions, setNewAuctions] = useState({ items: [], total: 0, page: 1 });
@@ -180,6 +182,8 @@ function HomePage({
         onPayLotAuction={onPayLotAuction}
         onOpenProtocolAuction={onOpenProtocolAuction}
         onToggleFavoriteAuction={onToggleFavoriteAuction}
+        onCancelAuction={onCancelAuction}
+        canCancelAuction={canCancelAuction}
       />
     </div>
   );

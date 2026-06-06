@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, BadgeCheck, Clock, CreditCard, Eye, FileText, Heart, MapPin, Trophy } from 'lucide-react';
+import { AlertCircle, BadgeCheck, Ban, Clock, CreditCard, Eye, FileText, Heart, MapPin, Trophy } from 'lucide-react';
 import { formatCardLocation } from '../../utils/location.js';
 import { getClientNow } from '../../utils/time.js';
 import { getYandexMaps } from '../../utils/yandexMaps.js';
@@ -27,6 +27,8 @@ const publishedStatuses = new Set([
   'finished_failed',
   'cancelled'
 ]);
+
+const cancellableStatuses = new Set(['application_waiting', 'applications_open', 'bidding_waiting', 'bidding_active']);
 
 const addressCache = new Map();
 
@@ -379,9 +381,12 @@ function AuctionCard({
   onPayLot,
   onOpenProtocol,
   onToggleFavorite,
+  onCancelAuction,
+  canCancelAuction = false,
   footerMeta = '',
   statusOverride = '',
   currentUserId = null,
+  userRole = 'user',
   timeOffsetMs = 0
 }) {
   const address = useAuctionAddress(auction);
@@ -404,6 +409,7 @@ function AuctionCard({
   const [priceValue, priceCurrency] = formatMoneyParts(getDisplayPrice(auction, timeOffsetMs));
   const viewerParticipation = participant || auction.viewerParticipation || auction.participation || null;
   const [favorite, setFavorite] = useState(Boolean(auction.isFavorite));
+  const canCancel = canCancelAuction && cancellableStatuses.has(auction.status) && typeof onCancelAuction === 'function';
 
   useEffect(() => {
     setFavorite(Boolean(auction.isFavorite));
@@ -497,7 +503,7 @@ function AuctionCard({
           </span>
         </div>
 
-        {!isOwnAuction && (
+        {!isOwnAuction && userRole !== 'admin' && userRole !== 'moderator' && (
           <ParticipationBlock
             auction={auction}
             isVerified={isVerified}
@@ -521,6 +527,22 @@ function AuctionCard({
           </button>
         )}
         {footerMeta && mode !== 'journal' && <span className={styles.auctionCard__footerMeta}>{footerMeta}</span>}
+
+        {canCancel && (
+          <div className={styles.auctionCard__staffActions}>
+            <button
+              className={styles.buttonDanger}
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onCancelAuction?.(auction);
+              }}
+            >
+              <Ban size={18} />
+              Отменить аукцион
+            </button>
+          </div>
+        )}
 
         {cardActions && <div className={styles.auctionCard__actions}>{cardActions}</div>}
       </div>
