@@ -5,12 +5,14 @@ import AuctionCancellationList from './AuctionCancellationList.jsx';
 import AuctionQueue from './AuctionQueue.jsx';
 import AuctionReviewList from './AuctionReviewList.jsx';
 import ReviewList from './ReviewList.jsx';
+import StaffProfile from './StaffProfile.jsx';
 import VerificationQueue from './VerificationQueue.jsx';
 import { createStaffRequest } from './useStaffRequest.js';
 import LoadingState from '../ui/LoadingState.jsx';
 import styles from './ModeratorPanel.module.css';
 
 const menuItems = [
+  ['profile', 'Профиль'],
   ['verifications', 'Заявки на верификацию'],
   ['auctions', 'Заявки на аукционы'],
   ['verificationReviews', 'Журнал верификаций'],
@@ -20,9 +22,9 @@ const menuItems = [
 
 function ModeratorPanel() {
   const dispatch = useDispatch();
-  const { accessToken, user } = useSelector((state) => state.auth);
+  const { accessToken } = useSelector((state) => state.auth);
   const staffRequest = useMemo(() => createStaffRequest(accessToken), [accessToken]);
-  const [activeSection, setActiveSection] = useState('verifications');
+  const [activeSection, setActiveSection] = useState('profile');
   const [verifications, setVerifications] = useState([]);
   const [verificationReviews, setVerificationReviews] = useState([]);
   const [auctions, setAuctions] = useState([]);
@@ -80,6 +82,10 @@ function ModeratorPanel() {
   };
 
   const renderSection = () => {
+    if (activeSection === 'profile') {
+      return <StaffProfile roleLabel="Модератор" />;
+    }
+
     if (activeSection === 'auctions') {
       return (
         <AuctionQueue
@@ -131,13 +137,6 @@ function ModeratorPanel() {
       </aside>
 
       <div className={styles.cabinetMain}>
-        <section className={styles.summary}>
-          <div>
-            <p className={styles.summary__label}>Панель модератора</p>
-            <h2 className={styles.summary__title}>{user.email}</h2>
-            <p className={styles.summary__text}>Проверка заявок пользователей, заявок на аукционы и журнал собственных решений.</p>
-          </div>
-        </section>
         {message && <p className={styles.message__error}>{message}</p>}
         {loading ? <LoadingState text="Загрузка панели" /> : renderSection()}
       </div>

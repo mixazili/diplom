@@ -10,6 +10,7 @@ import MyNotifications from './notifications/MyNotifications.jsx';
 import MyParticipations from './auction/MyParticipations.jsx';
 import MyWins from './auction/MyWins.jsx';
 import VerificationForm from './VerificationForm.jsx';
+import PasswordInput from '../ui/PasswordInput.jsx';
 import styles from './UserCabinet.module.css';
 
 const verificationStatus = {
@@ -170,9 +171,8 @@ function UserCabinet({
           <h2>Смена пароля</h2>
           <label className={styles.field}>
             <span className={styles.field__label}>Новый пароль<span className={styles.requiredMark}>*</span></span>
-            <input
+            <PasswordInput
               className={styles.field__control}
-              type="password"
               value={passwordForm.password}
               onChange={(event) => setPasswordForm((current) => ({ ...current, password: event.target.value }))}
               placeholder="Минимум 8 символов"
@@ -180,9 +180,8 @@ function UserCabinet({
           </label>
           <label className={styles.field}>
             <span className={styles.field__label}>Повторите новый пароль<span className={styles.requiredMark}>*</span></span>
-            <input
+            <PasswordInput
               className={styles.field__control}
-              type="password"
               value={passwordForm.passwordRepeat}
               onChange={(event) => setPasswordForm((current) => ({ ...current, passwordRepeat: event.target.value }))}
             />

@@ -90,6 +90,8 @@ function ConfirmApply({ auction, loading, onCancel, onConfirm }) {
 }
 
 function ConfirmCancel({ auction, loading, onCancel, onConfirm }) {
+  const [comment, setComment] = useState('');
+
   return (
     <div className={styles.modalBackdrop}>
       <div className={styles.modal}>
@@ -103,9 +105,17 @@ function ConfirmCancel({ auction, loading, onCancel, onConfirm }) {
             <strong>{auction.item.title}</strong>
           </div>
         )}
+        <label className={styles.field}>
+          <span>Причина отмены</span>
+          <textarea
+            value={comment}
+            onChange={(event) => setComment(event.target.value)}
+            placeholder="Можно оставить пустым. Если указать причину, она будет видна всем на странице аукциона."
+          />
+        </label>
         <div className={styles.actions}>
           <button className={styles.buttonSecondary} type="button" onClick={onCancel} disabled={loading}>Назад</button>
-          <button className={styles.buttonDanger} type="button" onClick={onConfirm} disabled={loading}>
+          <button className={styles.buttonDanger} type="button" onClick={() => onConfirm(comment)} disabled={loading}>
             {loading ? 'Отмена...' : 'Отменить аукцион'}
           </button>
         </div>

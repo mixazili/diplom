@@ -473,7 +473,7 @@ function App() {
           setActionError('');
         }}
         onConfirmApply={() => runCardAction({ path: `/auctions/${actionModal.auction.id}/applications` })}
-        onConfirmCancel={() => runCardAction({ path: `/moderation/auctions/${actionModal.auction.id}/cancel` })}
+        onConfirmCancel={(comment) => runCardAction({ path: `/moderation/auctions/${actionModal.auction.id}/cancel`, body: { comment } })}
         onPayDeposit={(payload) => runCardAction({ path: `/auctions/${actionModal.auction.id}/deposit/pay`, body: payload })}
         onPayLot={(payload) => runCardAction({ path: `/auctions/${actionModal.auction.id}/lot/pay`, body: payload })}
       />
