@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../../features/auth/authSlice.js';
 import { formatDateTime } from '../../utils/formatters.js';
+import AuctionCancellationList from './AuctionCancellationList.jsx';
 import AuctionReviewList from './AuctionReviewList.jsx';
 import ReviewList from './ReviewList.jsx';
 import { createStaffRequest } from './useStaffRequest.js';
@@ -14,6 +15,7 @@ const menuItems = [
   ['moderators', 'Модераторы'],
   ['verificationReviews', 'Журнал верификаций'],
   ['auctionReviews', 'Журнал аукционов'],
+  ['auctionCancellations', 'Журнал отмененных аукционов'],
   ...(isDevBuild ? [['devTime', 'Dev-время']] : [])
 ];
 
@@ -47,6 +49,7 @@ function AdminPanel() {
   const [moderators, setModerators] = useState([]);
   const [verificationReviews, setVerificationReviews] = useState([]);
   const [auctionReviews, setAuctionReviews] = useState([]);
+  const [auctionCancellations, setAuctionCancellations] = useState([]);
   const [moderatorForm, setModeratorForm] = useState({ email: '', password: '' });
   const [devTime, setDevTime] = useState(null);
   const [timeForm, setTimeForm] = useState('');
@@ -57,17 +60,19 @@ function AdminPanel() {
     const requests = [
       staffRequest('/admin/moderators'),
       staffRequest('/admin/reviews'),
-      staffRequest('/admin/auction-reviews')
+      staffRequest('/admin/auction-reviews'),
+      staffRequest('/admin/auction-cancellations')
     ];
 
     if (isDevBuild) {
       requests.push(staffRequest('/admin/dev-time'));
     }
 
-    const [moderatorData, verificationReviewData, auctionReviewData, devTimeData] = await Promise.all(requests);
+    const [moderatorData, verificationReviewData, auctionReviewData, auctionCancellationData, devTimeData] = await Promise.all(requests);
     setModerators(moderatorData.moderators);
     setVerificationReviews(verificationReviewData.reviews);
     setAuctionReviews(auctionReviewData.reviews);
+    setAuctionCancellations(auctionCancellationData.reviews);
 
     if (devTimeData?.time) {
       setDevTime(devTimeData.time);
@@ -237,6 +242,10 @@ function AdminPanel() {
 
     if (activeSection === 'auctionReviews') {
       return <AuctionReviewList reviews={auctionReviews} title="Журнал решений всех модераторов по аукционам" />;
+    }
+
+    if (activeSection === 'auctionCancellations') {
+      return <AuctionCancellationList reviews={auctionCancellations} title="Журнал отмененных аукционов" />;
     }
 
     if (activeSection === 'devTime' && isDevBuild) {

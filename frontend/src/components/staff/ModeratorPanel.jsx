@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../../features/auth/authSlice.js';
+import AuctionCancellationList from './AuctionCancellationList.jsx';
 import AuctionQueue from './AuctionQueue.jsx';
 import AuctionReviewList from './AuctionReviewList.jsx';
 import ReviewList from './ReviewList.jsx';
@@ -13,7 +14,8 @@ const menuItems = [
   ['verifications', 'Заявки на верификацию'],
   ['auctions', 'Заявки на аукционы'],
   ['verificationReviews', 'Журнал верификаций'],
-  ['auctionReviews', 'Журнал аукционов']
+  ['auctionReviews', 'Журнал аукционов'],
+  ['auctionCancellations', 'Журнал отмененных аукционов']
 ];
 
 function ModeratorPanel() {
@@ -25,21 +27,24 @@ function ModeratorPanel() {
   const [verificationReviews, setVerificationReviews] = useState([]);
   const [auctions, setAuctions] = useState([]);
   const [auctionReviews, setAuctionReviews] = useState([]);
+  const [auctionCancellations, setAuctionCancellations] = useState([]);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
 
   const loadPanel = async () => {
     setLoading((current) => current && true);
-    const [verificationData, verificationReviewData, auctionData, auctionReviewData] = await Promise.all([
+    const [verificationData, verificationReviewData, auctionData, auctionReviewData, auctionCancellationData] = await Promise.all([
       staffRequest('/moderation/verifications'),
       staffRequest('/moderation/reviews'),
       staffRequest('/moderation/auctions'),
-      staffRequest('/moderation/auction-reviews')
+      staffRequest('/moderation/auction-reviews'),
+      staffRequest('/moderation/auction-cancellations')
     ]);
     setVerifications(verificationData.verifications);
     setVerificationReviews(verificationReviewData.reviews);
     setAuctions(auctionData.auctions);
     setAuctionReviews(auctionReviewData.reviews);
+    setAuctionCancellations(auctionCancellationData.reviews);
     setLoading(false);
   };
 
@@ -91,6 +96,10 @@ function ModeratorPanel() {
 
     if (activeSection === 'auctionReviews') {
       return <AuctionReviewList reviews={auctionReviews} title="Мой журнал решений по аукционам" showModerator={false} />;
+    }
+
+    if (activeSection === 'auctionCancellations') {
+      return <AuctionCancellationList reviews={auctionCancellations} title="Мой журнал отмененных аукционов" showModerator={false} />;
     }
 
     return (

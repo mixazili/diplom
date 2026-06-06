@@ -5,6 +5,7 @@ const app = require('../src/app');
 const config = require('../src/config/env');
 const Auction = require('../src/models/Auction');
 const AuctionApplication = require('../src/models/AuctionApplication');
+const AuctionReview = require('../src/models/AuctionReview');
 const Bid = require('../src/models/Bid');
 const Deposit = require('../src/models/Deposit');
 const User = require('../src/models/User');
@@ -269,6 +270,64 @@ describe('auction participation flow', () => {
       .send({});
 
     expect(secondResponse.status).toBe(400);
+  });
+
+  it('allows moderator to cancel unfinished auction and records cancellation journal', async () => {
+    const now = new Date();
+    const owner = await createUser({ email: 'owner-cancel@example.com' });
+    const moderator = await createUser({ email: 'moderator-cancel@example.com', role: 'moderator' });
+    const participant = await createUser({ email: 'participant-cancel@example.com' });
+    const auction = await createAuction({
+      owner: owner._id,
+      status: 'bidding_active',
+      now,
+      overrides: {
+        auctionNumber: '2026-200001',
+        schedule: {
+          applicationEndAt: new Date(now.getTime() - 4 * hourMs),
+          biddingStartAt: new Date(now.getTime() - 2 * hourMs),
+          biddingEndAt: new Date(now.getTime() + 2 * hourMs)
+        }
+      }
+    });
+
+    await AuctionApplication.create({ auction: auction._id, participant: participant._id, status: 'approved', participantNumber: 44445555 });
+    await Deposit.create({ auction: auction._id, payer: participant._id, amount: 1000, status: 'paid', paidAt: now });
+
+    const cancelResponse = await request(app)
+      .post(`/api/moderation/auctions/${auction._id}/cancel`)
+      .set('Authorization', `Bearer ${createAccessToken(moderator)}`)
+      .send({ comment: 'РџСЂРѕРґР°РІРµС† СЃРЅСЏР» РёРјСѓС‰РµСЃС‚РІРѕ СЃ С‚РѕСЂРіРѕРІ' });
+
+    expect(cancelResponse.status).toBe(200);
+    expect(cancelResponse.body.auction.status).toBe('cancelled');
+    expect(cancelResponse.body.review.action).toBe('cancelled');
+
+    const savedAuction = await Auction.findById(auction._id);
+    const savedApplication = await AuctionApplication.findOne({ auction: auction._id, participant: participant._id });
+    const savedDeposit = await Deposit.findOne({ auction: auction._id, payer: participant._id });
+    const savedReview = await AuctionReview.findOne({ auction: auction._id, action: 'cancelled' });
+
+    expect(savedAuction.status).toBe('cancelled');
+    expect(savedAuction.reviewedBy.toString()).toBe(moderator._id.toString());
+    expect(savedApplication.status).toBe('rejected');
+    expect(savedDeposit.status).toBe('refunded');
+    expect(savedReview).toBeTruthy();
+
+    const journalResponse = await request(app)
+      .get('/api/moderation/auction-cancellations')
+      .set('Authorization', `Bearer ${createAccessToken(moderator)}`);
+
+    expect(journalResponse.status).toBe(200);
+    expect(journalResponse.body.reviews).toHaveLength(1);
+    expect(journalResponse.body.reviews[0].moderator.email).toBe('moderator-cancel@example.com');
+
+    const secondCancelResponse = await request(app)
+      .post(`/api/moderation/auctions/${auction._id}/cancel`)
+      .set('Authorization', `Bearer ${createAccessToken(moderator)}`)
+      .send({});
+
+    expect(secondCancelResponse.status).toBe(400);
   });
 
   it('finishes failed auctions without bids and successful auctions with a winner payment flow', async () => {

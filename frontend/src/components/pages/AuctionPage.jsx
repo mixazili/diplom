@@ -2,6 +2,7 @@ import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 're
 import { io } from 'socket.io-client';
 import {
   AlertCircle,
+  Ban,
   ChevronLeft,
   ChevronRight,
   Clock,
@@ -29,6 +30,7 @@ import styles from './AuctionPage.module.css';
 
 const finishedStatuses = new Set(['finished_success', 'finished_failed', 'cancelled']);
 const tradingStatuses = new Set(['bidding_active', 'finished_success', 'finished_failed']);
+const cancellableStatuses = new Set(['application_waiting', 'applications_open', 'bidding_waiting', 'bidding_active']);
 
 const getSocketBaseUrl = () => getApiBaseUrl().replace(/\/api\/?$/, '');
 
@@ -497,7 +499,21 @@ function BidHistory({ auction, bids }) {
   );
 }
 
-function TradingBlock({ auction, user, viewer, bids, timeOffsetMs = 0, onApply, onPayDeposit, onPayLot, onPlaceBid, onOpenProtocol, actionLoading }) {
+function TradingBlock({
+  auction,
+  user,
+  viewer,
+  bids,
+  timeOffsetMs = 0,
+  onApply,
+  onPayDeposit,
+  onPayLot,
+  onPlaceBid,
+  onOpenProtocol,
+  onCancelAuction,
+  canCancelAuction = false,
+  actionLoading
+}) {
   const participation = viewer?.participation;
   const [bidAmount, setBidAmount] = useState('');
   const isLoggedIn = Boolean(user);
@@ -553,6 +569,13 @@ function TradingBlock({ auction, user, viewer, bids, timeOffsetMs = 0, onApply, 
         <button className={styles.protocolInlineButton} type="button" onClick={() => onOpenProtocol?.(auction)}>
           <FileText size={20} />
           Посмотреть протокол электронных торгов
+        </button>
+      )}
+
+      {canCancelAuction && cancellableStatuses.has(auction.status) && (
+        <button className={styles.cancelAuctionButton} type="button" onClick={() => onCancelAuction?.(auction)} disabled={actionLoading}>
+          <Ban size={20} />
+          Отменить аукцион
         </button>
       )}
 
@@ -701,6 +724,8 @@ function SimilarAuctions({
   onPayLotAuction,
   onOpenProtocolAuction,
   onToggleFavoriteAuction,
+  onCancelAuction,
+  canCancelAuction = false,
   user,
   accessToken,
   timeOffsetMs = 0
@@ -774,6 +799,7 @@ function SimilarAuctions({
                 isAuthenticated={Boolean(user)}
                 isVerified={isVerified}
                 currentUserId={user?.id}
+                userRole={user?.role}
                 mode="public"
                 timeOffsetMs={timeOffsetMs}
                 onApply={onApplyAuction}
@@ -782,6 +808,8 @@ function SimilarAuctions({
                 onPayLot={onPayLotAuction}
                 onOpenProtocol={onOpenProtocolAuction}
                 onToggleFavorite={onToggleFavoriteAuction}
+                onCancelAuction={onCancelAuction}
+                canCancelAuction={canCancelAuction}
               />
             </div>
           ))}
@@ -807,7 +835,9 @@ function AuctionPage({
   onOpenProtocolAuction,
   onPayDepositAuction,
   onPayLotAuction,
-  onToggleFavoriteAuction
+  onToggleFavoriteAuction,
+  onCancelAuction,
+  canCancelAuction = false
 }) {
   const [auction, setAuction] = useState(null);
   const [viewer, setViewer] = useState(null);
@@ -1083,6 +1113,8 @@ function AuctionPage({
         onPayLot={() => setPageAction({ type: 'lot', auction })}
         onPlaceBid={placeBid}
         onOpenProtocol={onOpenProtocolAuction}
+        onCancelAuction={onCancelAuction}
+        canCancelAuction={canCancelAuction}
         timeOffsetMs={timeOffsetMs}
       />
 
@@ -1169,6 +1201,8 @@ function AuctionPage({
         onPayLotAuction={onPayLotAuction}
         onOpenProtocolAuction={onOpenProtocolAuction}
         onToggleFavoriteAuction={onToggleFavoriteAuction}
+        onCancelAuction={onCancelAuction}
+        canCancelAuction={canCancelAuction}
       />
 
       <AuctionActionModals

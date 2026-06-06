@@ -101,7 +101,21 @@ const getVerificationDetails = asyncHandler(async (req, res) => {
 const listAllAuctionReviews = asyncHandler(async (req, res) => {
   await updateAuctionStatuses();
   await expirePendingAuctions();
-  const reviews = await AuctionReview.find({})
+  const reviews = await AuctionReview.find({ action: { $in: ['approved', 'returned'] } })
+    .sort({ createdAt: -1 })
+    .populate('moderator')
+    .populate('owner')
+    .populate({
+      path: 'auction',
+      populate: ['owner', 'reviewedBy']
+    });
+
+  res.json({ reviews: reviews.map(formatAuctionReview) });
+});
+
+const listAllAuctionCancellations = asyncHandler(async (req, res) => {
+  await updateAuctionStatuses();
+  const reviews = await AuctionReview.find({ action: 'cancelled' })
     .sort({ createdAt: -1 })
     .populate('moderator')
     .populate('owner')
@@ -199,6 +213,7 @@ module.exports = {
   listAllReviews,
   getVerificationDetails,
   listAllAuctionReviews,
+  listAllAuctionCancellations,
   getDevTime,
   advanceDevTime,
   setDevTime,

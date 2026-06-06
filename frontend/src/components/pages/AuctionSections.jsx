@@ -12,7 +12,9 @@ function AuctionSections({
   onPayDepositAuction,
   onPayLotAuction,
   onOpenProtocolAuction,
-  onToggleFavoriteAuction
+  onToggleFavoriteAuction,
+  onCancelAuction,
+  canCancelAuction = false
 }) {
   const visibleSections = sections.filter((section) => section.items?.length > 0);
 
@@ -39,6 +41,7 @@ function AuctionSections({
                   isAuthenticated={Boolean(user)}
                   isVerified={isVerified}
                   currentUserId={user?.id}
+                  userRole={user?.role}
                   key={auction.id}
                   mode={section.mode || 'public'}
                   timeOffsetMs={timeOffsetMs}
@@ -48,6 +51,8 @@ function AuctionSections({
                   onPayLot={onPayLotAuction}
                   onOpenProtocol={onOpenProtocolAuction}
                   onToggleFavorite={onToggleFavoriteAuction}
+                  onCancelAuction={onCancelAuction}
+                  canCancelAuction={canCancelAuction}
                   participant={participant}
                 />
               );

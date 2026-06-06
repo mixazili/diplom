@@ -186,6 +186,7 @@ function App() {
   const openDepositPayment = (auction) => requireUserAction(auction, 'deposit');
   const openLotPayment = (auction) => requireUserAction(auction, 'lot');
   const openAuctionProtocol = (auction) => setProtocolAuction(auction);
+  const canStaffCancelAuctions = user?.role === 'admin' || user?.role === 'moderator';
   const toggleFavoriteAuction = async (auction) => {
     if (!user || !accessToken) {
       openAuthMode('login');
@@ -199,6 +200,29 @@ function App() {
     });
     setActionVersion((value) => value + 1);
     return data;
+  };
+
+  const cancelAuction = async (auction) => {
+    if (!accessToken || !canStaffCancelAuctions || !auction?.id) {
+      return;
+    }
+
+    const confirmed = window.confirm('Отменить аукцион? Это действие переведет аукцион в статус "Отменен".');
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await apiRequest(`/moderation/auctions/${auction.id}/cancel`, {
+        method: 'POST',
+        headers: authHeader(accessToken),
+        body: JSON.stringify({})
+      });
+      setActionVersion((value) => value + 1);
+    } catch (error) {
+      window.alert(error.message);
+    }
   };
 
   const breadcrumbs = useMemo(() => {
@@ -300,6 +324,8 @@ function App() {
           onPayLotAuction={openLotPayment}
           onOpenProtocolAuction={openAuctionProtocol}
           onToggleFavoriteAuction={toggleFavoriteAuction}
+          onCancelAuction={cancelAuction}
+          canCancelAuction={canStaffCancelAuctions}
         />
       );
     }
@@ -324,6 +350,8 @@ function App() {
           onPayLotAuction={openLotPayment}
           onOpenProtocolAuction={openAuctionProtocol}
           onToggleFavoriteAuction={toggleFavoriteAuction}
+          onCancelAuction={cancelAuction}
+          canCancelAuction={canStaffCancelAuctions}
         />
       );
     }
@@ -344,6 +372,8 @@ function App() {
           onPayLotAuction={openLotPayment}
           onOpenProtocolAuction={openAuctionProtocol}
           onToggleFavoriteAuction={toggleFavoriteAuction}
+          onCancelAuction={cancelAuction}
+          canCancelAuction={canStaffCancelAuctions}
         />
       );
     }
@@ -360,6 +390,8 @@ function App() {
         onPayLotAuction={openLotPayment}
         onOpenProtocolAuction={openAuctionProtocol}
         onToggleFavoriteAuction={toggleFavoriteAuction}
+        onCancelAuction={cancelAuction}
+        canCancelAuction={canStaffCancelAuctions}
       />
     );
   }, [accessToken, actionVersion, clockTick, route, timeOffsetMs, user]);

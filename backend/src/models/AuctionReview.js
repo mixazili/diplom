@@ -22,7 +22,7 @@ const auctionReviewSchema = new mongoose.Schema(
     },
     action: {
       type: String,
-      enum: ['approved', 'returned'],
+      enum: ['approved', 'returned', 'cancelled'],
       required: true
     },
     comment: {

@@ -8,8 +8,10 @@ const {
   listPendingAuctions,
   getAuctionDetails,
   approveAuction,
+  cancelAuction,
   returnAuction,
-  listMyAuctionReviews
+  listMyAuctionReviews,
+  listMyAuctionCancellations
 } = require('../controllers/moderationController');
 const { authenticate, requireRoles } = require('../middleware/authMiddleware');
 
@@ -26,6 +28,8 @@ router.get('/auctions', listPendingAuctions);
 router.get('/auctions/:id', getAuctionDetails);
 router.post('/auctions/:id/approve', approveAuction);
 router.post('/auctions/:id/return', returnAuction);
+router.post('/auctions/:id/cancel', cancelAuction);
 router.get('/auction-reviews', listMyAuctionReviews);
+router.get('/auction-cancellations', listMyAuctionCancellations);
 
 module.exports = router;

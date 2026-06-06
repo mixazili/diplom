@@ -187,7 +187,9 @@ function AuctionsPage({
   onOpenProtocolAuction,
   onPayDepositAuction,
   onPayLotAuction,
-  onToggleFavoriteAuction
+  onToggleFavoriteAuction,
+  onCancelAuction,
+  canCancelAuction = false
 }) {
   const [auctions, setAuctions] = useState([]);
   const [status, setStatus] = useState('idle');
@@ -469,6 +471,7 @@ function AuctionsPage({
                   isAuthenticated={Boolean(user)}
                   isVerified={isVerified}
                   currentUserId={user?.id}
+                  userRole={user?.role}
                   key={auction.id}
                   mode="catalog"
                   timeOffsetMs={timeOffsetMs}
@@ -478,6 +481,8 @@ function AuctionsPage({
                   onPayLot={onPayLotAuction}
                   onOpenProtocol={onOpenProtocolAuction}
                   onToggleFavorite={onToggleFavoriteAuction}
+                  onCancelAuction={onCancelAuction}
+                  canCancelAuction={canCancelAuction}
                 />
               ))}
             </div>

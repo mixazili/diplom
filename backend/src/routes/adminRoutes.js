@@ -6,6 +6,7 @@ const {
   listAllReviews,
   getVerificationDetails,
   listAllAuctionReviews,
+  listAllAuctionCancellations,
   getDevTime,
   advanceDevTime,
   setDevTime,
@@ -22,6 +23,7 @@ router.post('/moderators', createModerator);
 router.delete('/moderators/:id', deleteModerator);
 router.get('/reviews', listAllReviews);
 router.get('/auction-reviews', listAllAuctionReviews);
+router.get('/auction-cancellations', listAllAuctionCancellations);
 router.get('/verifications/:id', getVerificationDetails);
 router.get('/dev-time', getDevTime);
 router.post('/dev-time/advance', advanceDevTime);

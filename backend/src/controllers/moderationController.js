@@ -1,8 +1,10 @@
 const VerificationRequest = require('../models/VerificationRequest');
 const VerificationReview = require('../models/VerificationReview');
 const Auction = require('../models/Auction');
+const AuctionApplication = require('../models/AuctionApplication');
 const AuctionReview = require('../models/AuctionReview');
 const Counter = require('../models/Counter');
+const Deposit = require('../models/Deposit');
 const User = require('../models/User');
 const asyncHandler = require('../utils/asyncHandler');
 const { formatReview, formatVerification } = require('../utils/staffFormatters');
@@ -107,6 +109,7 @@ const listMyReviews = asyncHandler(async (req, res) => {
 });
 
 const populateAuction = (query) => query.populate('owner').populate('reviewedBy');
+const cancellableAuctionStatuses = new Set(['application_waiting', 'applications_open', 'bidding_waiting', 'bidding_active']);
 
 const generateAuctionNumber = async () => {
   const year = new Date().getFullYear();
@@ -247,7 +250,83 @@ const reviewAuction = (action) =>
 
 const listMyAuctionReviews = asyncHandler(async (req, res) => {
   await expirePendingAuctions();
-  const reviews = await AuctionReview.find({ moderator: req.user._id })
+  const reviews = await AuctionReview.find({
+    moderator: req.user._id,
+    action: { $in: ['approved', 'returned'] }
+  })
+    .sort({ createdAt: -1 })
+    .populate('moderator')
+    .populate('owner')
+    .populate({
+      path: 'auction',
+      populate: ['owner', 'reviewedBy']
+    });
+
+  res.json({ reviews: reviews.map(formatAuctionReview) });
+});
+
+const cancelAuction = asyncHandler(async (req, res) => {
+  await updateAuctionStatuses();
+
+  const auction = await Auction.findById(req.params.id).populate('owner').populate('reviewedBy');
+
+  if (!auction) {
+    res.status(404);
+    return res.json({ message: 'Аукцион не найден' });
+  }
+
+  if (!cancellableAuctionStatuses.has(auction.status)) {
+    res.status(400);
+    return res.json({ message: 'Отменить можно только незавершенный опубликованный аукцион' });
+  }
+
+  const comment = String(req.body.comment || '').trim() || 'Аукцион отменен модератором';
+  const snapshot = formatAuction(auction);
+
+  auction.status = 'cancelled';
+  auction.resultReason = comment;
+  auction.moderationComment = comment;
+  auction.reviewedBy = req.user._id;
+  auction.reviewedAt = new Date();
+  await auction.save();
+
+  await Promise.all([
+    AuctionApplication.updateMany(
+      { auction: auction._id, status: { $in: ['pending', 'deposit_required', 'approved'] } },
+      { $set: { status: 'rejected', rejectionReason: 'Аукцион отменен модератором' } }
+    ),
+    Deposit.updateMany(
+      { auction: auction._id, status: { $in: ['pending', 'paid'] } },
+      { $set: { status: 'refunded' } }
+    )
+  ]);
+
+  const review = await AuctionReview.create({
+    auction: auction._id,
+    owner: auction.owner,
+    moderator: req.user._id,
+    action: 'cancelled',
+    comment,
+    auctionSnapshot: snapshot
+  });
+
+  const populatedReview = await AuctionReview.findById(review._id)
+    .populate('moderator')
+    .populate('owner')
+    .populate({
+      path: 'auction',
+      populate: ['owner', 'reviewedBy']
+    });
+
+  res.json({
+    message: 'Аукцион отменен',
+    auction: formatAuction(auction),
+    review: formatAuctionReview(populatedReview)
+  });
+});
+
+const listMyAuctionCancellations = asyncHandler(async (req, res) => {
+  const reviews = await AuctionReview.find({ moderator: req.user._id, action: 'cancelled' })
     .sort({ createdAt: -1 })
     .populate('moderator')
     .populate('owner')
@@ -269,5 +348,7 @@ module.exports = {
   getAuctionDetails,
   approveAuction: reviewAuction('approved'),
   returnAuction: reviewAuction('returned'),
-  listMyAuctionReviews
+  cancelAuction,
+  listMyAuctionReviews,
+  listMyAuctionCancellations
 };
