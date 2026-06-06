@@ -4,6 +4,7 @@ import { changePassword, logout } from '../../features/auth/authSlice.js';
 import { fetchMyVerification } from '../../features/verification/verificationSlice.js';
 import AuctionCreateForm from './auction/AuctionCreateForm.jsx';
 import MyAuctions from './auction/MyAuctions.jsx';
+import MyChats from './chat/MyChats.jsx';
 import MyFavorites from './auction/MyFavorites.jsx';
 import MyParticipations from './auction/MyParticipations.jsx';
 import MyWins from './auction/MyWins.jsx';
@@ -74,7 +75,7 @@ function UserCabinet({
       return;
     }
 
-    if (['profile', 'auctions', 'participations', 'wins', 'favorites'].includes(initialSection)) {
+    if (['profile', 'auctions', 'participations', 'wins', 'favorites', 'notifications', 'chats'].includes(initialSection)) {
       setActiveSection(initialSection);
     }
   }, [initialSection]);
@@ -255,6 +256,18 @@ function UserCabinet({
       onToggleFavoriteAuction={onToggleFavoriteAuction}
     />
   );
+  const renderChats = () => (
+    <MyChats
+      actionVersion={actionVersion}
+      timeOffsetMs={timeOffsetMs}
+      onApplyAuction={onApplyAuction}
+      onOpenAuction={onOpenAuction}
+      onPayDepositAuction={onPayDepositAuction}
+      onPayLotAuction={onPayLotAuction}
+      onOpenProtocolAuction={onOpenProtocolAuction}
+      onToggleFavoriteAuction={onToggleFavoriteAuction}
+    />
+  );
 
   const renderVerificationForm = () => {
     if (!canShowVerificationForm) {
@@ -342,7 +355,7 @@ function UserCabinet({
         {activeSection === 'favorites' && renderFavorites()}
         {activeSection === 'wins' && renderWins()}
         {activeSection === 'notifications' && null}
-        {activeSection === 'chats' && null}
+        {activeSection === 'chats' && renderChats()}
         {activeSection === 'create-auction' && renderCreateAuction()}
         {activeSection === 'verification-form' && renderVerificationForm()}
       </div>

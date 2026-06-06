@@ -7,6 +7,8 @@ const Auction = require('../src/models/Auction');
 const AuctionApplication = require('../src/models/AuctionApplication');
 const AuctionReview = require('../src/models/AuctionReview');
 const Bid = require('../src/models/Bid');
+const Chat = require('../src/models/Chat');
+const ChatMessage = require('../src/models/ChatMessage');
 const Deposit = require('../src/models/Deposit');
 const User = require('../src/models/User');
 const { updateAuctionStatuses } = require('../src/services/statusAutomationService');
@@ -256,6 +258,7 @@ describe('auction participation flow', () => {
 
     const savedAuction = await Auction.findById(auction._id);
     const savedApplication = await AuctionApplication.findOne({ auction: auction._id, participant: participant._id });
+    const dealChat = await Chat.findOne({ auction: auction._id });
     expect(savedAuction.status).toBe('finished_success');
     expect(savedAuction.winnerParticipantNumber).toBe(22334455);
     expect(savedAuction.winningBidAmount).toBe(7500);
@@ -263,6 +266,9 @@ describe('auction participation flow', () => {
     expect(savedAuction.schedule.biddingEndAt.getTime()).toBeLessThan(auction.schedule.biddingEndAt.getTime());
     expect(savedAuction.extendedAt).toBe(null);
     expect(savedApplication.lotPaymentStatus).toBe('pending');
+    expect(dealChat).toBeTruthy();
+    expect(dealChat.seller.toString()).toBe(owner._id.toString());
+    expect(dealChat.buyer.toString()).toBe(participant._id.toString());
 
     const secondResponse = await request(app)
       .post(`/api/auctions/${auction._id}/bids`)
@@ -270,6 +276,69 @@ describe('auction participation flow', () => {
       .send({});
 
     expect(secondResponse.status).toBe(400);
+  });
+
+  it('allows seller and winner to exchange deal chat messages', async () => {
+    const now = new Date();
+    const owner = await createUser({ email: 'owner-chat@example.com' });
+    const winner = await createUser({ email: 'winner-chat@example.com' });
+    const auction = await createAuction({
+      owner: owner._id,
+      status: 'bidding_active',
+      now,
+      overrides: {
+        pricing: {
+          auctionType: 'decrease',
+          priceWithVat: 10000,
+          minPriceWithVat: 7000,
+          bidStepsCount: 6,
+          calculatedBidStep: 500
+        },
+        schedule: {
+          applicationEndAt: new Date(now.getTime() - 4 * hourMs),
+          biddingStartAt: new Date(now.getTime() - 2 * hourMs),
+          biddingEndAt: new Date(now.getTime() + 5 * 60 * 1000)
+        }
+      }
+    });
+
+    await AuctionApplication.create({ auction: auction._id, participant: winner._id, status: 'approved', participantNumber: 88776655 });
+    await Deposit.create({ auction: auction._id, payer: winner._id, amount: 1000, status: 'paid', paidAt: now });
+
+    await request(app)
+      .post(`/api/auctions/${auction._id}/bids`)
+      .set('Authorization', `Bearer ${createAccessToken(winner)}`)
+      .send({});
+
+    const chat = await Chat.findOne({ auction: auction._id });
+    expect(chat).toBeTruthy();
+
+    const listResponse = await request(app)
+      .get('/api/chats')
+      .set('Authorization', `Bearer ${createAccessToken(winner)}`);
+
+    expect(listResponse.status).toBe(200);
+    expect(listResponse.body.chats).toHaveLength(1);
+    expect(listResponse.body.chats[0].auction.id).toBe(auction._id.toString());
+
+    const sendResponse = await request(app)
+      .post(`/api/chats/${chat._id}/messages`)
+      .set('Authorization', `Bearer ${createAccessToken(winner)}`)
+      .field('text', 'Готов согласовать передачу лота');
+
+    expect(sendResponse.status).toBe(201);
+    expect(sendResponse.body.message.status).toBe('sent');
+
+    const sellerMessagesResponse = await request(app)
+      .get(`/api/chats/${chat._id}/messages`)
+      .set('Authorization', `Bearer ${createAccessToken(owner)}`);
+
+    expect(sellerMessagesResponse.status).toBe(200);
+    expect(sellerMessagesResponse.body.messages).toHaveLength(1);
+    expect(sellerMessagesResponse.body.messages[0].text).toBe('Готов согласовать передачу лота');
+
+    const savedMessage = await ChatMessage.findById(sendResponse.body.message.id);
+    expect(savedMessage.readBy.some((receipt) => receipt.user.toString() === owner._id.toString())).toBe(true);
   });
 
   it('allows moderator to cancel unfinished auction and records cancellation journal', async () => {

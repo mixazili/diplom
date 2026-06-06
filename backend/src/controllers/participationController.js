@@ -6,6 +6,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const { formatAuction } = require('../utils/auctionFormatters');
 const { updateAuctionStatuses } = require('../services/statusAutomationService');
 const { ensureAuctionProtocol } = require('../services/auctionProtocolService');
+const { ensureDealChatForAuction } = require('../services/chatService');
 const { getCurrentTime } = require('../services/timeService');
 const { emitAuctionUpdate } = require('../services/socketService');
 
@@ -316,6 +317,7 @@ const placeBid = asyncHandler(async (req, res) => {
     auction.schedule.biddingEndAt = now;
     await auction.save();
     await ensureAuctionProtocol(auction);
+    await ensureDealChatForAuction(auction);
 
     application.lotPaymentStatus = 'pending';
     await application.save();
