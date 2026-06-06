@@ -18,7 +18,8 @@ import {
   Trophy,
   X
 } from 'lucide-react';
-import { apiRequest, authHeader, getApiBaseUrl } from '../../api/client.js';
+import { apiRequest, authHeader } from '../../api/client.js';
+import { getSocketBaseUrl } from '../../utils/socket.js';
 import { operatorInfo } from '../../constants/auctionConstants.js';
 import { formatPhoneDisplay } from '../../utils/inputFormatters.js';
 import { getClientNow } from '../../utils/time.js';
@@ -31,8 +32,6 @@ import styles from './AuctionPage.module.css';
 const finishedStatuses = new Set(['finished_success', 'finished_failed', 'cancelled']);
 const tradingStatuses = new Set(['bidding_active', 'finished_success', 'finished_failed']);
 const cancellableStatuses = new Set(['application_waiting', 'applications_open', 'bidding_waiting', 'bidding_active']);
-
-const getSocketBaseUrl = () => getApiBaseUrl().replace(/\/api\/?$/, '');
 
 const formatDateTime = (value, withMs = false) => {
   const date = value ? new Date(value) : null;

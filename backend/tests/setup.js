@@ -10,6 +10,8 @@ const AuctionProtocol = require('../src/models/AuctionProtocol');
 const AuctionReview = require('../src/models/AuctionReview');
 const AuctionView = require('../src/models/AuctionView');
 const Bid = require('../src/models/Bid');
+const Chat = require('../src/models/Chat');
+const ChatMessage = require('../src/models/ChatMessage');
 const Counter = require('../src/models/Counter');
 const Deposit = require('../src/models/Deposit');
 const VerificationRequest = require('../src/models/VerificationRequest');
@@ -27,6 +29,8 @@ beforeEach(async () => {
   await AuctionReview.deleteMany({});
   await AuctionView.deleteMany({});
   await Bid.deleteMany({});
+  await Chat.deleteMany({});
+  await ChatMessage.deleteMany({});
   await Counter.deleteMany({});
   await Deposit.deleteMany({});
   await VerificationRequest.deleteMany({});

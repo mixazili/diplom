@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const config = require('../config/env');
+const Chat = require('../models/Chat');
 
 let ioInstance = null;
 
@@ -39,6 +40,30 @@ const initSocketServer = (server) => {
         socket.leave(`auction:${auctionId}`);
       }
     });
+
+    socket.on('chat:join', async (chatId) => {
+      if (!chatId || !socket.user?.sub) {
+        return;
+      }
+
+      let hasAccess = null;
+
+      try {
+        hasAccess = await Chat.exists({ _id: chatId, participants: socket.user.sub });
+      } catch (error) {
+        return;
+      }
+
+      if (hasAccess) {
+        socket.join(`chat:${chatId}`);
+      }
+    });
+
+    socket.on('chat:leave', (chatId) => {
+      if (chatId) {
+        socket.leave(`chat:${chatId}`);
+      }
+    });
   });
 
   return ioInstance;
@@ -52,7 +77,25 @@ const emitAuctionUpdate = (auctionId, payload) => {
   ioInstance.to(`auction:${auctionId.toString()}`).emit('auction:update', payload);
 };
 
+const emitChatMessage = (chatId, payload) => {
+  if (!ioInstance || !chatId) {
+    return;
+  }
+
+  ioInstance.to(`chat:${chatId.toString()}`).emit('chat:message', payload);
+};
+
+const emitChatRead = (chatId, payload) => {
+  if (!ioInstance || !chatId) {
+    return;
+  }
+
+  ioInstance.to(`chat:${chatId.toString()}`).emit('chat:read', payload);
+};
+
 module.exports = {
   emitAuctionUpdate,
+  emitChatMessage,
+  emitChatRead,
   initSocketServer
 };

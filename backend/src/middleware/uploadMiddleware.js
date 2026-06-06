@@ -53,7 +53,26 @@ const uploadAuctionPhotos = createUploader({
   filesLimit: 50
 });
 
+const uploadChatAttachments = createUploader({
+  directoryName: 'chat',
+  allowedMimeTypes: [
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+    'application/pdf',
+    'text/plain',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/zip'
+  ],
+  errorMessage: 'Разрешены изображения, pdf, документы, таблицы, текстовые файлы и zip-архивы',
+  filesLimit: 8
+});
+
 module.exports = {
+  uploadChatAttachments,
   uploadVerificationDocuments,
   uploadAuctionPhotos
 };

@@ -8,6 +8,7 @@ const VerificationRequest = require('../models/VerificationRequest');
 const VerificationReview = require('../models/VerificationReview');
 const { formatAuction } = require('../utils/auctionFormatters');
 const { ensureAuctionProtocol } = require('./auctionProtocolService');
+const { ensureDealChatForAuction } = require('./chatService');
 const { getCurrentTime } = require('./timeService');
 
 const dayMs = 24 * 60 * 60 * 1000;
@@ -92,6 +93,7 @@ const updateAuctionStatuses = async (now = null) => {
       auction.winningBidAt = latestBid.createdAt;
       await auction.save();
       await ensureAuctionProtocol(auction);
+      await ensureDealChatForAuction(auction);
 
       await AuctionApplication.updateOne(
         {
