@@ -29,6 +29,10 @@ const initSocketServer = (server) => {
   });
 
   ioInstance.on('connection', (socket) => {
+    if (socket.user?.sub) {
+      socket.join(`user:${socket.user.sub}`);
+    }
+
     socket.on('auction:join', (auctionId) => {
       if (auctionId) {
         socket.join(`auction:${auctionId}`);
@@ -93,9 +97,36 @@ const emitChatRead = (chatId, payload) => {
   ioInstance.to(`chat:${chatId.toString()}`).emit('chat:read', payload);
 };
 
+const emitUserNotification = (userId, payload) => {
+  if (!ioInstance || !userId) {
+    return;
+  }
+
+  ioInstance.to(`user:${userId.toString()}`).emit('notification:new', payload);
+};
+
+const emitUserCounters = (userId, payload) => {
+  if (!ioInstance || !userId) {
+    return;
+  }
+
+  ioInstance.to(`user:${userId.toString()}`).emit('user:counters', payload);
+};
+
+const emitUserChatIncoming = (userId, payload) => {
+  if (!ioInstance || !userId) {
+    return;
+  }
+
+  ioInstance.to(`user:${userId.toString()}`).emit('chat:incoming', payload);
+};
+
 module.exports = {
   emitAuctionUpdate,
   emitChatMessage,
   emitChatRead,
+  emitUserCounters,
+  emitUserChatIncoming,
+  emitUserNotification,
   initSocketServer
 };

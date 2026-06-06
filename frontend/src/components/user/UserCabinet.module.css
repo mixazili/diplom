@@ -157,7 +157,11 @@ textarea.field__control {
 }
 
 .cabinetSidebar__button {
+  display: flex;
   min-height: 42px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   border: 1px solid transparent;
   border-radius: 6px;
   background: transparent;
@@ -167,6 +171,19 @@ textarea.field__control {
   text-align: left;
   cursor: pointer;
   transition: border-color 0.16s ease, background 0.16s ease, color 0.16s ease;
+}
+
+.cabinetSidebar__badge {
+  display: inline-grid;
+  min-width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  padding: 0 7px;
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .cabinetSidebar__button:hover,

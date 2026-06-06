@@ -16,6 +16,8 @@ const auctionCategoryLabels = {
   other_property: 'Другое имущество'
 };
 
+const auctionCategories = Object.keys(auctionCategoryLabels);
+
 const operatorInfo = {
   name: 'ЗАО "БасТорг"',
   contactPerson: 'Бас Михаил Андреевич',
@@ -39,6 +41,7 @@ const buyerTerms = {
 };
 
 module.exports = {
+  auctionCategories,
   auctionCategoryLabels,
   buyerTerms,
   operatorInfo

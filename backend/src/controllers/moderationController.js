@@ -10,6 +10,12 @@ const asyncHandler = require('../utils/asyncHandler');
 const { formatReview, formatVerification } = require('../utils/staffFormatters');
 const { formatAuction, formatAuctionReview } = require('../utils/auctionFormatters');
 const { expirePendingAuctions, expirePendingVerifications, updateAuctionStatuses } = require('../services/statusAutomationService');
+const {
+  notifyAuctionCancelled,
+  notifyAuctionPublished,
+  notifyAuctionReturned,
+  notifyVerificationReviewed
+} = require('../services/notificationService');
 
 const populateVerification = (query) => query.populate('user').populate('reviewedBy');
 
@@ -77,6 +83,12 @@ const reviewVerification = (action) =>
     const review = await createReview({
       verification,
       moderator: req.user,
+      action,
+      comment
+    });
+    await notifyVerificationReviewed({
+      verification,
+      user: verification.user,
       action,
       comment
     });
@@ -233,6 +245,11 @@ const reviewAuction = (action) =>
       action,
       comment
     });
+    if (action === 'approved') {
+      await notifyAuctionPublished({ auction, owner: auction.owner });
+    } else {
+      await notifyAuctionReturned({ auction, owner: auction.owner, comment });
+    }
 
     const populatedReview = await AuctionReview.findById(review._id)
       .populate('moderator')
@@ -309,6 +326,7 @@ const cancelAuction = asyncHandler(async (req, res) => {
     comment,
     auctionSnapshot: snapshot
   });
+  await notifyAuctionCancelled({ auction, comment });
 
   const populatedReview = await AuctionReview.findById(review._id)
     .populate('moderator')

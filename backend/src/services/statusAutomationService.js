@@ -9,6 +9,7 @@ const VerificationReview = require('../models/VerificationReview');
 const { formatAuction } = require('../utils/auctionFormatters');
 const { ensureAuctionProtocol } = require('./auctionProtocolService');
 const { ensureDealChatForAuction } = require('./chatService');
+const { notifyAuctionFinished, notifyAuctionReturned, notifyVerificationReviewed } = require('./notificationService');
 const { getCurrentTime } = require('./timeService');
 
 const dayMs = 24 * 60 * 60 * 1000;
@@ -73,6 +74,7 @@ const updateAuctionStatuses = async (now = null) => {
         auction.resultReason = 'Нет участников с оплаченным задатком';
         await auction.save();
         await ensureAuctionProtocol(auction);
+        await notifyAuctionFinished({ auction });
         return;
       }
 
@@ -81,6 +83,7 @@ const updateAuctionStatuses = async (now = null) => {
         auction.resultReason = 'За время торгов не было сделано ни одной ставки';
         await auction.save();
         await ensureAuctionProtocol(auction);
+        await notifyAuctionFinished({ auction });
         await Deposit.updateMany({ auction: auction._id, status: 'paid' }, { $set: { status: 'refunded' } });
         return;
       }
@@ -94,6 +97,7 @@ const updateAuctionStatuses = async (now = null) => {
       await auction.save();
       await ensureAuctionProtocol(auction);
       await ensureDealChatForAuction(auction);
+      await notifyAuctionFinished({ auction, latestBid });
 
       await AuctionApplication.updateOne(
         {
@@ -141,6 +145,12 @@ const expirePendingVerifications = async (now = null) => {
         action: 'rejected',
         comment: staleVerificationComment
       });
+      await notifyVerificationReviewed({
+        verification: request,
+        user: request.user,
+        action: 'rejected',
+        comment: staleVerificationComment
+      });
     })
   );
 };
@@ -175,6 +185,11 @@ const expirePendingAuctions = async (now = null) => {
         action: 'returned',
         comment: staleAuctionComment,
         auctionSnapshot: snapshot
+      });
+      await notifyAuctionReturned({
+        auction,
+        owner: auction.owner,
+        comment: staleAuctionComment
       });
     })
   );

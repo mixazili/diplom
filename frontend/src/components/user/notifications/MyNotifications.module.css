@@ -1,0 +1,139 @@
+.panel {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  box-shadow: 0 16px 40px var(--color-shadow);
+  padding: 28px;
+}
+
+.panelHeader {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.panel__title {
+  margin: 0;
+  color: var(--color-heading);
+  font-size: 32px;
+  line-height: 1.2;
+}
+
+.panel__text {
+  margin: 8px 0 0;
+  color: var(--color-muted);
+}
+
+.message__error {
+  color: var(--color-danger);
+  font-size: 13px;
+}
+
+.buttonSecondary {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+  color: var(--color-heading);
+  padding: 10px 18px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.buttonSecondary:hover {
+  border-color: rgba(185, 28, 28, 0.34);
+  color: var(--color-accent);
+}
+
+.notificationList {
+  display: grid;
+  gap: 10px;
+}
+
+.notificationCard {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--color-surface);
+}
+
+.notificationCard--unread {
+  border-color: rgba(185, 28, 28, 0.35);
+  background: var(--color-accent-muted);
+}
+
+.notificationCard button {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  width: 100%;
+  align-items: start;
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  padding: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.notificationCard__icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--color-surface);
+  color: var(--color-accent);
+  box-shadow: inset 0 0 0 1px rgba(185, 28, 28, 0.18);
+}
+
+.notificationCard__content {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.notificationCard small {
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.notificationCard strong {
+  color: var(--color-heading);
+  font-size: 17px;
+}
+
+.notificationCard b {
+  align-self: start;
+  border-radius: 999px;
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  padding: 4px 9px;
+  font-size: 12px;
+}
+
+@media (max-width: 720px) {
+  .panel {
+    padding: 18px;
+  }
+
+  .panel__title {
+    font-size: 26px;
+  }
+
+  .notificationCard button {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .notificationCard b {
+    grid-column: 2;
+  }
+}

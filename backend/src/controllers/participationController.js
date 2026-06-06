@@ -7,6 +7,7 @@ const { formatAuction } = require('../utils/auctionFormatters');
 const { updateAuctionStatuses } = require('../services/statusAutomationService');
 const { ensureAuctionProtocol } = require('../services/auctionProtocolService');
 const { ensureDealChatForAuction } = require('../services/chatService');
+const { createNotification, notifyAuctionFinished } = require('../services/notificationService');
 const { getCurrentTime } = require('../services/timeService');
 const { emitAuctionUpdate } = require('../services/socketService');
 
@@ -190,6 +191,17 @@ const applyForAuction = asyncHandler(async (req, res) => {
   );
 
   const payload = await buildAuctionRealtimePayload(auction._id, req.user._id);
+  await createNotification({
+    user: req.user._id,
+    type: 'application_submitted',
+    title: 'Заявка на участие подана',
+    body: `Для участия в аукционе «${auction.item?.title || 'Предмет торгов'}» необходимо оплатить задаток.`,
+    importance: 'important',
+    link: `/auction/${auction._id}`,
+    entity: { kind: 'auction', id: auction._id },
+    email: true,
+    emailSubject: 'Auction.by: заявка на участие подана'
+  });
   res.status(201).json({ message: 'Заявка подана. Необходимо оплатить задаток', ...payload });
 });
 
@@ -242,6 +254,28 @@ const payDeposit = asyncHandler(async (req, res) => {
   );
 
   const payload = await buildAuctionRealtimePayload(auction._id, req.user._id);
+  await Promise.all([
+    createNotification({
+      user: req.user._id,
+      type: 'deposit_paid',
+      title: 'Задаток оплачен',
+      body: `Вы допущены к торгам по аукциону «${auction.item?.title || 'Предмет торгов'}». Номер участника: ${application.participantNumber}.`,
+      importance: 'important',
+      link: `/auction/${auction._id}`,
+      entity: { kind: 'auction', id: auction._id },
+      email: true,
+      emailSubject: 'Auction.by: задаток оплачен'
+    }),
+    createNotification({
+      user: auction.owner,
+      type: 'auction_participant_admitted',
+      title: 'Участник допущен к торгам',
+      body: `По аукциону «${auction.item?.title || 'Предмет торгов'}» оплачен задаток новым участником.`,
+      importance: 'important',
+      link: `/auction/${auction._id}`,
+      entity: { kind: 'auction', id: auction._id }
+    })
+  ]);
   res.json({ message: 'Задаток успешно оплачен', ...payload });
 });
 
@@ -318,6 +352,7 @@ const placeBid = asyncHandler(async (req, res) => {
     await auction.save();
     await ensureAuctionProtocol(auction);
     await ensureDealChatForAuction(auction);
+    await notifyAuctionFinished({ auction, latestBid: bid });
 
     application.lotPaymentStatus = 'pending';
     await application.save();
@@ -334,6 +369,19 @@ const placeBid = asyncHandler(async (req, res) => {
 
   await broadcastAuction(auction._id);
   const payload = await buildAuctionRealtimePayload(auction._id, req.user._id);
+  await createNotification({
+    user: req.user._id,
+    type: 'bid_accepted',
+    title: isDecrease ? 'Лот приобретен' : 'Ставка принята',
+    body: isDecrease
+      ? `Вы первым приняли цену ${acceptedAmount.toFixed(2)} BYN по аукциону «${auction.item?.title || 'Предмет торгов'}».`
+      : `Ваша ставка ${acceptedAmount.toFixed(2)} BYN принята.`,
+    importance: isDecrease ? 'critical' : 'normal',
+    link: `/auction/${auction._id}`,
+    entity: { kind: 'auction', id: auction._id },
+    email: isDecrease,
+    emailSubject: isDecrease ? 'Auction.by: вы приобрели лот' : undefined
+  });
   res.status(201).json({ message: 'Ставка принята', bid: formatBid(bid), ...payload });
 });
 
@@ -372,6 +420,28 @@ const payWonLot = asyncHandler(async (req, res) => {
   application.lotPaymentStatus = 'paid';
   application.lotPaidAt = await getCurrentTime();
   await application.save();
+  await Promise.all([
+    createNotification({
+      user: auction.owner,
+      type: 'lot_paid',
+      title: 'Победитель оплатил лот',
+      body: `Лот по аукциону «${auction.item?.title || 'Предмет торгов'}» оплачен победителем.`,
+      importance: 'critical',
+      link: `/auction/${auction._id}`,
+      entity: { kind: 'auction', id: auction._id },
+      email: true,
+      emailSubject: 'Auction.by: лот оплачен'
+    }),
+    createNotification({
+      user: req.user._id,
+      type: 'lot_payment_completed',
+      title: 'Лот оплачен',
+      body: `Оплата лота по аукциону «${auction.item?.title || 'Предмет торгов'}» успешно выполнена.`,
+      importance: 'important',
+      link: `/auction/${auction._id}`,
+      entity: { kind: 'auction', id: auction._id }
+    })
+  ]);
 
   const payload = await buildAuctionRealtimePayload(auction._id, req.user._id);
   await broadcastAuction(auction._id);
