@@ -2,6 +2,7 @@ const Auction = require('../models/Auction');
 const AuctionApplication = require('../models/AuctionApplication');
 const Bid = require('../models/Bid');
 const Deposit = require('../models/Deposit');
+const User = require('../models/User');
 const asyncHandler = require('../utils/asyncHandler');
 const { formatAuction } = require('../utils/auctionFormatters');
 const { updateAuctionStatuses } = require('../services/statusAutomationService');
@@ -60,12 +61,29 @@ const getAdmittedParticipantCount = (auctionId) =>
     participantNumber: { $ne: null }
   });
 
-const formatAuctionWithStats = async (auction) => ({
-  ...formatAuction(auction),
-  participantStats: {
-    admittedCount: await getAdmittedParticipantCount(auction._id)
+const getFavoriteSet = async (userId) => {
+  if (!userId) {
+    return new Set();
   }
-});
+
+  const user = await User.findById(userId).select('favoriteAuctions');
+  return new Set((user?.favoriteAuctions || []).map((id) => id.toString()));
+};
+
+const formatAuctionWithStats = async (auction, { favoriteSet = null } = {}) => {
+  const formattedAuction = {
+    ...formatAuction(auction),
+    participantStats: {
+      admittedCount: await getAdmittedParticipantCount(auction._id)
+    }
+  };
+
+  if (favoriteSet) {
+    formattedAuction.isFavorite = favoriteSet.has(auction._id.toString());
+  }
+
+  return formattedAuction;
+};
 
 const getAuctionForParticipation = async (auctionId) => {
   await updateAuctionStatuses();
@@ -116,15 +134,16 @@ const getCurrentPrice = async (auction, now = new Date()) => {
 };
 
 const buildAuctionRealtimePayload = async (auctionId, userId = null) => {
-  const [auction, bids, application, deposit] = await Promise.all([
+  const [auction, bids, application, deposit, favoriteSet] = await Promise.all([
     Auction.findById(auctionId),
     listBids(auctionId),
     userId ? AuctionApplication.findOne({ auction: auctionId, participant: userId }) : null,
-    userId ? Deposit.findOne({ auction: auctionId, payer: userId }) : null
+    userId ? Deposit.findOne({ auction: auctionId, payer: userId }) : null,
+    getFavoriteSet(userId)
   ]);
 
   return {
-    auction: await formatAuctionWithStats(auction),
+    auction: await formatAuctionWithStats(auction, { favoriteSet }),
     bids,
     viewer: {
       isOwner: Boolean(userId && auction.owner?.toString() === userId.toString()),
@@ -451,10 +470,13 @@ const payWonLot = asyncHandler(async (req, res) => {
 const listMyParticipations = asyncHandler(async (req, res) => {
   await updateAuctionStatuses();
 
-  const applications = await AuctionApplication.find({ participant: req.user._id })
-    .populate('auction')
-    .sort({ updatedAt: -1 });
-  const deposits = await Deposit.find({ payer: req.user._id });
+  const [applications, deposits, favoriteSet] = await Promise.all([
+    AuctionApplication.find({ participant: req.user._id })
+      .populate('auction')
+      .sort({ updatedAt: -1 }),
+    Deposit.find({ payer: req.user._id }),
+    getFavoriteSet(req.user._id)
+  ]);
   const depositByAuction = new Map(deposits.map((deposit) => [deposit.auction.toString(), deposit]));
 
   res.json({
@@ -466,7 +488,10 @@ const listMyParticipations = asyncHandler(async (req, res) => {
         const isWinner = application.auction.winnerParticipantNumber === application.participantNumber;
 
         return {
-          auction: formatAuction(application.auction),
+          auction: {
+            ...formatAuction(application.auction),
+            isFavorite: favoriteSet.has(auctionId)
+          },
           status: application.status,
           participantNumber: application.participantNumber,
           depositStatus: deposit?.status || null,
