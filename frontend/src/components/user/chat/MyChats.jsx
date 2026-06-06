@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
-import { Check, Download, FileText, LoaderCircle, Paperclip, Send } from 'lucide-react';
+import { Check, CheckCheck, Download, FileText, LoaderCircle, Paperclip, Send } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import { apiRequest, authHeader } from '../../../api/client.js';
 import AuctionCard from '../../auction/AuctionCard.jsx';
 import LoadingState from '../../ui/LoadingState.jsx';
 import { formatDateTime } from '../../../utils/formatters.js';
+import { formatPhoneDisplay } from '../../../utils/inputFormatters.js';
 import { getSocketBaseUrl } from '../../../utils/socket.js';
 import styles from './MyChats.module.css';
 
@@ -25,7 +26,10 @@ const getParticipantFields = (participantInfo = {}) => {
     : ['fullName', 'unp', 'phone', 'email', 'postalAddress'];
 
   return keys
-    .map((key) => [participantFieldLabels[key], participantInfo[key]])
+    .map((key) => [
+      participantFieldLabels[key],
+      key === 'phone' ? formatPhoneDisplay(participantInfo[key]) : participantInfo[key]
+    ])
     .filter(([, value]) => value);
 };
 
@@ -58,13 +62,13 @@ function ChatList({ chats, selectedId, onSelect }) {
   );
 }
 
-function CounterpartSummary({ counterpartInfo }) {
+function CounterpartSummary({ counterpartInfo, roleLabel }) {
   const fields = getParticipantFields(counterpartInfo);
 
   return (
     <section className={styles.sellerSummary}>
       <div>
-        <span>Собеседник</span>
+        <span>{roleLabel}</span>
         <h2>{counterpartInfo?.displayName || 'Собеседник'}</h2>
       </div>
       <div className={styles.sellerSummary__grid}>
@@ -123,7 +127,7 @@ function MessageStatusIcon({ status }) {
   if (status === 'viewed') {
     return (
       <span className={`${styles.messageStatus} ${styles['messageStatus--viewed']}`} title="Просмотрено">
-        <Check size={16} />
+        <CheckCheck size={18} />
       </span>
     );
   }
@@ -169,11 +173,21 @@ function ChatComposer({ disabled, onSend }) {
     event.currentTarget.reset();
   };
 
+  const handleKeyDown = (event) => {
+    if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing) {
+      return;
+    }
+
+    event.preventDefault();
+    event.currentTarget.form?.requestSubmit();
+  };
+
   return (
     <form className={styles.chatComposer} onSubmit={submit}>
       <textarea
         value={text}
         onChange={(event) => setText(event.target.value)}
+        onKeyDown={handleKeyDown}
         placeholder="Напишите сообщение"
         disabled={disabled}
       />
@@ -211,6 +225,9 @@ function MyChats({
   const [error, setError] = useState('');
   const messagesRef = useRef(null);
   const selectedChat = useMemo(() => chats.find((chat) => chat.id === selectedId), [chats, selectedId]);
+  const selectedRoleLabel = selectedChat && user?.id && String(selectedChat.seller) === String(user.id)
+    ? 'Победитель торгов'
+    : 'Продавец имущества';
 
   useEffect(() => {
     if (!accessToken) {
@@ -404,7 +421,7 @@ function MyChats({
         )}
         {selectedChat && (
           <>
-            <CounterpartSummary counterpartInfo={selectedChat.counterpart} />
+            <CounterpartSummary counterpartInfo={selectedChat.counterpart} roleLabel={selectedRoleLabel} />
             <div className={styles.chatAuctionCard}>
               <AuctionCard
                 auction={selectedChat.auction}

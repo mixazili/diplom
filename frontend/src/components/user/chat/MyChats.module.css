@@ -189,7 +189,7 @@
 
 .messageStatus {
   display: inline-grid;
-  width: 18px;
+  width: 22px;
   height: 18px;
   place-items: center;
   flex: 0 0 auto;
@@ -201,7 +201,7 @@
 }
 
 .messageStatus--sent {
-  color: var(--color-muted);
+  color: var(--color-accent);
 }
 
 .messageStatus--viewed {
