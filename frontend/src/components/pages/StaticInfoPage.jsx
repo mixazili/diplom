@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
-import { ArrowRight, CheckCircle, CreditCard, FileText, HelpCircle, Mail, MapPin, Phone, ShieldCheck } from 'lucide-react';
+import { ArrowRight, CreditCard, FileText, HelpCircle, Mail, MapPin, Phone, ShieldCheck } from 'lucide-react';
 import { apiRequest } from '../../api/client.js';
 import styles from './StaticInfoPage.module.css';
 
@@ -56,10 +56,9 @@ const paymentRules = [
   ['Возврат задатков', 'Задатки участников, не победивших в торгах, подлежат возврату после завершения аукциона.']
 ];
 
-function PageHero({ eyebrow = 'Auction.by', title, text }) {
+function PageHero({ title, text }) {
   return (
     <header className={styles.staticHero}>
-      <span>{eyebrow}</span>
       <h1>{title}</h1>
       {text && <p>{text}</p>}
     </header>
