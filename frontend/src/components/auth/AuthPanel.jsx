@@ -178,7 +178,6 @@ function AuthPanel({ staffOnly = false, initialMode = 'register' }) {
 
   return (
     <section className={styles.panel}>
-      <p className={styles.panel__eyebrow}>AUCTION.BY</p>
       <h1>{title}</h1>
 
       {!staffOnly && (
@@ -237,7 +236,7 @@ function AuthPanel({ staffOnly = false, initialMode = 'register' }) {
               </span>
             </label>
             <button className={styles.button} type="submit" disabled={auth.status === 'loading' || !credentials.agreement}>
-              Отправить код
+              Отправить код подтверждения на почту
             </button>
           </form>
 

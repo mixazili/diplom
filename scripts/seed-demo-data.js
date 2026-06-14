@@ -704,13 +704,299 @@ const writeSvg = ({ dir, fileName, title, subtitle, color }) => {
   };
 };
 
+const photoSetVersion = 'category-photo-v4';
+
+const categoryPhotoCatalog = {
+  passenger_cars: [
+    'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1511919884226-fd3cad34687c?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1491933382434-500287f9b54b?auto=format&fit=crop&w=1200&q=80'
+  ],
+  trucks: [
+    'https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1553413077-190dd305871c?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1511919884226-fd3cad34687c?auto=format&fit=crop&w=1200&q=80'
+  ],
+  buses: [
+    'https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1553413077-190dd305871c?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1491933382434-500287f9b54b?auto=format&fit=crop&w=1200&q=80'
+  ],
+  motorcycles: [
+    'https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1511919884226-fd3cad34687c?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1200&q=80'
+  ],
+  commercial_real_estate: [
+    'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1511818966892-d7d671e672a2?auto=format&fit=crop&w=1200&q=80'
+  ],
+  apartments: [
+    'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80'
+  ],
+  land_plots: [
+    'https://images.unsplash.com/photo-1500595046743-cd271d694d30?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1471193945509-9ad0617afabf?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1494976388531-d1058494cdd8?auto=format&fit=crop&w=1200&q=80'
+  ],
+  electronics: [
+    'https://images.unsplash.com/photo-1553413077-190dd305871c?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1531297484001-80022131f5a1?auto=format&fit=crop&w=1200&q=80'
+  ],
+  computers: [
+    'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1531297484001-80022131f5a1?auto=format&fit=crop&w=1200&q=80'
+  ],
+  phones: [
+    'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1553413077-190dd305871c?auto=format&fit=crop&w=1200&q=80'
+  ],
+  warehouse_equipment: [
+    'https://images.unsplash.com/photo-1531297484001-80022131f5a1?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1553413077-190dd305871c?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?auto=format&fit=crop&w=1200&q=80'
+  ],
+  medical_equipment: [
+    'https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1516574187841-cb9cc2ca948b?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1526256262350-7da7584cf5eb?auto=format&fit=crop&w=1200&q=80'
+  ],
+  home_appliances: [
+    'https://images.unsplash.com/photo-1517701604599-bb29b565090c?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1517701604599-bb29b565090c?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1200&q=80'
+  ],
+  clothing: [
+    'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1200&q=80'
+  ],
+  furniture: [
+    'https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=1200&q=80'
+  ],
+  sports: [
+    'https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&w=1200&q=80'
+  ],
+  building_materials: [
+    'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1200&q=80'
+  ],
+  business_inventory: [
+    'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1484101403633-562f891dc89a?auto=format&fit=crop&w=1200&q=80'
+  ],
+  scrap: [
+    'https://images.unsplash.com/photo-1517142089942-ba376ce32a2e?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1581092921461-eab62e97a780?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1515669097368-22e68427d265?auto=format&fit=crop&w=1200&q=80'
+  ],
+  other_property: [
+    'https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1524805444758-089113d48a6d?auto=format&fit=crop&w=1200&q=80'
+  ],
+  art: [
+    'https://images.unsplash.com/photo-1541961017774-22349e4a1262?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1515405295579-ba7b45403062?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?auto=format&fit=crop&w=1200&q=80'
+  ],
+  books: [
+    'https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1495446815901-a7297e633e8d?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1507842217343-583bb7270b66?auto=format&fit=crop&w=1200&q=80'
+  ],
+  jewelry: [
+    'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1516574187841-cb9cc2ca948b?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1508057198894-247b23fe5ade?auto=format&fit=crop&w=1200&q=80'
+  ],
+  watches: [
+    'https://images.unsplash.com/photo-1516574187841-cb9cc2ca948b?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1508057198894-247b23fe5ade?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?auto=format&fit=crop&w=1200&q=80'
+  ],
+  coins: [
+    'https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1516574187841-cb9cc2ca948b?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1508057198894-247b23fe5ade?auto=format&fit=crop&w=1200&q=80'
+  ],
+  antiques: [
+    'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1545239351-1141bd82e8a6?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?auto=format&fit=crop&w=1200&q=80'
+  ],
+  musical_instruments: [
+    'https://images.unsplash.com/photo-1520523839897-bd0b52f945a0?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1514119412350-e174d90d280e?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1511379938547-c1f69419868d?auto=format&fit=crop&w=1200&q=80'
+  ],
+  agricultural_equipment: [
+    'https://images.unsplash.com/photo-1500595046743-cd271d694d30?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1471193945509-9ad0617afabf?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1494976388531-d1058494cdd8?auto=format&fit=crop&w=1200&q=80'
+  ],
+  livestock: [
+    'https://images.unsplash.com/photo-1546026423-cc4642628d2b?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1517022812141-23620dba5c23?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1500595046743-cd271d694d30?auto=format&fit=crop&w=1200&q=80'
+  ],
+  farm_products: [
+    'https://images.unsplash.com/photo-1500595046743-cd271d694d30?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1471193945509-9ad0617afabf?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1494976388531-d1058494cdd8?auto=format&fit=crop&w=1200&q=80'
+  ],
+  machines_equipment: [
+    'https://images.unsplash.com/photo-1531297484001-80022131f5a1?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1553413077-190dd305871c?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?auto=format&fit=crop&w=1200&q=80'
+  ],
+  construction_equipment: [
+    'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1587574293340-e0011c4e8ecf?auto=format&fit=crop&w=1200&q=80'
+  ],
+  food_equipment: [
+    'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1498654200943-1088dd4438ae?auto=format&fit=crop&w=1200&q=80'
+  ]
+};
+
+const categoryPhotoGroupMap = {
+  passenger_cars: 'transport',
+  trucks: 'transport',
+  buses: 'transport',
+  motorcycles: 'transport',
+  commercial_real_estate: 'real_estate',
+  apartments: 'real_estate',
+  land_plots: 'real_estate',
+  electronics: 'tech',
+  computers: 'tech',
+  phones: 'tech',
+  warehouse_equipment: 'tech',
+  medical_equipment: 'tech',
+  home_appliances: 'goods',
+  clothing: 'goods',
+  furniture: 'goods',
+  sports: 'goods',
+  building_materials: 'goods',
+  business_inventory: 'goods',
+  scrap: 'goods',
+  other_property: 'goods',
+  art: 'collectibles',
+  books: 'collectibles',
+  jewelry: 'collectibles',
+  watches: 'collectibles',
+  coins: 'collectibles',
+  antiques: 'collectibles',
+  musical_instruments: 'collectibles',
+  agricultural_equipment: 'agriculture',
+  livestock: 'agriculture',
+  farm_products: 'agriculture',
+  machines_equipment: 'industrial',
+  construction_equipment: 'industrial',
+  food_equipment: 'industrial'
+};
+
+const photoSourceSets = {
+  transport: [
+    'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1553413077-190dd305871c?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1511919884226-fd3cad34687c?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1491933382434-500287f9b54b?auto=format&fit=crop&w=1200&q=80'
+  ],
+  tech: [
+    'https://images.unsplash.com/photo-1553413077-190dd305871c?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1531297484001-80022131f5a1?auto=format&fit=crop&w=1200&q=80'
+  ],
+  real_estate: [
+    'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1511818966892-d7d671e672a2?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1502005229762-cf1b2da7c5d6?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80'
+  ],
+  collectibles: [
+    'https://images.unsplash.com/photo-1524805444758-089113d48a6d?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1520523839897-bd0b52f945a0?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1524758631624-e2822e304c36?auto=format&fit=crop&w=1200&q=80'
+  ],
+  goods: [
+    'https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1484101403633-562f891dc89a?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1517701604599-bb29b565090c?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=1200&q=80'
+  ],
+  agriculture: [
+    'https://images.unsplash.com/photo-1500595046743-cd271d694d30?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1471193945509-9ad0617afabf?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1587574293340-e0011c4e8ecf?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1494976388531-d1058494cdd8?auto=format&fit=crop&w=1200&q=80'
+  ],
+  industrial: [
+    'https://images.unsplash.com/photo-1531297484001-80022131f5a1?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1553413077-190dd305871c?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1511919884226-fd3cad34687c?auto=format&fit=crop&w=1200&q=80'
+  ],
+  default: [
+    'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1524805444758-089113d48a6d?auto=format&fit=crop&w=1200&q=80'
+  ]
+};
+
+const stableHash = (value) => {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
+  }
+  return hash;
+};
+
+const getPhotoUrls = ({ template, templateIndex, photoIndex }) => {
+  const sourceSet =
+    categoryPhotoCatalog[template.category] ||
+    photoSourceSets[categoryPhotoGroupMap[template.category] || 'default'] ||
+    photoSourceSets.default;
+  const offset = sourceSet.length ? stableHash([template.category, templateIndex, photoIndex, envName].join(':')) % sourceSet.length : 0;
+  return sourceSet.slice(offset).concat(sourceSet.slice(0, offset));
+};
+
+const imageRequestHeaders = {
+  'User-Agent': 'AuctionByDemoSeeder/1.0 (demo data image loader)',
+  Accept: 'image/avif,image/webp,image/png,image/jpeg,image/*,*/*;q=0.8'
+};
+
 const downloadFile = (url, filePath, redirectsLeft = 4) =>
   new Promise((resolve, reject) => {
     const client = url.startsWith('https:') ? https : http;
     let request = null;
     const timeoutId = setTimeout(() => {
       request?.destroy(new Error('Image download timeout'));
-    }, 5000);
+    }, 10000);
     let settled = false;
     const finish = (callback, value) => {
       if (settled) {
@@ -720,7 +1006,7 @@ const downloadFile = (url, filePath, redirectsLeft = 4) =>
       clearTimeout(timeoutId);
       callback(value);
     };
-    request = client.get(url, { timeout: 5000 }, (response) => {
+    request = client.get(url, { timeout: 10000, headers: imageRequestHeaders }, (response) => {
       if ([301, 302, 303, 307, 308].includes(response.statusCode) && response.headers.location && redirectsLeft > 0) {
         response.resume();
         const nextUrl = new URL(response.headers.location, url).toString();
@@ -748,57 +1034,89 @@ const downloadFile = (url, filePath, redirectsLeft = 4) =>
     request.on('error', (error) => finish(reject, error));
   });
 
+const imageExtensionToMime = {
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  webp: 'image/webp'
+};
+
+const makeFileInfo = ({ filePath, fileName, mimeType }) => ({
+  fieldName: 'photos',
+  originalName: fileName,
+  mimeType,
+  size: fs.statSync(filePath).size,
+  path: filePath
+});
+
+const findExistingPhotoFile = (baseName) => {
+  for (const extension of ['jpg', 'jpeg', 'png', 'webp']) {
+    const fileName = `${baseName}.${extension}`;
+    const filePath = path.join(auctionUploadDir, fileName);
+    if (fs.existsSync(filePath) && fs.statSync(filePath).size > 0) {
+      return makeFileInfo({
+        filePath,
+        fileName,
+        mimeType: imageExtensionToMime[extension] || 'image/jpeg'
+      });
+    }
+  }
+
+  return null;
+};
+
 const ensurePhotoFile = async ({ template, templateIndex, photoIndex }) => {
-  const lock = 1000 + templateIndex;
-  const safeKey = `${template.category}-${templateIndex}`;
-  const fileName = `${envName}-auction-photo-${safeKey}.jpg`;
-  const filePath = path.join(auctionUploadDir, fileName);
-
-  if (fs.existsSync(filePath) && fs.statSync(filePath).size > 0) {
-    return {
-      fieldName: 'photos',
-      originalName: fileName,
-      mimeType: 'image/jpeg',
-      size: fs.statSync(filePath).size,
-      path: filePath
-    };
+  const safeKey = `${photoSetVersion}-${template.category}-${templateIndex}-${photoIndex}`;
+  const baseName = `${envName}-auction-photo-${safeKey}`;
+  const existingFile = findExistingPhotoFile(baseName);
+  if (existingFile) {
+    return existingFile;
   }
 
-  const url = `https://loremflickr.com/1200/800/${encodeURIComponent(template.imageQuery)}?lock=${lock}`;
-  try {
-    await downloadFile(url, filePath);
-    return {
-      fieldName: 'photos',
-      originalName: fileName,
-      mimeType: 'image/jpeg',
-      size: fs.statSync(filePath).size,
-      path: filePath
-    };
-  } catch (error) {
-    console.warn(`Using SVG fallback for ${template.title}: ${error.message}`);
-    const fallback = writeSvg({
-      dir: auctionUploadDir,
-      fileName: fileName.replace('.jpg', '.svg'),
-      title: template.title,
-      subtitle: template.category,
-      color: ['#991b1b', '#1d4ed8', '#047857', '#92400e', '#6d28d9'][templateIndex % 5]
-    });
-    return { ...fallback, fieldName: 'photos' };
+  let fileName = `${baseName}.jpg`;
+  let filePath = path.join(auctionUploadDir, fileName);
+
+  const photoUrls = getPhotoUrls({ template, templateIndex, photoIndex });
+
+  for (const photoUrl of photoUrls) {
+    try {
+      await downloadFile(photoUrl, filePath);
+      return makeFileInfo({
+        filePath,
+        fileName,
+        mimeType: 'image/jpeg'
+      });
+    } catch (error) {
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+      console.warn(`Photo source failed for ${template.title}: ${error.message}`);
+    }
   }
+
+  console.warn(`Using SVG fallback for ${template.title}: all photo sources failed`);
+  const fallback = writeSvg({
+    dir: auctionUploadDir,
+    fileName: `${baseName}.svg`,
+    title: template.title,
+    subtitle: template.category,
+    color: ['#991b1b', '#1d4ed8', '#047857', '#92400e', '#6d28d9'][(templateIndex + photoIndex) % 5]
+  });
+  return { ...fallback, fieldName: 'photos' };
 };
 
 const photoCache = new Map();
 
-const makeAuctionPhotos = async ({ template, templateIndex }) => {
-  const count = 3;
+const makeAuctionPhotos = async ({ template, templateIndex, ownerIndex, auctionIndex, sequence }) => {
+  const count = 1 + ((templateIndex + ownerIndex * 7 + auctionIndex * 3 + sequence) % 6);
   const photos = [];
-  const cacheKey = `${templateIndex}:main`;
-
-  if (!photoCache.has(cacheKey)) {
-    photoCache.set(cacheKey, await ensurePhotoFile({ template, templateIndex, photoIndex: 0 }));
-  }
 
   for (let photoIndex = 0; photoIndex < count; photoIndex += 1) {
+    const cacheKey = `${templateIndex}:${photoIndex}`;
+    if (!photoCache.has(cacheKey)) {
+      photoCache.set(cacheKey, await ensurePhotoFile({ template, templateIndex, photoIndex }));
+    }
+
     const file = photoCache.get(cacheKey);
     photos.push({
       ...file,
@@ -1072,7 +1390,7 @@ const buildAuction = async ({ owner, ownerSeed, ownerIndex, auctionIndex, verifi
       locationCity: template.city,
       geoLocation: template.geoLocation
     },
-    photos: await makeAuctionPhotos({ template, templateIndex }),
+    photos: await makeAuctionPhotos({ template, templateIndex, ownerIndex, auctionIndex, sequence }),
     inspection: {
       contactName: verificationData.personalData.fullName || verificationData.organizationData.directorFullName,
       contactPhone: ownerSeed.phone,

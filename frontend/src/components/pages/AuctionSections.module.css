@@ -31,7 +31,6 @@
   }
 }
 
-.panel__eyebrow,
 .summary__label {
   margin: 0 0 8px;
   color: var(--color-accent);
@@ -81,15 +80,11 @@
   line-height: 1.15;
 }
 
-.homeHero p:not(.panel__eyebrow) {
+.homeHero p {
   max-width: 720px;
   margin: 10px 0 0;
   color: inherit;
   line-height: 1.55;
-}
-
-.homeHero .panel__eyebrow {
-  color: rgba(255, 255, 255, 0.82);
 }
 
 .homeSection {
