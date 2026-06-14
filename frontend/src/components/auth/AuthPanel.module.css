@@ -24,7 +24,6 @@
   border-color: rgba(185, 28, 28, 0.24);
 }
 
-.panel__eyebrow,
 .summary__label {
   margin: 0 0 8px;
   color: var(--color-accent);

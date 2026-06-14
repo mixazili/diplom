@@ -54,6 +54,12 @@ const pageSizeOptions = [20, 40, 60];
 const defaultStatuses = ['application_waiting', 'applications_open'];
 const allStatuses = statusGroups.flatMap((group) => group.values);
 const defaultAuctionTypes = ['increase', 'decrease'];
+const deprecatedPriceStorageKeys = [
+  'auction.catalog.priceRange',
+  'auction.catalog.price',
+  'auction.catalog.minPrice',
+  'auction.catalog.maxPrice'
+];
 
 const toggleValue = (values, value) =>
   values.includes(value) ? values.filter((item) => item !== value) : [...values, value];
@@ -211,6 +217,14 @@ function AuctionsPage({
     () => [{ value: '', label: 'Все города' }, ...(citiesByRegion[region] || []).map((item) => ({ value: item, label: item }))],
     [region]
   );
+
+  useEffect(() => {
+    try {
+      deprecatedPriceStorageKeys.forEach((key) => window.localStorage.removeItem(key));
+    } catch (error) {
+      // Price range is intentionally not persisted; unavailable localStorage is fine.
+    }
+  }, []);
 
   useEffect(() => {
     setPage(1);

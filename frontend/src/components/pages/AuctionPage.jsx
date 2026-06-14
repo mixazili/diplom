@@ -509,6 +509,7 @@ function TradingBlock({
   onPayLot,
   onPlaceBid,
   onOpenProtocol,
+  onNavigate,
   onCancelAuction,
   canCancelAuction = false,
   actionLoading
@@ -587,7 +588,7 @@ function TradingBlock({
           {restriction ? (
             <div className={styles.auctionPageNotice}>
               <AlertCircle size={18} />
-              <p>{restriction} <a href="#" onClick={(event) => event.preventDefault()}>Открыть инструкцию по участию в торгах</a></p>
+              <p>{restriction} <a href="#" onClick={(event) => { event.preventDefault(); onNavigate?.('static', { slug: 'biddingGuide' }); }}>Открыть инструкцию по участию в торгах</a></p>
             </div>
           ) : !participation && auction.status === 'applications_open' ? (
             <div className={styles.auctionPageAction}>
@@ -597,7 +598,7 @@ function TradingBlock({
           ) : !participation ? (
             <div className={styles.auctionPageNotice}>
               <AlertCircle size={18} />
-              <p>Подача заявки сейчас недоступна. <a href="#" onClick={(event) => event.preventDefault()}>Открыть инструкцию по участию в торгах</a></p>
+              <p>Подача заявки сейчас недоступна. <a href="#" onClick={(event) => { event.preventDefault(); onNavigate?.('static', { slug: 'biddingGuide' }); }}>Открыть инструкцию по участию в торгах</a></p>
             </div>
           ) : (
             null
@@ -835,6 +836,7 @@ function AuctionPage({
   onPayDepositAuction,
   onPayLotAuction,
   onToggleFavoriteAuction,
+  onNavigate,
   onCancelAuction,
   canCancelAuction = false
 }) {
@@ -1128,6 +1130,7 @@ function AuctionPage({
         onPayLot={() => setPageAction({ type: 'lot', auction })}
         onPlaceBid={placeBid}
         onOpenProtocol={onOpenProtocolAuction}
+        onNavigate={onNavigate}
         onCancelAuction={onCancelAuction}
         canCancelAuction={canCancelAuction}
         timeOffsetMs={timeOffsetMs}

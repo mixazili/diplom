@@ -13,6 +13,7 @@ import SiteFooter from './components/layout/SiteFooter.jsx';
 import HomePage from './components/pages/HomePage.jsx';
 import AuctionsPage from './components/pages/AuctionsPage.jsx';
 import AuctionPage from './components/pages/AuctionPage.jsx';
+import StaticInfoPage, { staticPages, staticPagesByPath } from './components/pages/StaticInfoPage.jsx';
 import AuctionActionModals from './components/auction/AuctionActionModals.jsx';
 import AuctionProtocolModal from './components/auction/AuctionProtocolModal.jsx';
 import { apiRequest, authHeader } from './api/client.js';
@@ -54,6 +55,10 @@ const routeFromLocation = () => {
     };
   }
 
+  if (staticPagesByPath[pathname]) {
+    return { name: 'static', slug: staticPagesByPath[pathname].slug };
+  }
+
   return { name: 'home' };
 };
 
@@ -86,6 +91,10 @@ const pathForRoute = (route) => {
 
   if (route.name === 'auction') {
     return `/auction/${route.id}`;
+  }
+
+  if (route.name === 'static') {
+    return staticPages[route.slug]?.path || staticPages.information.path;
   }
 
   return '/';
@@ -308,6 +317,19 @@ function App() {
       ];
     }
 
+    if (route.name === 'static') {
+      const page = staticPages[route.slug] || staticPages.information;
+      if (route.slug === 'information') {
+        return [home, { label: page.label }];
+      }
+
+      const parent = ['howTo', 'company', 'contacts', 'support'].includes(route.slug)
+        ? null
+        : { label: staticPages.information.label, route: { name: 'static', options: { slug: 'information' } } };
+
+      return [home, ...(parent ? [parent] : []), { label: page.label }];
+    }
+
     return [home];
   }, [auctionBreadcrumb, route, user?.role]);
 
@@ -405,6 +427,7 @@ function App() {
           onPayLotAuction={openLotPayment}
           onOpenProtocolAuction={openAuctionProtocol}
           onToggleFavoriteAuction={toggleFavoriteAuction}
+          onNavigate={navigate}
           onCancelAuction={openCancelAuction}
           canCancelAuction={canStaffCancelAuctions}
         />
@@ -431,6 +454,10 @@ function App() {
           canCancelAuction={canStaffCancelAuctions}
         />
       );
+    }
+
+    if (route.name === 'static') {
+      return <StaticInfoPage slug={route.slug} onNavigate={navigate} />;
     }
 
     return (

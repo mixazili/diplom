@@ -283,10 +283,10 @@ function SiteHeader({
 
       <nav className={styles.siteHeader__nav} aria-label="Основная навигация">
         <button className={styles.siteHeader__navPrimary} type="button" onClick={() => onNavigate('auctions')}>Каталог аукционов</button>
-        <button type="button">Как продать/купить?</button>
-        <button type="button">Информация</button>
-        <button type="button">О компании</button>
-        <button type="button">Контакты</button>
+        <button type="button" onClick={() => onNavigate('static', { slug: 'howTo' })}>Как продать/купить?</button>
+        <button type="button" onClick={() => onNavigate('static', { slug: 'information' })}>Информация</button>
+        <button type="button" onClick={() => onNavigate('static', { slug: 'company' })}>О компании</button>
+        <button type="button" onClick={() => onNavigate('static', { slug: 'contacts' })}>Контакты</button>
       </nav>
 
       <div className={styles.siteHeader__categories}>

@@ -162,7 +162,6 @@ function HomePage({
     <div className={styles.publicPage}>
       <section className={styles.homeHero}>
         <div>
-          <p className={styles.panel__eyebrow}>AUCTION.BY</p>
           <h1>Онлайн-аукционы для имущества, техники и бизнеса</h1>
           <p>
             Создавайте аукционы, проходите модерацию, подавайте заявки и участвуйте в торгах в одном веб-приложении.

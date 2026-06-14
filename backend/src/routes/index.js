@@ -7,6 +7,7 @@ const healthRoutes = require('./healthRoutes');
 const moderationRoutes = require('./moderationRoutes');
 const notificationRoutes = require('./notificationRoutes');
 const systemRoutes = require('./systemRoutes');
+const supportRoutes = require('./supportRoutes');
 const verificationRoutes = require('./verificationRoutes');
 
 const router = Router();
@@ -19,6 +20,7 @@ router.use('/health', healthRoutes);
 router.use('/moderation', moderationRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/system', systemRoutes);
+router.use('/support', supportRoutes);
 router.use('/verification', verificationRoutes);
 
 module.exports = router;

@@ -887,6 +887,8 @@ function AuctionCreateForm({ verification, initialAuction = null, onSaved, onCan
                 options={Object.entries(auctionCategoryLabels).map(([value, label]) => ({ value, label }))}
                 onChange={changeCategory}
                 error={Boolean(errors['item.category'])}
+                searchable
+                searchPlaceholder="Поиск категории"
               />
               {errors['item.category'] && <span className={styles.field__error}>{errors['item.category']}</span>}
             </label>
